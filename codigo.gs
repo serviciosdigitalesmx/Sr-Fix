@@ -66,8 +66,8 @@ function inicializarPasswordsPorDefecto() {
   const actual = props.getProperties();
 
   const updates = {};
-  if (!actual[CONFIG.SCRIPT_PROP_KEYS.TECNICO]) updates[CONFIG.SCRIPT_PROP_KEYS.TECNICO] = 'SrFix123';
-  if (!actual[CONFIG.SCRIPT_PROP_KEYS.OPERATIVO]) updates[CONFIG.SCRIPT_PROP_KEYS.OPERATIVO] = 'SrFix123';
+  if (!actual[CONFIG.SCRIPT_PROP_KEYS.TECNICO]) updates[CONFIG.SCRIPT_PROP_KEYS.TECNICO] = 'Admin1';
+  if (!actual[CONFIG.SCRIPT_PROP_KEYS.OPERATIVO]) updates[CONFIG.SCRIPT_PROP_KEYS.OPERATIVO] = 'Admin2';
 
   if (Object.keys(updates).length > 0) {
     props.setProperties(updates, false);

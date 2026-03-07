@@ -33,9 +33,7 @@
                 const res = await fetch(CONFIG.BACKEND_URL, {
                     method: 'POST',
                     body: JSON.stringify({
-                        action: 'semaforo',
-                        modulo: CONFIG.MODULO,
-                        password: PASSWORD
+                        action: 'semaforo'
                     })
                 });
                 if (!res.ok) throw new Error('Error de conexión');
@@ -307,8 +305,6 @@
 
             const data = {
                 action: 'crear_equipo',
-                modulo: CONFIG.MODULO,
-                password: PASSWORD,
                 clienteNombre: document.getElementById('cliente-nombre').value.trim(),
                 clienteTelefono: document.getElementById('cliente-telefono').value.replace(/\D/g, ''),
                 clienteEmail: document.getElementById('cliente-email').value.trim() || '',

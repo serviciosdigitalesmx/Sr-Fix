@@ -88,9 +88,7 @@
                 const res = await fetch(CONFIG.BACKEND_URL, {
                     method: 'POST',
                     body: JSON.stringify({
-                        action: 'semaforo',
-                        modulo: CONFIG.MODULO,
-                        password: PASSWORD
+                        action: 'semaforo'
                     })
                 });
                 if (!res.ok) throw new Error('Error de conexión');
@@ -320,8 +318,6 @@
                     method: 'POST',
                     body: JSON.stringify({
                         action: 'actualizar_equipo',
-                        modulo: CONFIG.MODULO,
-                        password: PASSWORD,
                         folio: equipoActual.FOLIO,
                         campos: campos
                     })
@@ -349,8 +345,6 @@
                     method: 'POST',
                     body: JSON.stringify({
                         action: 'actualizar_equipo',
-                        modulo: CONFIG.MODULO,
-                        password: PASSWORD,
                         folio: equipoActual.FOLIO,
                         campos: campos
                     })

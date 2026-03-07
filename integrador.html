@@ -136,7 +136,7 @@
     <div id="login-screen" class="login-screen">
         <div class="login-card">
             <h2>Acceso interno</h2>
-            <p>Ingresa una sola vez para Operativo y Técnico</p>
+            <p>Ingresa una sola vez para Operativo, Técnico y Solicitudes</p>
             <input id="master-password" class="login-input" type="password" placeholder="Contraseña" autocomplete="current-password">
             <button id="master-login-btn" class="login-btn" type="button">Entrar</button>
             <div id="master-error" class="login-error"></div>
@@ -151,6 +151,7 @@
         <nav class="tabs">
             <button id="tab-operativo" class="tab" type="button">Operativo</button>
             <button id="tab-tecnico" class="tab" type="button">Técnico</button>
+            <button id="tab-solicitudes" class="tab" type="button">Solicitudes</button>
         </nav>
     </header>
     <div class="wrap">
@@ -160,56 +161,75 @@
         <section id="panel-tecnico" class="panel" aria-label="Módulo Técnico">
             <iframe id="frame-tecnico" title="Modulo Técnico" src="about:blank"></iframe>
         </section>
+        <section id="panel-solicitudes" class="panel" aria-label="Módulo Solicitudes">
+            <iframe id="frame-solicitudes" title="Modulo Solicitudes" src="about:blank"></iframe>
+        </section>
     </div>
     <div class="fallback">
         Si algo falla: <a href="./panel-operativo.html" target="_blank">Operativo</a> |
-        <a href="./panel-tecnico.html" target="_blank">Técnico</a>
+        <a href="./panel-tecnico.html" target="_blank">Técnico</a> |
+        <a href="./panel-solicitudes.html" target="_blank">Solicitudes</a>
     </div>
 
     <script>
         const PANEL_OP = document.getElementById('panel-operativo');
         const PANEL_TE = document.getElementById('panel-tecnico');
+        const PANEL_SO = document.getElementById('panel-solicitudes');
         const BTN_OP = document.getElementById('tab-operativo');
         const BTN_TE = document.getElementById('tab-tecnico');
+        const BTN_SO = document.getElementById('tab-solicitudes');
         const FRAME_OP = document.getElementById('frame-operativo');
         const FRAME_TE = document.getElementById('frame-tecnico');
+        const FRAME_SO = document.getElementById('frame-solicitudes');
         const LOGIN_SCREEN = document.getElementById('login-screen');
         const MASTER_INPUT = document.getElementById('master-password');
         const MASTER_BTN = document.getElementById('master-login-btn');
         const MASTER_ERROR = document.getElementById('master-error');
         const MASTER_PASS = 'Admin1';
-        let cargado = false;
+        const FRAME_SRC = {
+            operativo: './panel-operativo.html',
+            tecnico: './panel-tecnico.html',
+            solicitudes: './panel-solicitudes.html'
+        };
+
+        function asegurarCargaIframe(modulo) {
+            if (modulo === 'operativo' && FRAME_OP.src === 'about:blank') {
+                FRAME_OP.src = FRAME_SRC.operativo;
+            }
+            if (modulo === 'tecnico' && FRAME_TE.src === 'about:blank') {
+                FRAME_TE.src = FRAME_SRC.tecnico;
+            }
+            if (modulo === 'solicitudes' && FRAME_SO.src === 'about:blank') {
+                FRAME_SO.src = FRAME_SRC.solicitudes;
+            }
+        }
 
         function mostrarModulo(modulo) {
-            const isTecnico = modulo === 'tecnico';
-            PANEL_OP.classList.toggle('active', !isTecnico);
-            PANEL_TE.classList.toggle('active', isTecnico);
-            BTN_OP.classList.toggle('active', !isTecnico);
-            BTN_TE.classList.toggle('active', isTecnico);
+            const actual = ['operativo', 'tecnico', 'solicitudes'].includes(modulo) ? modulo : 'operativo';
+            asegurarCargaIframe(actual);
+            PANEL_OP.classList.toggle('active', actual === 'operativo');
+            PANEL_TE.classList.toggle('active', actual === 'tecnico');
+            PANEL_SO.classList.toggle('active', actual === 'solicitudes');
+            BTN_OP.classList.toggle('active', actual === 'operativo');
+            BTN_TE.classList.toggle('active', actual === 'tecnico');
+            BTN_SO.classList.toggle('active', actual === 'solicitudes');
 
             const url = new URL(window.location.href);
-            url.searchParams.set('modulo', isTecnico ? 'tecnico' : 'operativo');
+            url.searchParams.set('modulo', actual);
             window.history.replaceState({}, '', url);
         }
 
         BTN_OP.addEventListener('click', () => mostrarModulo('operativo'));
         BTN_TE.addEventListener('click', () => mostrarModulo('tecnico'));
-
-        function cargarIframes() {
-            if (cargado) return;
-            FRAME_OP.src = './panel-operativo.html';
-            FRAME_TE.src = './panel-tecnico.html';
-            cargado = true;
-        }
+        BTN_SO.addEventListener('click', () => mostrarModulo('solicitudes'));
 
         function entrarIntegrador() {
             sessionStorage.setItem('srfix_pass_master', MASTER_PASS);
             sessionStorage.setItem('srfix_pass_operativo', MASTER_PASS);
             sessionStorage.setItem('srfix_pass_tecnico', MASTER_PASS);
             LOGIN_SCREEN.style.display = 'none';
-            cargarIframes();
             const modulo = new URLSearchParams(window.location.search).get('modulo');
-            mostrarModulo(modulo === 'tecnico' ? 'tecnico' : 'operativo');
+            mostrarModulo(modulo || 'operativo');
         }
 
         function validarMaster() {

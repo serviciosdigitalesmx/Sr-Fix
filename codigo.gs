@@ -39,6 +39,12 @@ function inicializarSistema() {
       'ID', 'NOMBRE', 'TELEFONO', 'EMAIL', 'FECHA_REGISTRO'
     ]);
 
+    crearHojaSiNoExiste(ss, 'Solicitudes', [
+      'ID', 'FOLIO_COTIZACION', 'FECHA_SOLICITUD', 'NOMBRE', 'TELEFONO',
+      'EMAIL', 'DISPOSITIVO', 'MODELO', 'PROBLEMAS', 'DESCRIPCION',
+      'URGENCIA', 'ESTADO'
+    ]);
+
     // Deja contraseñas de ejemplo si aún no existen.
     inicializarPasswordsPorDefecto();
 
@@ -142,6 +148,12 @@ function doPost(e) {
         return actualizarEquipo(data);
       case 'semaforo':
         return getSemaforoData();
+      case 'crear_solicitud':
+        return crearSolicitud(data);
+      case 'listar_solicitudes':
+        return listarSolicitudes();
+      case 'archivar_solicitud':
+        return archivarSolicitud(data);
       default:
         return jsonResponse({ error: 'Acción no válida' });
     }
@@ -343,6 +355,73 @@ function actualizarEquipo(data) {
     hoja.getRange(fila, colIndex.FECHA_ENTREGA).setValue(new Date().toISOString());
   }
 
+  return jsonResponse({ success: true });
+}
+
+function crearSolicitud(data) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const hoja = ss.getSheetByName('Solicitudes');
+  if (!hoja) return jsonResponse({ error: 'Hoja Solicitudes no encontrada' });
+
+  const folioCotizacion = 'COT-' + Math.floor(1000 + Math.random() * 9000);
+  const ahora = new Date().toISOString();
+  const problemas = Array.isArray(data.problemas) ? data.problemas.join(', ') : (data.problemas || '');
+
+  hoja.appendRow([
+    Utilities.getUuid(),
+    folioCotizacion,
+    ahora,
+    data.nombre || '',
+    data.telefono || '',
+    data.email || '',
+    data.dispositivo || '',
+    data.modelo || '',
+    problemas,
+    data.descripcion || '',
+    data.urgencia || '',
+    'pendiente'
+  ]);
+
+  return jsonResponse({ success: true, folio: folioCotizacion });
+}
+
+function listarSolicitudes() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const hoja = ss.getSheetByName('Solicitudes');
+  if (!hoja) return jsonResponse({ solicitudes: [] });
+
+  const datos = hoja.getDataRange().getValues();
+  if (!datos || datos.length < 2) return jsonResponse({ solicitudes: [] });
+  const headers = datos[0];
+
+  const solicitudes = datos.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = row[i]);
+    return obj;
+  }).filter(s => String(s.ESTADO || '').toLowerCase() === 'pendiente');
+
+  return jsonResponse({ solicitudes: solicitudes });
+}
+
+function archivarSolicitud(data) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const hoja = ss.getSheetByName('Solicitudes');
+  if (!hoja) return jsonResponse({ error: 'Hoja Solicitudes no encontrada' });
+
+  const datos = hoja.getDataRange().getValues();
+  if (!datos || datos.length < 2) return jsonResponse({ error: 'Sin solicitudes' });
+  const headers = datos[0];
+  const idxEstado = headers.indexOf('ESTADO');
+  const idxFolio = headers.indexOf('FOLIO_COTIZACION');
+
+  if (idxEstado === -1 || idxFolio === -1) {
+    return jsonResponse({ error: 'Estructura de hoja incorrecta' });
+  }
+
+  const filaIdx = datos.findIndex((row, i) => i > 0 && row[idxFolio] === data.folio);
+  if (filaIdx === -1) return jsonResponse({ error: 'No encontrada' });
+
+  hoja.getRange(filaIdx + 1, idxEstado + 1).setValue('archivado');
   return jsonResponse({ success: true });
 }
 

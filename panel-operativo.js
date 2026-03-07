@@ -10,6 +10,7 @@
         // ==========================================
         let PASSWORD = '';
         let fotoRecepcionBase64 = '';
+        let ultimaOrdenRegistrada = null;
 
         (function() {
             const saved = sessionStorage.getItem('srfix_pass_master') || sessionStorage.getItem('srfix_pass_operativo');
@@ -332,6 +333,18 @@
                 const result = await res.json();
 
                 if (result.success) {
+                    ultimaOrdenRegistrada = {
+                        folio: result.folio,
+                        fecha: new Date().toLocaleString('es-MX'),
+                        clienteNombre: data.clienteNombre,
+                        clienteTelefono: data.clienteTelefono,
+                        clienteEmail: data.clienteEmail,
+                        dispositivo: data.dispositivo,
+                        modelo: data.modelo,
+                        falla: data.falla,
+                        fechaPromesa: data.fechaPromesa,
+                        costo: data.costo || 0
+                    };
                     localStorage.removeItem('srfix_borrador_orden');
                     document.getElementById('step-3').classList.add('hidden');
                     document.getElementById('exito').classList.remove('hidden');
@@ -363,6 +376,115 @@
             });
         }
 
+        function generarPDFResumenOrden() {
+            actualizarResumen();
+            const datos = {
+                folio: 'PREVIO-SIN-FOLIO',
+                fecha: new Date().toLocaleString('es-MX'),
+                clienteNombre: document.getElementById('res-cliente').textContent || '---',
+                clienteTelefono: document.getElementById('res-telefono').textContent || '---',
+                clienteEmail: document.getElementById('res-email').textContent || '---',
+                dispositivo: document.getElementById('res-equipo').textContent || '---',
+                falla: document.getElementById('res-falla').textContent || '---',
+                fechaPromesa: document.getElementById('res-fecha').textContent || '---',
+                costo: (document.getElementById('res-costo').textContent || '$0').replace('$', '')
+            };
+
+            const html = `
+                <!doctype html>
+                <html lang="es">
+                <head>
+                    <meta charset="utf-8">
+                    <title>Pre-orden ${datos.fecha}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 24px; color: #111; }
+                        h1 { margin: 0 0 8px 0; color: #1f7edc; }
+                        .muted { color: #555; margin-bottom: 16px; }
+                        .card { border: 1px solid #ddd; border-radius: 8px; padding: 14px; }
+                        .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; }
+                        .row:last-child { border-bottom: 0; }
+                        .k { color: #666; font-weight: bold; }
+                        .v { color: #111; text-align: right; max-width: 60%; }
+                    </style>
+                </head>
+                <body>
+                    <h1>SRFIX - Resumen de Orden (Previo)</h1>
+                    <div class="muted">Fecha: ${datos.fecha}</div>
+                    <div class="card">
+                        <div class="row"><div class="k">Cliente</div><div class="v">${datos.clienteNombre}</div></div>
+                        <div class="row"><div class="k">Teléfono</div><div class="v">${datos.clienteTelefono}</div></div>
+                        <div class="row"><div class="k">Email</div><div class="v">${datos.clienteEmail}</div></div>
+                        <div class="row"><div class="k">Equipo</div><div class="v">${datos.dispositivo}</div></div>
+                        <div class="row"><div class="k">Falla</div><div class="v">${datos.falla}</div></div>
+                        <div class="row"><div class="k">Fecha promesa</div><div class="v">${datos.fechaPromesa}</div></div>
+                        <div class="row"><div class="k">Costo estimado</div><div class="v">$${datos.costo}</div></div>
+                    </div>
+                    <script>window.onload = () => window.print();<\/script>
+                </body>
+                </html>
+            `;
+
+            const w = window.open('', '_blank');
+            if (!w) {
+                mostrarToast('Permite ventanas emergentes para generar PDF', 'error');
+                return;
+            }
+            w.document.open();
+            w.document.write(html);
+            w.document.close();
+        }
+
+        function descargarOrdenPDF() {
+            if (!ultimaOrdenRegistrada) {
+                mostrarToast('No hay orden registrada para exportar', 'error');
+                return;
+            }
+
+            const o = ultimaOrdenRegistrada;
+            const html = `
+                <!doctype html>
+                <html lang="es">
+                <head>
+                    <meta charset="utf-8">
+                    <title>Orden ${o.folio}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 24px; color: #111; }
+                        h1 { margin: 0 0 8px 0; color: #1f7edc; }
+                        .muted { color: #555; margin-bottom: 16px; }
+                        .card { border: 1px solid #ddd; border-radius: 8px; padding: 14px; }
+                        .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; }
+                        .row:last-child { border-bottom: 0; }
+                        .k { color: #666; font-weight: bold; }
+                        .v { color: #111; text-align: right; max-width: 60%; }
+                    </style>
+                </head>
+                <body>
+                    <h1>SRFIX - Orden de Servicio</h1>
+                    <div class="muted">Folio: ${o.folio} | Fecha: ${o.fecha}</div>
+                    <div class="card">
+                        <div class="row"><div class="k">Cliente</div><div class="v">${o.clienteNombre || '---'}</div></div>
+                        <div class="row"><div class="k">Teléfono</div><div class="v">${o.clienteTelefono || '---'}</div></div>
+                        <div class="row"><div class="k">Email</div><div class="v">${o.clienteEmail || '---'}</div></div>
+                        <div class="row"><div class="k">Equipo</div><div class="v">${o.dispositivo || '---'} ${o.modelo || ''}</div></div>
+                        <div class="row"><div class="k">Falla</div><div class="v">${o.falla || '---'}</div></div>
+                        <div class="row"><div class="k">Fecha promesa</div><div class="v">${o.fechaPromesa || '---'}</div></div>
+                        <div class="row"><div class="k">Costo estimado</div><div class="v">$${o.costo || 0}</div></div>
+                    </div>
+                    <script>window.onload = () => window.print();<\/script>
+                </body>
+                </html>
+            `;
+
+            const w = window.open('', '_blank');
+            if (!w) {
+                mostrarToast('Permite ventanas emergentes para generar PDF', 'error');
+                return;
+            }
+            w.document.open();
+            w.document.write(html);
+            w.document.close();
+        }
+
         function nuevaOrden() {
             document.getElementById('cliente-nombre').value = '';
             document.getElementById('cliente-telefono').value = '';
@@ -376,6 +498,7 @@
             document.getElementById('foto-recepcion').value = '';
             document.getElementById('foto-preview-wrap').classList.add('hidden');
             fotoRecepcionBase64 = '';
+            ultimaOrdenRegistrada = null;
 
             const f = new Date(); f.setDate(f.getDate() + 3);
             document.getElementById('fecha-promesa').valueAsDate = f;

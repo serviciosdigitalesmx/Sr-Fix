@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRFIX - Panel Solicitudes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-[#1E1E1E] text-[#F2F2F2]">
+    <header class="border-b border-[#1F7EDC] bg-[#161616] sticky top-0 z-10">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <h1 class="text-xl font-bold text-[#1F7EDC] flex items-center gap-2">
+                <i class="fa-solid fa-file-lines"></i> Panel de Solicitudes
+            </h1>
+            <button id="btn-refresh" class="px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">
+                <i class="fa-solid fa-rotate-right"></i> Actualizar
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-6">
+        <div class="mb-4 text-sm text-[#8A8F95]">
+            Pendientes: <span id="count" class="text-[#1F7EDC] font-bold">0</span>
+        </div>
+        <div id="loading" class="text-center py-10 text-[#8A8F95]">
+            <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Cargando solicitudes...
+        </div>
+        <div id="empty" class="hidden text-center py-10 text-[#8A8F95]">
+            No hay solicitudes pendientes.
+        </div>
+        <div id="list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </main>
+
+    <div id="cotizacion-modal" class="hidden fixed inset-0 bg-black/70 z-20 flex items-center justify-center p-4">
+        <div class="bg-[#2B2B2B] border border-[#1F7EDC] rounded-xl w-full max-w-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-[#1F7EDC]"><i class="fa-solid fa-file-invoice"></i> Cotización</h2>
+                <button id="btn-cotizacion-cerrar" class="text-[#8A8F95] hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="space-y-2 text-sm">
+                <p><span class="text-[#8A8F95]">Folio:</span> <span id="cot-folio"></span></p>
+                <p><span class="text-[#8A8F95]">Cliente:</span> <span id="cot-cliente"></span></p>
+                <p><span class="text-[#8A8F95]">Teléfono:</span> <span id="cot-telefono"></span></p>
+                <p><span class="text-[#8A8F95]">Equipo:</span> <span id="cot-equipo"></span></p>
+                <p><span class="text-[#8A8F95]">Problema:</span> <span id="cot-problema"></span></p>
+                <p><span class="text-[#8A8F95]">Urgencia:</span> <span id="cot-urgencia"></span></p>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5">
+                <button id="btn-cotizacion-pdf" class="bg-[#1F7EDC] hover:bg-blue-600 text-white rounded-lg py-2 text-sm font-semibold">
+                    <i class="fa-solid fa-file-pdf"></i> Descargar PDF
+                </button>
+                <button id="btn-cotizacion-wa" class="bg-green-600 hover:bg-green-500 text-white rounded-lg py-2 text-sm font-semibold">
+                    <i class="fa-brands fa-whatsapp"></i> WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./panel-solicitudes.js"></script>
+</body>
+</html>

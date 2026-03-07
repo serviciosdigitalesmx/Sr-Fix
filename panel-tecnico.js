@@ -242,9 +242,19 @@
                 const detalle = await obtenerDetalleEquipo(eq.FOLIO);
                 if (detalle) eq = { ...eq, ...detalle };
             }
+            equipoActual = eq;
             document.getElementById('modal-folio').textContent = eq.FOLIO;
             document.getElementById('modal-cliente').textContent = eq.CLIENTE_NOMBRE || 'N/A';
             document.getElementById('modal-telefono').textContent = eq.CLIENTE_TELEFONO || 'N/A';
+            const waBtn = document.getElementById('modal-wa-btn');
+            const waUrl = construirWaUrl(eq.CLIENTE_TELEFONO, eq.FOLIO);
+            if (waUrl) {
+                waBtn.href = waUrl;
+                waBtn.classList.remove('hidden');
+            } else {
+                waBtn.href = '#';
+                waBtn.classList.add('hidden');
+            }
             document.getElementById('modal-equipo').textContent = `${eq.DISPOSITIVO || ''} ${eq.MODELO || ''}`.trim() || 'N/A';
             document.getElementById('modal-falla').textContent = eq.FALLA_REPORTADA || 'Sin descripción';
 
@@ -396,6 +406,29 @@
                 .replace(/'/g, "&#039;");
         }
 
+        function construirWaUrl(telefono, folio) {
+            const limpio = String(telefono || '').replace(/\D/g, '');
+            if (!limpio) return '';
+            const destino = limpio.length === 10 ? `52${limpio}` : limpio;
+            const mensaje = `Hola, te escribimos de SrFix sobre tu equipo con folio ${folio}.`;
+            return `https://wa.me/${destino}?text=${encodeURIComponent(mensaje)}`;
+        }
+
+        function enviarWhatsAppCliente() {
+            if (!equipoActual) return;
+            const telefono = equipoActual.CLIENTE_TELEFONO;
+            if (!telefono) {
+                mostrarToast('El cliente no tiene teléfono registrado', 'error');
+                return;
+            }
+            const folio = equipoActual.FOLIO;
+            const estado = equipoActual.ESTADO || 'Recibido';
+            const limpio = String(telefono).replace(/\D/g, '');
+            const destino = limpio.length === 10 ? `52${limpio}` : limpio;
+            const mensaje = `Hola, te escribimos de SrFix para informarte que tu equipo con folio ${folio} se encuentra en estado: ${estado}.`;
+            window.open(`https://wa.me/${destino}?text=${encodeURIComponent(mensaje)}`, '_blank');
+        }
+
         function parseSeguimientoFotos(raw) {
             if (!raw) return [];
             if (Array.isArray(raw)) return raw.filter(v => typeof v === 'string' && v.startsWith('data:image/'));
@@ -500,6 +533,11 @@
             if (Number.isNaN(idx)) return;
             seguimientoFotosBase64.splice(idx, 1);
             renderizarGaleriaSeguimiento();
+        });
+
+        document.getElementById('modal-wa-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            enviarWhatsAppCliente();
         });
 
         window.addEventListener('load', () => {

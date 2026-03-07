@@ -1,3 +1,8 @@
+        const CONFIG = {
+            BACKEND_URL: 'https://script.google.com/macros/s/AKfycbzQVtN84j6wikyyRsuRyC_mLQIjrU8tbCHEydBweDxI1nCo2Sbvol3El8CkKlpx3jzq/exec',
+            WHATSAPP: '528117006536'
+        };
+
         // Navbar scroll effect
         window.addEventListener('scroll', () => {
             const navbar = document.getElementById('navbar');
@@ -50,8 +55,8 @@
             });
         });
 
-        // Form submission - enviar a WhatsApp (CORREGIDO)
-        document.getElementById('cotizadorForm').addEventListener('submit', function(e) {
+        // Form submission - guardar en backend y enviar a WhatsApp
+        document.getElementById('cotizadorForm').addEventListener('submit', async function(e) {
             e.preventDefault(); // Evitar envío tradicional
 
             try {
@@ -70,6 +75,7 @@
                 const modelo = document.querySelector('input[name="modelo"]').value.trim();
                 const descripcion = document.querySelector('textarea[name="descripcion"]').value.trim();
                 const urgencia = document.getElementById('urgenciaInput').value;
+                const email = document.querySelector('input[name="email"]')?.value.trim() || '';
 
                 // Recoger problemas seleccionados
                 const problemas = [];
@@ -84,10 +90,32 @@
                 else if (urgencia === 'media') urgenciaTexto = 'Media (en 2-3 días)';
                 else urgenciaTexto = 'Alta (urgente, 24h)';
 
+                const payload = {
+                    action: 'crear_solicitud',
+                    nombre: nombre,
+                    telefono: telefono,
+                    email: email,
+                    dispositivo: dispositivo,
+                    modelo: modelo,
+                    problemas: problemas,
+                    descripcion: descripcion,
+                    urgencia: urgencia
+                };
+
+                const response = await fetch(CONFIG.BACKEND_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error('Error de conexión al backend');
+                const result = await response.json();
+                if (result.error || !result.success) throw new Error(result.error || 'No se pudo guardar la solicitud');
+
                 // Construir mensaje con saltos de línea reales (luego se codificará)
                 let mensaje = "*Nueva cotización - SrFix Oficial*\n\n";
+                mensaje += `*Folio:* ${result.folio || 'N/A'}\n`;
                 mensaje += `*Nombre:* ${nombre || 'No especificado'}\n`;
                 mensaje += `*Teléfono:* ${telefono || 'No especificado'}\n`;
+                mensaje += `*Email:* ${email || 'No especificado'}\n`;
                 mensaje += `*Dispositivo:* ${dispositivo}\n`;
                 mensaje += `*Modelo:* ${modelo || 'No especificado'}\n`;
                 mensaje += `*Problemas:* ${problemas.length > 0 ? problemas.join(', ') : 'No especificados'}\n`;
@@ -95,7 +123,7 @@
                 mensaje += `*Urgencia:* ${urgenciaTexto}\n`;
 
                 // Codificar el mensaje completo y abrir WhatsApp
-                const url = `https://wa.me/528117006536?text=${encodeURIComponent(mensaje)}`;
+                const url = `https://wa.me/${CONFIG.WHATSAPP}?text=${encodeURIComponent(mensaje)}`;
                 window.open(url, '_blank');
 
                 // Resetear formulario después de abrir la ventana
@@ -104,10 +132,10 @@
                 document.querySelector('.urgencia-btn[data-value="alta"]').click(); // reset a urgencia alta
 
                 // Feedback opcional
-                alert('Redirigiendo a WhatsApp con tu cotización...');
+                alert(`Solicitud guardada con folio ${result.folio}. Redirigiendo a WhatsApp...`);
             } catch (error) {
                 console.error('Error al enviar cotización:', error);
-                alert('Ocurrió un error al generar la cotización. Intenta de nuevo.');
+                alert('No se pudo guardar la solicitud. Revisa tu conexión e intenta de nuevo.');
             }
         });
 

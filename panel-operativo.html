@@ -239,6 +239,9 @@
                 <button onclick="irPaso(2)" class="flex-1 bg-[#2B2B2B] hover:bg-[#3a3a3a] text-[#F2F2F2] font-bold py-3 rounded-lg transition flex items-center justify-center gap-2 border border-[#1F7EDC]">
                     <i class="fa-solid fa-pencil"></i> Corregir
                 </button>
+                <button onclick="generarPDFResumenOrden()" class="flex-1 bg-[#1F7EDC] hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-file-pdf"></i> Generar PDF
+                </button>
                 <button onclick="guardarOrden()" id="btn-guardar" class="flex-1 btn-wa font-bold py-3 rounded-lg flex items-center justify-center gap-2">
                     <i class="fa-solid fa-save"></i> Guardar Orden
                 </button>
@@ -262,6 +265,9 @@
                 <a href="#" id="whatsapp-link" target="_blank" class="btn-wa font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2">
                     <i class="fa-brands fa-whatsapp"></i> Enviar por WhatsApp
                 </a>
+                <button onclick="descargarOrdenPDF()" class="bg-[#1F7EDC] hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-file-pdf"></i> Descargar PDF
+                </button>
             </div>
             <p class="text-sm text-[#8A8F95] mb-6">Comparte este folio con el cliente para que pueda consultar el estado.</p>
             <button onclick="nuevaOrden()" class="btn-naranja font-bold py-3 px-8 rounded-lg flex items-center justify-center gap-2 mx-auto">

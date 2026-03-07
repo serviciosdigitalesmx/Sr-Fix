@@ -12,8 +12,11 @@
         let fotoRecepcionBase64 = '';
 
         (function() {
-            const saved = sessionStorage.getItem('srfix_pass_operativo');
-            if (saved) document.getElementById('password-input').value = saved;
+            const saved = sessionStorage.getItem('srfix_pass_master') || sessionStorage.getItem('srfix_pass_operativo');
+            if (saved) {
+                document.getElementById('password-input').value = saved;
+                login();
+            }
         })();
 
         // ==========================================

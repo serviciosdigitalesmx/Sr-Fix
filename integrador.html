@@ -57,6 +57,13 @@
             border-color: var(--orange);
         }
         .wrap { height: calc(100vh - 62px); }
+        .panel {
+            display: none;
+            height: 100%;
+        }
+        .panel.active {
+            display: block;
+        }
         iframe {
             width: 100%;
             height: 100%;
@@ -69,9 +76,73 @@
             font-size: 12px;
         }
         .fallback a { color: var(--blue); }
+        .login-screen {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 10, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            padding: 16px;
+        }
+        .login-card {
+            width: 100%;
+            max-width: 360px;
+            background: var(--panel);
+            border: 1px solid var(--blue);
+            border-radius: 14px;
+            padding: 22px;
+        }
+        .login-card h2 {
+            margin: 0 0 6px 0;
+            color: var(--blue);
+            font-size: 22px;
+        }
+        .login-card p {
+            margin: 0 0 14px 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .login-input {
+            width: 100%;
+            background: #1a1a1a;
+            border: 1px solid var(--blue);
+            color: var(--text);
+            border-radius: 10px;
+            padding: 12px;
+            outline: none;
+            margin-bottom: 10px;
+        }
+        .login-btn {
+            width: 100%;
+            border: 1px solid var(--orange);
+            background: var(--orange);
+            color: #fff;
+            font-weight: 700;
+            border-radius: 10px;
+            padding: 12px;
+            cursor: pointer;
+        }
+        .login-error {
+            color: #ef4444;
+            font-size: 13px;
+            min-height: 18px;
+            margin-top: 8px;
+        }
     </style>
 </head>
 <body>
+    <div id="login-screen" class="login-screen">
+        <div class="login-card">
+            <h2>Acceso interno</h2>
+            <p>Ingresa una sola vez para Operativo y Técnico</p>
+            <input id="master-password" class="login-input" type="password" placeholder="Contraseña" autocomplete="current-password">
+            <button id="master-login-btn" class="login-btn" type="button">Entrar</button>
+            <div id="master-error" class="login-error"></div>
+        </div>
+    </div>
+
     <header class="bar">
         <div class="left">
             <img src="./logo.webp" alt="SRFIX" class="logo" onerror="this.src='./logo.png'">
@@ -83,7 +154,12 @@
         </nav>
     </header>
     <div class="wrap">
-        <iframe id="frame" title="Modulo interno"></iframe>
+        <section id="panel-operativo" class="panel" aria-label="Módulo Operativo">
+            <iframe id="frame-operativo" title="Modulo Operativo" src="about:blank"></iframe>
+        </section>
+        <section id="panel-tecnico" class="panel" aria-label="Módulo Técnico">
+            <iframe id="frame-tecnico" title="Modulo Técnico" src="about:blank"></iframe>
+        </section>
     </div>
     <div class="fallback">
         Si algo falla: <a href="./panel-operativo.html" target="_blank">Operativo</a> |
@@ -91,13 +167,23 @@
     </div>
 
     <script>
-        const FRAME = document.getElementById('frame');
+        const PANEL_OP = document.getElementById('panel-operativo');
+        const PANEL_TE = document.getElementById('panel-tecnico');
         const BTN_OP = document.getElementById('tab-operativo');
         const BTN_TE = document.getElementById('tab-tecnico');
+        const FRAME_OP = document.getElementById('frame-operativo');
+        const FRAME_TE = document.getElementById('frame-tecnico');
+        const LOGIN_SCREEN = document.getElementById('login-screen');
+        const MASTER_INPUT = document.getElementById('master-password');
+        const MASTER_BTN = document.getElementById('master-login-btn');
+        const MASTER_ERROR = document.getElementById('master-error');
+        const MASTER_PASS = 'Admin1';
+        let cargado = false;
 
-        function cargarModulo(modulo) {
+        function mostrarModulo(modulo) {
             const isTecnico = modulo === 'tecnico';
-            FRAME.src = isTecnico ? './panel-tecnico.html' : './panel-operativo.html';
+            PANEL_OP.classList.toggle('active', !isTecnico);
+            PANEL_TE.classList.toggle('active', isTecnico);
             BTN_OP.classList.toggle('active', !isTecnico);
             BTN_TE.classList.toggle('active', isTecnico);
 
@@ -106,11 +192,44 @@
             window.history.replaceState({}, '', url);
         }
 
-        BTN_OP.addEventListener('click', () => cargarModulo('operativo'));
-        BTN_TE.addEventListener('click', () => cargarModulo('tecnico'));
+        BTN_OP.addEventListener('click', () => mostrarModulo('operativo'));
+        BTN_TE.addEventListener('click', () => mostrarModulo('tecnico'));
 
-        const modulo = new URLSearchParams(window.location.search).get('modulo');
-        cargarModulo(modulo === 'tecnico' ? 'tecnico' : 'operativo');
+        function cargarIframes() {
+            if (cargado) return;
+            FRAME_OP.src = './panel-operativo.html';
+            FRAME_TE.src = './panel-tecnico.html';
+            cargado = true;
+        }
+
+        function entrarIntegrador() {
+            sessionStorage.setItem('srfix_pass_master', MASTER_PASS);
+            sessionStorage.setItem('srfix_pass_operativo', MASTER_PASS);
+            sessionStorage.setItem('srfix_pass_tecnico', MASTER_PASS);
+            LOGIN_SCREEN.style.display = 'none';
+            cargarIframes();
+            const modulo = new URLSearchParams(window.location.search).get('modulo');
+            mostrarModulo(modulo === 'tecnico' ? 'tecnico' : 'operativo');
+        }
+
+        function validarMaster() {
+            MASTER_ERROR.textContent = '';
+            const pass = (MASTER_INPUT.value || '').trim();
+            if (pass !== MASTER_PASS) {
+                MASTER_ERROR.textContent = 'Contraseña incorrecta';
+                return;
+            }
+            entrarIntegrador();
+        }
+
+        MASTER_BTN.addEventListener('click', validarMaster);
+        MASTER_INPUT.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') validarMaster();
+        });
+
+        if (sessionStorage.getItem('srfix_pass_master') === MASTER_PASS) {
+            entrarIntegrador();
+        }
     </script>
 </body>
 </html>

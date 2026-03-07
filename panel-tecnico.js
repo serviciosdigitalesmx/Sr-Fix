@@ -503,8 +503,9 @@
         });
 
         window.addEventListener('load', () => {
-            if (sessionStorage.getItem('srfix_pass_tecnico')) {
-                document.getElementById('password-input').value = sessionStorage.getItem('srfix_pass_tecnico');
+            const pass = sessionStorage.getItem('srfix_pass_master') || sessionStorage.getItem('srfix_pass_tecnico');
+            if (pass) {
+                document.getElementById('password-input').value = pass;
                 login();
             }
         });

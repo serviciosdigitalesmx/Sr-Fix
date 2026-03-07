@@ -235,8 +235,12 @@
         // ==========================================
         let equipoActual = null;
 
-        function abrirModal(eq) {
+        async function abrirModal(eq) {
             equipoActual = eq;
+            if (!eq.FOTO_RECEPCION) {
+                const detalle = await obtenerDetalleEquipo(eq.FOLIO);
+                if (detalle) eq = { ...eq, ...detalle };
+            }
             document.getElementById('modal-folio').textContent = eq.FOLIO;
             document.getElementById('modal-cliente').textContent = eq.CLIENTE_NOMBRE || 'N/A';
             document.getElementById('modal-telefono').textContent = eq.CLIENTE_TELEFONO || 'N/A';
@@ -277,6 +281,17 @@
 
             mostrarSeccion('detalles');
             document.getElementById('modal').classList.remove('hidden');
+        }
+
+        async function obtenerDetalleEquipo(folio) {
+            try {
+                const res = await fetch(`${CONFIG.BACKEND_URL}?action=equipo&folio=${encodeURIComponent(folio)}&t=${Date.now()}`);
+                if (!res.ok) return null;
+                const data = await res.json();
+                return data && data.equipo ? data.equipo : null;
+            } catch (e) {
+                return null;
+            }
         }
 
         function mostrarSeccion(tabId) {

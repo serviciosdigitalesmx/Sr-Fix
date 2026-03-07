@@ -8,7 +8,7 @@
 // ==========================================
 const CONFIG = {
   SHEET_NAME: 'SRFIX_DATABASE',
-  API_VERSION: '2.3.0',
+  API_VERSION: '2.3.1',
   SCRIPT_PROP_KEYS: {
     TECNICO: 'SRFIX_PASSWORD_TECNICO',
     OPERATIVO: 'SRFIX_PASSWORD_OPERATIVO'

@@ -238,81 +238,52 @@
         function abrirModal(eq) {
             equipoActual = eq;
             document.getElementById('modal-folio').textContent = eq.FOLIO;
-            const safeFolio = String(eq.FOLIO).replace(/[^a-zA-Z0-9_-]/g, '_');
+            document.getElementById('modal-cliente').textContent = eq.CLIENTE_NOMBRE || 'N/A';
+            document.getElementById('modal-telefono').textContent = eq.CLIENTE_TELEFONO || 'N/A';
+            document.getElementById('modal-equipo').textContent = `${eq.DISPOSITIVO || ''} ${eq.MODELO || ''}`.trim() || 'N/A';
+            document.getElementById('modal-falla').textContent = eq.FALLA_REPORTADA || 'Sin descripción';
 
-            const contenido = `
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-xs text-[#8A8F95] uppercase">Cliente</label>
-                        <p class="text-[#F2F2F2] font-medium">${escapeHtml(eq.CLIENTE_NOMBRE)}</p>
-                    </div>
-                    <div>
-                        <label class="text-xs text-[#8A8F95] uppercase">Teléfono</label>
-                        <p class="text-[#F2F2F2]">${escapeHtml(eq.CLIENTE_TELEFONO) || 'N/A'}</p>
-                    </div>
-                </div>
+            const fechaPromesaEl = document.getElementById('modal-fecha-promesa');
+            const diasClase = eq.diasRestantes <= 2 ? 'text-red-500 font-bold' : eq.diasRestantes <= 4 ? 'text-yellow-500' : '';
+            fechaPromesaEl.className = `text-[#F2F2F2] ${diasClase}`;
+            fechaPromesaEl.textContent = `${eq.FECHA_PROMESA || 'N/A'} (${eq.diasRestantes} días)`;
 
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-xs text-[#8A8F95] uppercase">Equipo</label>
-                        <p class="text-[#F2F2F2]">${escapeHtml(eq.DISPOSITIVO)} ${escapeHtml(eq.MODELO || '')}</p>
-                    </div>
-                    <div>
-                        <label class="text-xs text-[#8A8F95] uppercase">Fecha promesa</label>
-                        <p class="text-[#F2F2F2] ${eq.diasRestantes <= 2 ? 'text-red-500 font-bold' : eq.diasRestantes <= 4 ? 'text-yellow-500' : ''}">
-                            ${escapeHtml(eq.FECHA_PROMESA)} (${eq.diasRestantes} días)
-                        </p>
-                    </div>
-                </div>
+            document.getElementById('modal-estado').value = eq.ESTADO || 'Recibido';
+            document.getElementById('modal-tecnico').value = eq.TECNICO_ASIGNADO || '';
+            document.getElementById('modal-yt').value = eq.YOUTUBE_ID || '';
+            document.getElementById('modal-notas').value = eq.NOTAS_INTERNAS || '';
 
-                <div>
-                    <label class="text-xs text-[#8A8F95] uppercase">Falla reportada</label>
-                    <p class="text-[#F2F2F2] bg-[#1E1E1E] p-3 rounded text-sm">${escapeHtml(eq.FALLA_REPORTADA) || 'Sin descripción'}</p>
-                </div>
+            document.getElementById('check-cargador').checked = eq.CHECK_CARGADOR === 'SÍ';
+            document.getElementById('check-pantalla').checked = eq.CHECK_PANTALLA === 'SÍ';
+            document.getElementById('check-prende').checked = eq.CHECK_PRENDE === 'SÍ';
+            document.getElementById('check-respaldo').checked = eq.CHECK_RESPALDO === 'SÍ';
 
-                <div>
-                    <label class="text-xs text-[#8A8F95] uppercase">Estado</label>
-                    <select id="modal-estado" class="w-full input-tech rounded-lg p-2.5 mt-1">
-                        ${['Recibido','En Diagnóstico','En Reparación','Esperando Refacción','Listo','Entregado']
-                            .map(e => `<option value="${e}" ${eq.ESTADO === e ? 'selected' : ''}>${e}</option>`).join('')}
-                    </select>
-                </div>
+            const historial = (eq.NOTAS_INTERNAS || '')
+                .split('\n')
+                .map(l => l.trim())
+                .filter(Boolean)
+                .map(l => `• ${escapeHtml(l)}`)
+                .join('<br>');
+            document.getElementById('modal-historial').innerHTML = historial || '<span class="text-[#8A8F95]">Sin historial de notas</span>';
 
-                <div>
-                    <label class="text-xs text-[#8A8F95] uppercase">Técnico asignado</label>
-                    <input type="text" id="modal-tecnico" value="${escapeHtml(eq.TECNICO_ASIGNADO || '')}" class="w-full input-tech rounded-lg p-2 mt-1" placeholder="Nombre del técnico">
-                </div>
-
-                <div>
-                    <label class="text-xs text-[#8A8F95] uppercase">YouTube ID (Live Cam)</label>
-                    <input type="text" id="modal-yt" value="${escapeHtml(eq.YOUTUBE_ID || '')}" class="w-full input-tech rounded-lg p-2 font-mono text-sm mt-1" placeholder="Ej: aqz-KE-BPKQ">
-                    <p class="text-xs text-[#8A8F95] mt-1">https://youtube.com/watch?v=ID</p>
-                </div>
-
-                <div>
-                    <label class="text-xs text-[#8A8F95] uppercase">Notas internas</label>
-                    <textarea id="modal-notas" rows="3" class="w-full input-tech rounded-lg p-2 text-sm mt-1">${escapeHtml(eq.NOTAS_INTERNAS || '')}</textarea>
-                </div>
-
-                <div class="border-t border-[#1F7EDC] pt-4">
-                    <label class="text-xs text-[#8A8F95] uppercase flex items-center gap-2"><i class="fa-regular fa-clock"></i> Últimos movimientos</label>
-                    <div class="text-sm text-[#F2F2F2] bg-[#1E1E1E] p-3 rounded mt-1">
-                        ${eq.NOTAS_INTERNAS ? '• ' + eq.NOTAS_INTERNAS.split('\n').filter(l=>l).join('<br>• ') : 'Sin historial de notas'}
-                    </div>
-                </div>
-
-                <div class="flex gap-3 pt-2">
-                    <button onclick="guardarCambios()" class="flex-1 btn-naranja font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-save"></i> Guardar Cambios
-                    </button>
-                    <button onclick="if(confirm('¿Marcar como entregado? Se cerrará el equipo.')) { cambiarEstadoEntregado() }" class="flex-1 bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-check-double"></i> Entregar
-                    </button>
-                </div>
-            `;
-
-            document.getElementById('modal-content').innerHTML = contenido;
+            mostrarSeccion('detalles');
             document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function mostrarSeccion(tabId) {
+            document.querySelectorAll('.tab-section').forEach(s => s.classList.add('hidden'));
+            const section = document.getElementById(`section-${tabId}`);
+            if (section) section.classList.remove('hidden');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active', 'text-[#1F7EDC]', 'border-b-2', 'border-[#1F7EDC]');
+                btn.classList.add('text-[#8A8F95]');
+            });
+            const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active', 'text-[#1F7EDC]', 'border-b-2', 'border-[#1F7EDC]');
+                activeBtn.classList.remove('text-[#8A8F95]');
+            }
         }
 
         function cerrarModal() {
@@ -325,7 +296,11 @@
                 ESTADO: document.getElementById('modal-estado').value,
                 TECNICO_ASIGNADO: document.getElementById('modal-tecnico').value,
                 YOUTUBE_ID: document.getElementById('modal-yt').value,
-                NOTAS_INTERNAS: document.getElementById('modal-notas').value
+                NOTAS_INTERNAS: document.getElementById('modal-notas').value,
+                CHECK_CARGADOR: document.getElementById('check-cargador').checked ? 'SÍ' : 'NO',
+                CHECK_PANTALLA: document.getElementById('check-pantalla').checked ? 'SÍ' : 'NO',
+                CHECK_PRENDE: document.getElementById('check-prende').checked ? 'SÍ' : 'NO',
+                CHECK_RESPALDO: document.getElementById('check-respaldo').checked ? 'SÍ' : 'NO'
             };
 
             try {
@@ -407,6 +382,10 @@
 
         document.getElementById('modal').addEventListener('click', (e) => {
             if (e.target.id === 'modal') cerrarModal();
+        });
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => mostrarSeccion(btn.dataset.tab));
         });
 
         window.addEventListener('load', () => {

@@ -137,10 +137,10 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  const data = JSON.parse(e.postData.contents);
-  const action = data.action;
-
   try {
+    const data = parsePostData(e);
+    const action = data.action;
+
     switch(action) {
       case 'crear_equipo':
         return crearEquipo(data);
@@ -160,6 +160,45 @@ function doPost(e) {
   } catch (error) {
     return jsonResponse({ error: error.toString() });
   }
+}
+
+function parsePostData(e) {
+  if (!e) return {};
+  const raw = e.postData && typeof e.postData.contents === 'string' ? e.postData.contents : '';
+
+  // JSON directo (actual)
+  if (raw) {
+    try {
+      return JSON.parse(raw);
+    } catch (err) {
+      // Fallback: formulario tipo action=...&payload={...}
+      const form = parseQueryString(raw);
+      if (form.payload) {
+        try {
+          const payload = JSON.parse(form.payload);
+          return { ...form, ...payload };
+        } catch (err2) {
+          return form;
+        }
+      }
+      return form;
+    }
+  }
+
+  return (e.parameter || {});
+}
+
+function parseQueryString(qs) {
+  const out = {};
+  if (!qs) return out;
+  qs.split('&').forEach(part => {
+    const kv = part.split('=');
+    const k = decodeURIComponent((kv[0] || '').replace(/\+/g, ' '));
+    const v = decodeURIComponent((kv.slice(1).join('=') || '').replace(/\+/g, ' '));
+    if (!k) return;
+    out[k] = v;
+  });
+  return out;
 }
 
 // ==========================================

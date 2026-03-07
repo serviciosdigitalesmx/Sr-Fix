@@ -1,5 +1,5 @@
         const CONFIG = {
-            BACKEND_URL: 'https://script.google.com/macros/s/AKfycbwtwvep33d_ftb4bChFXvD6m1LJPlMStp8B09LUoJDD0jU8Jlj4uSpr409x79Pz6mvJ/exec',
+            BACKEND_URL: 'https://script.google.com/macros/s/AKfycbznQyeVTn542Ys-6sBT0P-tzvwQ4vPeWx_vrB_yTTY6TscgZ1uop4FJ4E89wHAL9GcR/exec',
             MODULO: 'tecnico',
             LOGO_URL: './logo.webp'
         };

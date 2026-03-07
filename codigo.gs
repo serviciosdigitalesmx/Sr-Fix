@@ -8,7 +8,7 @@
 // ==========================================
 const CONFIG = {
   SHEET_NAME: 'SRFIX_DATABASE',
-  API_VERSION: '2.2.0',
+  API_VERSION: '2.3.0',
   SCRIPT_PROP_KEYS: {
     TECNICO: 'SRFIX_PASSWORD_TECNICO',
     OPERATIVO: 'SRFIX_PASSWORD_OPERATIVO'
@@ -32,7 +32,7 @@ function inicializarSistema() {
       'ID', 'FOLIO', 'FECHA_INGRESO', 'CLIENTE_NOMBRE', 'CLIENTE_TELEFONO',
       'DISPOSITIVO', 'MODELO', 'FALLA_REPORTADA', 'ESTADO', 'TECNICO_ASIGNADO',
       'FECHA_PROMESA', 'FECHA_ENTREGA', 'COSTO_ESTIMADO', 'NOTAS_INTERNAS',
-      'YOUTUBE_ID', 'CHECK_CARGADOR', 'CHECK_PANTALLA', 'CHECK_PRENDE', 'CHECK_RESPALDO', 'FOTO_RECEPCION', 'SEGUIMIENTO_CLIENTE'
+      'YOUTUBE_ID', 'CHECK_CARGADOR', 'CHECK_PANTALLA', 'CHECK_PRENDE', 'CHECK_RESPALDO', 'FOTO_RECEPCION', 'SEGUIMIENTO_CLIENTE', 'SEGUIMIENTO_FOTOS'
     ]);
 
     crearHojaSiNoExiste(ss, 'Clientes', [
@@ -181,6 +181,10 @@ function getSemaforoData() {
       if (dias <= 2) color = 'rojo';
       else if (dias <= 4) color = 'amarillo';
 
+      // El semáforo no necesita cargar blobs de imágenes en la lista.
+      delete eq.FOTO_RECEPCION;
+      delete eq.SEGUIMIENTO_FOTOS;
+
       return { ...eq, diasRestantes: dias, color: color };
     })
     .sort((a, b) => a.diasRestantes - b.diasRestantes);
@@ -205,8 +209,16 @@ function getEquipoByFolio(folio) {
 
   const equipo = mapearFilaEquipo(headers, fila);
 
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
   const fechaPromesa = parseFechaFlexible(equipo.FECHA_PROMESA);
-  if (fechaPromesa) equipo.FECHA_PROMESA = formatearFechaYMD(fechaPromesa);
+  if (fechaPromesa) {
+    fechaPromesa.setHours(0, 0, 0, 0);
+    equipo.FECHA_PROMESA = formatearFechaYMD(fechaPromesa);
+    equipo.diasRestantes = Math.ceil((fechaPromesa - hoy) / (1000 * 60 * 60 * 24));
+  } else {
+    equipo.diasRestantes = 9999;
+  }
 
   delete equipo.NOTAS_INTERNAS;
   delete equipo.COSTO_ESTIMADO;
@@ -250,6 +262,7 @@ function mapearFilaEquipo(headers, row) {
   // Fallbacks por índice para hojas viejas sin encabezados nuevos.
   if (!eq.FOTO_RECEPCION && row[19]) eq.FOTO_RECEPCION = row[19];
   if (!eq.SEGUIMIENTO_CLIENTE && row[20]) eq.SEGUIMIENTO_CLIENTE = row[20];
+  if (!eq.SEGUIMIENTO_FOTOS && row[21]) eq.SEGUIMIENTO_FOTOS = row[21];
 
   return eq;
 }
@@ -277,7 +290,8 @@ function crearEquipo(data) {
     data.checks?.prende ? 'SÍ' : 'NO',
     data.checks?.respaldo ? 'SÍ' : 'NO',
     data.fotoRecepcion || '',
-    data.seguimientoCliente || ''
+    data.seguimientoCliente || '',
+    data.seguimientoFotos || '[]'
   ]);
 
   if (data.clienteTelefono) {
@@ -312,6 +326,15 @@ function actualizarEquipo(data) {
   headers.forEach((h, i) => colIndex[String(h).trim()] = i + 1);
 
   const campos = data.campos || {};
+  const faltantes = Object.keys(campos).filter(k => k && !colIndex[k]);
+  if (faltantes.length > 0) {
+    const start = hoja.getLastColumn() + 1;
+    hoja.getRange(1, start, 1, faltantes.length).setValues([faltantes]);
+    faltantes.forEach((k, idx) => {
+      colIndex[k] = start + idx;
+    });
+  }
+
   Object.keys(campos).forEach(k => {
     if (colIndex[k]) hoja.getRange(fila, colIndex[k]).setValue(campos[k]);
   });

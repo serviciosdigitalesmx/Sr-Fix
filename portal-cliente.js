@@ -50,6 +50,7 @@
             document.getElementById('res-ingreso').textContent = eq.FECHA_INGRESO ? new Date(eq.FECHA_INGRESO).toLocaleDateString() : '---';
             document.getElementById('res-actualizacion').textContent = new Date().toLocaleString();
             document.getElementById('res-seguimiento').textContent = eq.SEGUIMIENTO_CLIENTE || 'Sin avances registrados por el momento.';
+            renderizarFotosSeguimiento(eq.SEGUIMIENTO_FOTOS);
 
             let diasTexto = '---';
             if (eq.diasRestantes !== undefined) {
@@ -85,6 +86,42 @@
         function imprimirDetalle() { window.print(); }
         function mostrarError(mensaje) { document.getElementById('error').textContent = mensaje; document.getElementById('error').classList.remove('hidden'); }
         function ocultarError() { document.getElementById('error').classList.add('hidden'); }
+
+        function parseSeguimientoFotos(raw) {
+            if (!raw) return [];
+            if (Array.isArray(raw)) return raw.filter(v => typeof v === 'string' && v.startsWith('data:image/'));
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    return parsed.filter(v => typeof v === 'string' && v.startsWith('data:image/'));
+                }
+            } catch (e) {}
+            return [];
+        }
+
+        function renderizarFotosSeguimiento(raw) {
+            const fotos = parseSeguimientoFotos(raw);
+            const card = document.getElementById('seguimiento-fotos-card');
+            const cont = document.getElementById('res-seguimiento-fotos');
+            cont.innerHTML = '';
+
+            if (!fotos.length) {
+                card.classList.add('hidden');
+                return;
+            }
+
+            fotos.forEach((src, idx) => {
+                const a = document.createElement('a');
+                a.href = src;
+                a.target = '_blank';
+                a.rel = 'noopener';
+                a.className = 'block rounded-lg overflow-hidden border border-[#1F7EDC] hover:opacity-90 transition';
+                a.innerHTML = `<img src="${src}" alt="Avance ${idx + 1}" class="w-full h-28 object-cover">`;
+                cont.appendChild(a);
+            });
+
+            card.classList.remove('hidden');
+        }
 
         function mostrarToast(mensaje, tipo = 'success') {
             const toast = document.getElementById('toast');

@@ -11,6 +11,7 @@
         let PASSWORD = '';
         let equiposData = [];
         let equiposFiltrados = [];
+        let seguimientoFotosBase64 = [];
         let intervalo = null;
         let filtros = {
             texto: '',
@@ -257,6 +258,8 @@
             document.getElementById('modal-yt').value = eq.YOUTUBE_ID || '';
             document.getElementById('modal-notas').value = eq.NOTAS_INTERNAS || '';
             document.getElementById('modal-seguimiento').value = eq.SEGUIMIENTO_CLIENTE || '';
+            seguimientoFotosBase64 = parseSeguimientoFotos(eq.SEGUIMIENTO_FOTOS);
+            renderizarGaleriaSeguimiento();
 
             if (eq.FOTO_RECEPCION) {
                 document.getElementById('modal-foto').src = eq.FOTO_RECEPCION;
@@ -313,6 +316,9 @@
         function cerrarModal() {
             document.getElementById('modal').classList.add('hidden');
             equipoActual = null;
+            seguimientoFotosBase64 = [];
+            const inputFotos = document.getElementById('modal-seguimiento-fotos');
+            if (inputFotos) inputFotos.value = '';
         }
 
         async function guardarCambios() {
@@ -322,6 +328,7 @@
                 YOUTUBE_ID: document.getElementById('modal-yt').value,
                 NOTAS_INTERNAS: document.getElementById('modal-notas').value,
                 SEGUIMIENTO_CLIENTE: document.getElementById('modal-seguimiento').value,
+                SEGUIMIENTO_FOTOS: JSON.stringify(seguimientoFotosBase64),
                 CHECK_CARGADOR: document.getElementById('check-cargador').checked ? 'SÍ' : 'NO',
                 CHECK_PANTALLA: document.getElementById('check-pantalla').checked ? 'SÍ' : 'NO',
                 CHECK_PRENDE: document.getElementById('check-prende').checked ? 'SÍ' : 'NO',
@@ -389,6 +396,79 @@
                 .replace(/'/g, "&#039;");
         }
 
+        function parseSeguimientoFotos(raw) {
+            if (!raw) return [];
+            if (Array.isArray(raw)) return raw.filter(v => typeof v === 'string' && v.startsWith('data:image/'));
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    return parsed.filter(v => typeof v === 'string' && v.startsWith('data:image/'));
+                }
+            } catch (e) {}
+            return [];
+        }
+
+        function renderizarGaleriaSeguimiento() {
+            const galeria = document.getElementById('modal-seguimiento-galeria');
+            galeria.innerHTML = '';
+            if (!seguimientoFotosBase64.length) {
+                galeria.innerHTML = '<div class="col-span-full text-xs text-[#8A8F95]">Sin fotos de avance.</div>';
+                return;
+            }
+
+            seguimientoFotosBase64.forEach((src, idx) => {
+                const item = document.createElement('div');
+                item.className = 'relative rounded-lg overflow-hidden border border-[#1F7EDC] bg-[#1E1E1E]';
+                item.innerHTML = `
+                    <img src="${src}" alt="Seguimiento ${idx + 1}" class="w-full h-24 object-cover">
+                    <button type="button" class="absolute top-1 right-1 bg-black/70 text-white text-xs px-2 py-1 rounded" data-foto-idx="${idx}">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                `;
+                galeria.appendChild(item);
+            });
+        }
+
+        async function manejarFotosSeguimiento(input) {
+            const files = Array.from((input && input.files) || []);
+            if (!files.length) return;
+            try {
+                for (const file of files) {
+                    const dataUrl = await comprimirImagenADataURL(file, 1280, 0.75);
+                    if (dataUrl) seguimientoFotosBase64.push(dataUrl);
+                }
+                renderizarGaleriaSeguimiento();
+                mostrarToast('Fotos de seguimiento agregadas', 'success');
+            } catch (e) {
+                console.error('Error al procesar fotos de seguimiento:', e);
+                mostrarToast('No se pudieron procesar las fotos', 'error');
+            } finally {
+                input.value = '';
+            }
+        }
+
+        function comprimirImagenADataURL(file, maxWidth = 1280, quality = 0.75) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const ratio = Math.min(1, maxWidth / img.width);
+                        const canvas = document.createElement('canvas');
+                        canvas.width = Math.round(img.width * ratio);
+                        canvas.height = Math.round(img.height * ratio);
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.onerror = reject;
+                    img.src = reader.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
         function mostrarToast(mensaje, tipo = 'success') {
             const toast = document.getElementById('toast');
             document.getElementById('toast-message').textContent = mensaje;
@@ -407,6 +487,19 @@
 
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => mostrarSeccion(btn.dataset.tab));
+        });
+
+        document.getElementById('modal-seguimiento-fotos').addEventListener('change', (e) => {
+            manejarFotosSeguimiento(e.target);
+        });
+
+        document.getElementById('modal-seguimiento-galeria').addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-foto-idx]');
+            if (!btn) return;
+            const idx = Number(btn.getAttribute('data-foto-idx'));
+            if (Number.isNaN(idx)) return;
+            seguimientoFotosBase64.splice(idx, 1);
+            renderizarGaleriaSeguimiento();
         });
 
         window.addEventListener('load', () => {

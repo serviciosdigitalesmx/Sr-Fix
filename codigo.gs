@@ -170,10 +170,8 @@ function getSemaforoData() {
       const hoy = new Date();
       hoy.setHours(0,0,0,0);
 
-      let promesa = null;
-      if (eq['FECHA_PROMESA']) {
-        promesa = new Date(eq['FECHA_PROMESA'] + 'T00:00:00');
-      }
+      const promesa = parseFechaFlexible(eq['FECHA_PROMESA']);
+      eq['FECHA_PROMESA'] = promesa ? formatearFechaYMD(promesa) : '';
 
       let dias = 9999;
       if (promesa && !isNaN(promesa.getTime())) {
@@ -210,10 +208,40 @@ function getEquipoByFolio(folio) {
   const equipo = {};
   headers.forEach((h, i) => equipo[h] = fila[i]);
 
+  const fechaPromesa = parseFechaFlexible(equipo.FECHA_PROMESA);
+  if (fechaPromesa) equipo.FECHA_PROMESA = formatearFechaYMD(fechaPromesa);
+
   delete equipo.NOTAS_INTERNAS;
   delete equipo.COSTO_ESTIMADO;
 
   return jsonResponse({ equipo: equipo });
+}
+
+function parseFechaFlexible(valor) {
+  if (!valor) return null;
+
+  if (Object.prototype.toString.call(valor) === '[object Date]') {
+    return isNaN(valor.getTime()) ? null : new Date(valor.getTime());
+  }
+
+  const str = String(valor).trim();
+  if (!str) return null;
+
+  // Formato simple yyyy-mm-dd
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const d = new Date(`${str}T00:00:00`);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // ISO u otros formatos parseables por JS
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) return d;
+
+  return null;
+}
+
+function formatearFechaYMD(fecha) {
+  return Utilities.formatDate(fecha, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 }
 
 function crearEquipo(data) {

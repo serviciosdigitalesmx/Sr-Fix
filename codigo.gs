@@ -8,6 +8,7 @@
 // ==========================================
 const CONFIG = {
   SHEET_NAME: 'SRFIX_DATABASE',
+  API_VERSION: '2.2.0',
   SCRIPT_PROP_KEYS: {
     TECNICO: 'SRFIX_PASSWORD_TECNICO',
     OPERATIVO: 'SRFIX_PASSWORD_OPERATIVO'
@@ -117,7 +118,7 @@ function doGet(e) {
   try {
     switch(action) {
       case 'status':
-        return jsonResponse({ status: 'online', version: '2.1.0' });
+        return jsonResponse({ status: 'online', version: CONFIG.API_VERSION });
       case 'equipo':
         if (!e.parameter.folio) return jsonResponse({ error: 'Folio requerido' });
         return getEquipoByFolio(e.parameter.folio);

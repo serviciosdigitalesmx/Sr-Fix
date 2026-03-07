@@ -290,8 +290,7 @@
                     document.getElementById('folio-generado').textContent = result.folio;
 
                     const telefono = document.getElementById('cliente-telefono').value.replace(/\D/g, '');
-                    const portalUrl = new URL('./index.html', window.location.href);
-                    portalUrl.searchParams.set('view', 'portal');
+                    const portalUrl = new URL('./portal-cliente.html', window.location.href);
                     portalUrl.searchParams.set('folio', result.folio);
                     const mensaje = `Hola, tu equipo ha sido registrado en SRFIX con el folio ${result.folio}. Puedes consultar el estado en: ${portalUrl.toString()}`;
                     document.getElementById('whatsapp-link').href = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;

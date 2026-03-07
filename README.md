@@ -11,8 +11,7 @@ Proyecto web + Google Apps Script para gestionar recepción, diagnóstico y segu
 
 - `index.html`
   - Vista pública principal.
-  - Si recibe `?view=portal`, redirige al portal cliente.
-  - Soporta consulta directa por folio usando `?view=portal&folio=SRF-1234`.
+  - Incluye botón directo al panel del cliente (`portal-cliente.html`).
 
 - `integrador.html`
   - Entrada interna única.

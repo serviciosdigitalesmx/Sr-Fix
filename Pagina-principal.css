@@ -1150,6 +1150,7 @@
             .mobile-menu {
                 display: block;
             }
+
         }
 
         @media (max-width: 480px) {
@@ -1173,4 +1174,5 @@
             .service-card {
                 padding: 1.5rem;
             }
+
         }

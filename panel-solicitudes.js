@@ -59,33 +59,66 @@ function descargarCotizacionPDF() {
     if (!solicitudActual) return;
     const s = solicitudActual;
     const html = `
-        <!doctype html>
+        <!DOCTYPE html>
         <html lang="es">
         <head>
             <meta charset="utf-8">
             <title>Cotización ${s.FOLIO_COTIZACION}</title>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
             <style>
-                body { font-family: Arial, sans-serif; margin: 24px; color: #111; }
-                h1 { margin: 0 0 8px 0; color: #1f7edc; }
-                .muted { color: #555; margin-bottom: 16px; }
-                .card { border: 1px solid #ddd; border-radius: 8px; padding: 14px; }
-                .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: 'Inter', sans-serif; background: #f4f7fc; padding: 30px; color: #1e293b; }
+                .container { max-width: 960px; margin: 0 auto; background: #fff; border-radius: 24px; box-shadow: 0 20px 40px -10px rgba(0,20,50,.15); overflow: hidden; border: 1px solid #e2e8f0; }
+                .header { background: linear-gradient(135deg, #0F4C81 0%, #1F7EDC 100%); color: #fff; padding: 28px 34px; display: flex; justify-content: space-between; align-items: center; }
+                .header h1 { font-size: 30px; font-weight: 800; letter-spacing: 1px; }
+                .folio { background: rgba(255,255,255,.15); padding: 9px 20px; border-radius: 999px; border: 1px solid rgba(255,255,255,.28); font-weight: 700; }
+                .content { padding: 32px; }
+                .pillbar { display: flex; justify-content: space-between; gap: 12px; background: #f1f5f9; padding: 12px 16px; border-radius: 999px; margin-bottom: 22px; font-size: 14px; }
+                .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+                .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; }
+                .card h3 { font-size: 15px; color: #1F7EDC; margin-bottom: 10px; border-bottom: 2px solid #FF6A2A; padding-bottom: 6px; }
+                .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed #cbd5e1; }
                 .row:last-child { border-bottom: 0; }
-                .k { color: #666; font-weight: bold; }
-                .v { color: #111; text-align: right; max-width: 60%; }
+                .k { color: #475569; font-weight: 600; }
+                .v { color: #0f172a; font-weight: 500; text-align: right; max-width: 62%; }
+                .desc { margin-top: 18px; background: #fff7ed; border-left: 6px solid #FF6A2A; padding: 16px; border-radius: 12px; }
+                .footer { background: #f1f5f9; padding: 14px 24px; text-align: center; color: #64748b; font-size: 13px; border-top: 1px solid #cbd5e1; }
+                @media print { body { background: #fff; padding: 0; } .container { box-shadow: none; } }
             </style>
         </head>
         <body>
-            <h1>SRFIX - Solicitud de Cotización</h1>
-            <div class="muted">Folio: ${s.FOLIO_COTIZACION || '---'} | Fecha: ${formatoFecha(s.FECHA_SOLICITUD)}</div>
-            <div class="card">
-                <div class="row"><div class="k">Cliente</div><div class="v">${escapeHtml(s.NOMBRE)}</div></div>
-                <div class="row"><div class="k">Teléfono</div><div class="v">${escapeHtml(s.TELEFONO)}</div></div>
-                <div class="row"><div class="k">Email</div><div class="v">${escapeHtml(s.EMAIL)}</div></div>
-                <div class="row"><div class="k">Equipo</div><div class="v">${escapeHtml(s.DISPOSITIVO)} ${escapeHtml(s.MODELO)}</div></div>
-                <div class="row"><div class="k">Problemas</div><div class="v">${escapeHtml(s.PROBLEMAS)}</div></div>
-                <div class="row"><div class="k">Descripción</div><div class="v">${escapeHtml(s.DESCRIPCION)}</div></div>
-                <div class="row"><div class="k">Urgencia</div><div class="v">${escapeHtml(s.URGENCIA)}</div></div>
+            <div class="container">
+                <div class="header">
+                    <h1>SRFIX - Cotización</h1>
+                    <div class="folio">${escapeHtml(s.FOLIO_COTIZACION || '---')}</div>
+                </div>
+                <div class="content">
+                    <div class="pillbar">
+                        <span><strong>Fecha:</strong> ${escapeHtml(formatoFecha(s.FECHA_SOLICITUD))}</span>
+                        <span><strong>Urgencia:</strong> ${escapeHtml(s.URGENCIA || '---')}</span>
+                    </div>
+                    <div class="grid">
+                        <div class="card">
+                            <h3>Cliente</h3>
+                            <div class="row"><div class="k">Nombre</div><div class="v">${escapeHtml(s.NOMBRE)}</div></div>
+                            <div class="row"><div class="k">Teléfono</div><div class="v">${escapeHtml(s.TELEFONO)}</div></div>
+                            <div class="row"><div class="k">Email</div><div class="v">${escapeHtml(s.EMAIL)}</div></div>
+                        </div>
+                        <div class="card">
+                            <h3>Equipo</h3>
+                            <div class="row"><div class="k">Dispositivo</div><div class="v">${escapeHtml(s.DISPOSITIVO)}</div></div>
+                            <div class="row"><div class="k">Modelo</div><div class="v">${escapeHtml(s.MODELO)}</div></div>
+                            <div class="row"><div class="k">Problemas</div><div class="v">${escapeHtml(s.PROBLEMAS)}</div></div>
+                        </div>
+                    </div>
+                    <div class="desc">
+                        <strong>Descripción:</strong>
+                        <div style="margin-top:6px; line-height:1.5;">${escapeHtml(s.DESCRIPCION || '---')}</div>
+                    </div>
+                </div>
+                <div class="footer">SrFix Oficial · Plaza Chapultepec · 81 1700 6536</div>
             </div>
             <script>window.onload = () => window.print();<\/script>
         </body>
@@ -151,11 +184,16 @@ async function cargarSolicitudes() {
     elLoading.classList.remove('hidden');
     elEmpty.classList.add('hidden');
     try {
-        const res = await fetch(CONFIG.BACKEND_URL, {
+        let res = await fetch(CONFIG.BACKEND_URL, {
             method: 'POST',
             body: JSON.stringify({ action: 'listar_solicitudes' })
         });
-        const data = await res.json();
+        let data = null;
+        try { data = await res.json(); } catch (e) {}
+        if (!data || data.error) {
+            res = await fetch(`${CONFIG.BACKEND_URL}?action=listar_solicitudes&t=${Date.now()}`);
+            data = await res.json();
+        }
         if (data.error) throw new Error(data.error);
         solicitudesCache = data.solicitudes || [];
         render(solicitudesCache);
@@ -167,11 +205,16 @@ async function cargarSolicitudes() {
 
 async function archivarSolicitud(folio) {
     try {
-        const res = await fetch(CONFIG.BACKEND_URL, {
+        let res = await fetch(CONFIG.BACKEND_URL, {
             method: 'POST',
             body: JSON.stringify({ action: 'archivar_solicitud', folio: folio })
         });
-        const data = await res.json();
+        let data = null;
+        try { data = await res.json(); } catch (e) {}
+        if (!data || data.error) {
+            res = await fetch(`${CONFIG.BACKEND_URL}?action=archivar_solicitud&folio=${encodeURIComponent(folio)}&t=${Date.now()}`);
+            data = await res.json();
+        }
         if (data.error || !data.success) throw new Error(data.error || 'No se pudo archivar');
         await cargarSolicitudes();
     } catch (e) {

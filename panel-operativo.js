@@ -34,14 +34,21 @@
             ocultarErrorLogin();
 
             try {
-                const res = await fetch(CONFIG.BACKEND_URL, {
+                let res = await fetch(CONFIG.BACKEND_URL, {
                     method: 'POST',
                     body: JSON.stringify({
                         action: 'semaforo'
                     })
                 });
-                if (!res.ok) throw new Error('Error de conexión');
-                const data = await res.json();
+                let data = null;
+                if (res.ok) {
+                    try { data = await res.json(); } catch (e) {}
+                }
+                if (!data || data.error) {
+                    res = await fetch(`${CONFIG.BACKEND_URL}?action=semaforo&t=${Date.now()}`);
+                    if (!res.ok) throw new Error('Error de conexión');
+                    data = await res.json();
+                }
                 if (data.error) throw new Error(data.error);
 
                 sessionStorage.setItem('srfix_pass_operativo', PASSWORD);
@@ -376,114 +383,115 @@
             });
         }
 
-        function generarPDFResumenOrden() {
-            actualizarResumen();
-            const datos = {
-                folio: 'PREVIO-SIN-FOLIO',
-                fecha: new Date().toLocaleString('es-MX'),
-                clienteNombre: document.getElementById('res-cliente').textContent || '---',
-                clienteTelefono: document.getElementById('res-telefono').textContent || '---',
-                clienteEmail: document.getElementById('res-email').textContent || '---',
-                dispositivo: document.getElementById('res-equipo').textContent || '---',
-                falla: document.getElementById('res-falla').textContent || '---',
-                fechaPromesa: document.getElementById('res-fecha').textContent || '---',
-                costo: (document.getElementById('res-costo').textContent || '$0').replace('$', '')
-            };
+        function generarPDFOrden(tipo = 'previa') {
+            let datos = null;
+            if (tipo === 'confirmada') {
+                if (!ultimaOrdenRegistrada) {
+                    mostrarToast('No hay orden registrada para exportar', 'error');
+                    return;
+                }
+                datos = { ...ultimaOrdenRegistrada, folio: ultimaOrdenRegistrada.folio || 'SIN-FOLIO' };
+            } else {
+                actualizarResumen();
+                datos = {
+                    folio: 'PRE-ORDEN',
+                    fecha: new Date().toLocaleString('es-MX', { dateStyle: 'full', timeStyle: 'short' }),
+                    clienteNombre: document.getElementById('res-cliente').textContent || '---',
+                    clienteTelefono: document.getElementById('res-telefono').textContent || '---',
+                    clienteEmail: document.getElementById('res-email').textContent || '---',
+                    dispositivo: document.getElementById('equipo-tipo').value || '---',
+                    modelo: document.getElementById('equipo-modelo').value || '---',
+                    falla: document.getElementById('res-falla').textContent || '---',
+                    fechaPromesa: document.getElementById('res-fecha').textContent || '---',
+                    costo: (document.getElementById('res-costo').textContent || '$0').replace('$', ''),
+                    notas: document.getElementById('notas-extra').value || '---',
+                    checks: {
+                        cargador: document.getElementById('chk-cargador').checked,
+                        pantalla: document.getElementById('chk-pantalla').checked,
+                        prende: document.getElementById('chk-prende').checked,
+                        respaldo: document.getElementById('chk-respaldo').checked
+                    }
+                };
+            }
+
+            const checksList = [];
+            if (datos.checks?.cargador) checksList.push('✅ Trae cargador');
+            if (datos.checks?.pantalla) checksList.push('✅ Pantalla OK');
+            if (datos.checks?.prende) checksList.push('✅ Equipo prende');
+            if (datos.checks?.respaldo) checksList.push('✅ Datos respaldados');
+            const checksHTML = checksList.length ? checksList.map(c => `<span class="check-item">${c}</span>`).join('') : '<span class="check-item">---</span>';
 
             const html = `
-                <!doctype html>
+                <!DOCTYPE html>
                 <html lang="es">
                 <head>
-                    <meta charset="utf-8">
-                    <title>Pre-orden ${datos.fecha}</title>
+                    <meta charset="UTF-8">
+                    <title>SrFix - Orden</title>
+                    <link rel="preconnect" href="https://fonts.googleapis.com">
+                    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
                     <style>
-                        body { font-family: Arial, sans-serif; margin: 24px; color: #111; }
-                        h1 { margin: 0 0 8px 0; color: #1f7edc; }
-                        .muted { color: #555; margin-bottom: 16px; }
-                        .card { border: 1px solid #ddd; border-radius: 8px; padding: 14px; }
-                        .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; }
-                        .row:last-child { border-bottom: 0; }
-                        .k { color: #666; font-weight: bold; }
-                        .v { color: #111; text-align: right; max-width: 60%; }
+                        *{margin:0;padding:0;box-sizing:border-box} body{font-family:'Inter',sans-serif;background:#f4f7fc;padding:30px;color:#1e293b}
+                        .container{max-width:980px;margin:0 auto;background:#fff;border-radius:24px;box-shadow:0 20px 40px -10px rgba(0,20,50,.15);overflow:hidden;border:1px solid #e2e8f0}
+                        .header{background:linear-gradient(135deg,#0F4C81 0%,#1F7EDC 100%);color:#fff;padding:30px 35px;display:flex;justify-content:space-between;align-items:center}
+                        .header h1{font-size:32px;font-weight:800;letter-spacing:1px}.header h1 span{color:#FF6A2A}
+                        .folio{background:rgba(255,255,255,.15);padding:10px 22px;border-radius:60px;border:1px solid rgba(255,255,255,.3);font-weight:700}
+                        .content{padding:35px}.pill{display:flex;justify-content:space-between;gap:10px;background:#f1f5f9;padding:14px 18px;border-radius:999px;margin-bottom:24px}
+                        .grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+                        .card{background:#f8fafc;border-radius:16px;padding:18px;border:1px solid #e2e8f0}
+                        .card h3{font-size:16px;color:#1F7EDC;margin-bottom:12px;border-bottom:2px solid #FF6A2A;padding-bottom:6px}
+                        .row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed #cbd5e1}.row:last-child{border-bottom:0}
+                        .k{font-weight:600;color:#475569}.v{font-weight:500;color:#0f172a;text-align:right;max-width:60%}
+                        .checks{margin:22px 0;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:16px;padding:16px}
+                        .checks h3{color:#FF6A2A;margin-bottom:10px}.check-list{display:flex;gap:10px;flex-wrap:wrap}
+                        .check-item{background:#fff;border:1px solid #cbd5e1;border-radius:999px;padding:7px 12px;font-size:13px}
+                        .notas{background:#fff7ed;border-left:6px solid #FF6A2A;padding:16px;border-radius:12px;margin-top:18px}
+                        .total{margin-top:18px;text-align:right;font-size:20px;font-weight:700}.footer{background:#f1f5f9;border-top:1px solid #cbd5e1;padding:14px;text-align:center;color:#64748b;font-size:13px}
+                        @media print{body{background:#fff;padding:0}.container{box-shadow:none}}
                     </style>
                 </head>
                 <body>
-                    <h1>SRFIX - Resumen de Orden (Previo)</h1>
-                    <div class="muted">Fecha: ${datos.fecha}</div>
-                    <div class="card">
-                        <div class="row"><div class="k">Cliente</div><div class="v">${datos.clienteNombre}</div></div>
-                        <div class="row"><div class="k">Teléfono</div><div class="v">${datos.clienteTelefono}</div></div>
-                        <div class="row"><div class="k">Email</div><div class="v">${datos.clienteEmail}</div></div>
-                        <div class="row"><div class="k">Equipo</div><div class="v">${datos.dispositivo}</div></div>
-                        <div class="row"><div class="k">Falla</div><div class="v">${datos.falla}</div></div>
-                        <div class="row"><div class="k">Fecha promesa</div><div class="v">${datos.fechaPromesa}</div></div>
-                        <div class="row"><div class="k">Costo estimado</div><div class="v">$${datos.costo}</div></div>
+                    <div class="container">
+                        <div class="header">
+                            <div><h1>SR<span>FIX</span></h1><p>Orden de Servicio</p></div>
+                            <div class="folio">${datos.folio}</div>
+                        </div>
+                        <div class="content">
+                            <div class="pill"><span><strong>Fecha:</strong> ${datos.fecha || '---'}</span><span><strong>Entrega:</strong> ${datos.fechaPromesa || '---'}</span></div>
+                            <div class="grid">
+                                <div class="card">
+                                    <h3>Cliente</h3>
+                                    <div class="row"><div class="k">Nombre</div><div class="v">${datos.clienteNombre || '---'}</div></div>
+                                    <div class="row"><div class="k">Teléfono</div><div class="v">${datos.clienteTelefono || '---'}</div></div>
+                                    <div class="row"><div class="k">Email</div><div class="v">${datos.clienteEmail || '---'}</div></div>
+                                </div>
+                                <div class="card">
+                                    <h3>Equipo</h3>
+                                    <div class="row"><div class="k">Tipo</div><div class="v">${datos.dispositivo || '---'}</div></div>
+                                    <div class="row"><div class="k">Modelo</div><div class="v">${datos.modelo || '---'}</div></div>
+                                    <div class="row"><div class="k">Falla</div><div class="v">${datos.falla || '---'}</div></div>
+                                </div>
+                            </div>
+                            <div class="checks"><h3>Checklist recepción</h3><div class="check-list">${checksHTML}</div></div>
+                            <div class="notas"><strong>Notas:</strong><div style="margin-top:6px;line-height:1.5">${datos.notas || '---'}</div></div>
+                            <div class="total">Costo estimado: $${Number(datos.costo || 0).toFixed(2)}</div>
+                        </div>
+                        <div class="footer">SrFix Oficial · Plaza Chapultepec · 81 1700 6536</div>
                     </div>
-                    <script>window.onload = () => window.print();<\/script>
+                    <script>window.onload=()=>window.print();<\/script>
                 </body>
                 </html>
             `;
 
             const w = window.open('', '_blank');
-            if (!w) {
-                mostrarToast('Permite ventanas emergentes para generar PDF', 'error');
-                return;
-            }
+            if (!w) return mostrarToast('Permite ventanas emergentes para generar PDF', 'error');
             w.document.open();
             w.document.write(html);
             w.document.close();
         }
 
-        function descargarOrdenPDF() {
-            if (!ultimaOrdenRegistrada) {
-                mostrarToast('No hay orden registrada para exportar', 'error');
-                return;
-            }
-
-            const o = ultimaOrdenRegistrada;
-            const html = `
-                <!doctype html>
-                <html lang="es">
-                <head>
-                    <meta charset="utf-8">
-                    <title>Orden ${o.folio}</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; margin: 24px; color: #111; }
-                        h1 { margin: 0 0 8px 0; color: #1f7edc; }
-                        .muted { color: #555; margin-bottom: 16px; }
-                        .card { border: 1px solid #ddd; border-radius: 8px; padding: 14px; }
-                        .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; }
-                        .row:last-child { border-bottom: 0; }
-                        .k { color: #666; font-weight: bold; }
-                        .v { color: #111; text-align: right; max-width: 60%; }
-                    </style>
-                </head>
-                <body>
-                    <h1>SRFIX - Orden de Servicio</h1>
-                    <div class="muted">Folio: ${o.folio} | Fecha: ${o.fecha}</div>
-                    <div class="card">
-                        <div class="row"><div class="k">Cliente</div><div class="v">${o.clienteNombre || '---'}</div></div>
-                        <div class="row"><div class="k">Teléfono</div><div class="v">${o.clienteTelefono || '---'}</div></div>
-                        <div class="row"><div class="k">Email</div><div class="v">${o.clienteEmail || '---'}</div></div>
-                        <div class="row"><div class="k">Equipo</div><div class="v">${o.dispositivo || '---'} ${o.modelo || ''}</div></div>
-                        <div class="row"><div class="k">Falla</div><div class="v">${o.falla || '---'}</div></div>
-                        <div class="row"><div class="k">Fecha promesa</div><div class="v">${o.fechaPromesa || '---'}</div></div>
-                        <div class="row"><div class="k">Costo estimado</div><div class="v">$${o.costo || 0}</div></div>
-                    </div>
-                    <script>window.onload = () => window.print();<\/script>
-                </body>
-                </html>
-            `;
-
-            const w = window.open('', '_blank');
-            if (!w) {
-                mostrarToast('Permite ventanas emergentes para generar PDF', 'error');
-                return;
-            }
-            w.document.open();
-            w.document.write(html);
-            w.document.close();
-        }
+        function generarPDFResumenOrden() { generarPDFOrden('previa'); }
+        function descargarOrdenPDF() { generarPDFOrden('confirmada'); }
 
         function nuevaOrden() {
             document.getElementById('cliente-nombre').value = '';

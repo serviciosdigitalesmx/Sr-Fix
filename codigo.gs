@@ -128,6 +128,24 @@ function doGet(e) {
       case 'equipo':
         if (!e.parameter.folio) return jsonResponse({ error: 'Folio requerido' });
         return getEquipoByFolio(e.parameter.folio);
+      case 'semaforo':
+        return getSemaforoData();
+      case 'listar_solicitudes':
+        return listarSolicitudes();
+      case 'archivar_solicitud':
+        if (!e.parameter.folio) return jsonResponse({ error: 'Folio requerido' });
+        return archivarSolicitud({ folio: e.parameter.folio });
+      case 'crear_solicitud':
+        return crearSolicitud({
+          nombre: e.parameter.nombre || '',
+          telefono: e.parameter.telefono || '',
+          email: e.parameter.email || '',
+          dispositivo: e.parameter.dispositivo || '',
+          modelo: e.parameter.modelo || '',
+          problemas: (e.parameter.problemas || '').split(',').map(s => String(s).trim()).filter(Boolean),
+          descripcion: e.parameter.descripcion || '',
+          urgencia: e.parameter.urgencia || ''
+        });
       default:
         return jsonResponse({ error: 'Acción no válida' });
     }

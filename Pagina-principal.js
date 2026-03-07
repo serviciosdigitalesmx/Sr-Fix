@@ -106,9 +106,31 @@
                     method: 'POST',
                     body: JSON.stringify(payload)
                 });
-                if (!response.ok) throw new Error('Error de conexión al backend');
-                const result = await response.json();
-                if (result.error || !result.success) throw new Error(result.error || 'No se pudo guardar la solicitud');
+                let result = null;
+                if (response.ok) {
+                    try {
+                        result = await response.json();
+                    } catch (e) {}
+                }
+
+                // Fallback por si POST regresa HTML/redirect en ciertos deployments de Apps Script.
+                if (!result || result.error || !result.success) {
+                    const qs = new URLSearchParams({
+                        action: 'crear_solicitud',
+                        nombre: nombre,
+                        telefono: telefono,
+                        email: email,
+                        dispositivo: dispositivo,
+                        modelo: modelo,
+                        problemas: problemas.join(', '),
+                        descripcion: descripcion,
+                        urgencia: urgencia
+                    });
+                    const fallbackRes = await fetch(`${CONFIG.BACKEND_URL}?${qs.toString()}`);
+                    if (!fallbackRes.ok) throw new Error('Error de conexión al backend');
+                    result = await fallbackRes.json();
+                    if (result.error || !result.success) throw new Error(result.error || 'No se pudo guardar la solicitud');
+                }
 
                 // Construir mensaje con saltos de línea reales (luego se codificará)
                 let mensaje = "*Nueva cotización - SrFix Oficial*\n\n";

@@ -86,14 +86,21 @@
         async function cargarDatos(esLogin = false) {
             mostrarRefreshing(true);
             try {
-                const res = await fetch(CONFIG.BACKEND_URL, {
+                let res = await fetch(CONFIG.BACKEND_URL, {
                     method: 'POST',
                     body: JSON.stringify({
                         action: 'semaforo'
                     })
                 });
-                if (!res.ok) throw new Error('Error de conexión');
-                const data = await res.json();
+                let data = null;
+                if (res.ok) {
+                    try { data = await res.json(); } catch (e) {}
+                }
+                if (!data || data.error) {
+                    res = await fetch(`${CONFIG.BACKEND_URL}?action=semaforo&t=${Date.now()}`);
+                    if (!res.ok) throw new Error('Error de conexión');
+                    data = await res.json();
+                }
                 if (data.error) throw new Error(data.error);
 
                 equiposData = data.equipos || [];
@@ -427,6 +434,43 @@
             const destino = limpio.length === 10 ? `52${limpio}` : limpio;
             const mensaje = `Hola, te escribimos de SrFix para informarte que tu equipo con folio ${folio} se encuentra en estado: ${estado}.`;
             window.open(`https://wa.me/${destino}?text=${encodeURIComponent(mensaje)}`, '_blank');
+        }
+
+        function descargarFichaPDF() {
+            if (!equipoActual) {
+                mostrarToast('No hay equipo seleccionado', 'error');
+                return;
+            }
+            const e = equipoActual;
+            const html = `
+                <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Ficha ${e.FOLIO || 'SRFIX'}</title>
+                <style>
+                    body{font-family:Arial,sans-serif;margin:24px;color:#111}
+                    h1{margin:0 0 8px 0;color:#1f7edc}
+                    .muted{color:#555;margin-bottom:14px}
+                    .card{border:1px solid #ddd;border-radius:10px;padding:14px}
+                    .row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dashed #ddd}
+                    .row:last-child{border-bottom:0}.k{font-weight:bold;color:#555}.v{text-align:right;max-width:62%}
+                </style></head><body>
+                    <h1>SRFIX - Ficha Técnica</h1>
+                    <div class="muted">Folio: ${e.FOLIO || '---'} | Fecha: ${new Date().toLocaleString('es-MX')}</div>
+                    <div class="card">
+                        <div class="row"><div class="k">Cliente</div><div class="v">${escapeHtml(e.CLIENTE_NOMBRE || '---')}</div></div>
+                        <div class="row"><div class="k">Teléfono</div><div class="v">${escapeHtml(e.CLIENTE_TELEFONO || '---')}</div></div>
+                        <div class="row"><div class="k">Equipo</div><div class="v">${escapeHtml(e.DISPOSITIVO || '---')} ${escapeHtml(e.MODELO || '')}</div></div>
+                        <div class="row"><div class="k">Falla</div><div class="v">${escapeHtml(e.FALLA_REPORTADA || '---')}</div></div>
+                        <div class="row"><div class="k">Estado</div><div class="v">${escapeHtml(document.getElementById('modal-estado').value || e.ESTADO || '---')}</div></div>
+                        <div class="row"><div class="k">Técnico</div><div class="v">${escapeHtml(document.getElementById('modal-tecnico').value || e.TECNICO_ASIGNADO || '---')}</div></div>
+                        <div class="row"><div class="k">Fecha promesa</div><div class="v">${escapeHtml(e.FECHA_PROMESA || '---')}</div></div>
+                    </div>
+                    <script>window.onload=()=>window.print();<\/script>
+                </body></html>
+            `;
+            const w = window.open('', '_blank');
+            if (!w) return mostrarToast('Permite ventanas emergentes para generar PDF', 'error');
+            w.document.open();
+            w.document.write(html);
+            w.document.close();
         }
 
         function parseSeguimientoFotos(raw) {

@@ -2,7 +2,7 @@
             BACKEND_URL: 'https://script.google.com/macros/s/AKfycbwEgugkot4Ib8Y8H3onbkwLHbllQiv2_LsbclkvNETcAfh03q4LgdussMr13917g7sX/exec',
             MODULO: 'operativo',
             LOGO_URL: './logo.webp',
-            FRONT_PASSWORD: 'Admin2'
+            FRONT_PASSWORD: 'Admin1'
         };
 
         // ==========================================

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRFIX - Panel Técnico Profesional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="./panel-tecnico.css">
+
+</head>
+<body class="min-h-screen">
+
+    <!-- CONFIGURACIÓN -->
+
+    <!-- LOGIN -->
+    <div id="login-screen" class="fixed inset-0 bg-[#1E1E1E] flex items-center justify-center z-50 p-4">
+        <div class="w-full max-w-sm">
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 bg-[#1F7EDC] rounded-full flex items-center justify-center mx-auto mb-4 text-white text-3xl shadow-lg overflow-hidden">
+                    <img src="./logo.webp" 
+                         alt="SrFix" 
+                         class="w-full h-full object-contain bg-white p-1"
+                         onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='./logo.png';return;} this.onerror=null; this.src=''; this.parentNode.innerHTML='<i class=\'fa-solid fa-screwdriver-wrench\'></i>'">
+                </div>
+                <h1 class="text-3xl font-bold text-[#1F7EDC]">SR<span class="text-[#1F7EDC]">FIX</span></h1>
+                <p class="text-[#8A8F95] mt-2">Panel Técnico Profesional</p>
+            </div>
+
+            <div class="bg-[#2B2B2B] rounded-2xl p-6 border border-[#1F7EDC] shadow-xl">
+                <label class="block text-sm text-[#8A8F95] mb-2">Contraseña de acceso</label>
+                <input type="password" id="password-input" placeholder="••••••" 
+                       class="w-full bg-[#1E1E1E] border border-[#1F7EDC] rounded-xl p-4 text-white text-center text-lg tracking-widest focus:border-[#FF6A2A] focus:outline-none mb-4"
+                       onkeypress="if(event.key==='Enter') login()">
+                <button onclick="login()" id="btn-login" class="btn-naranja w-full font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2">
+                    <span>INGRESAR</span>
+                </button>
+                <p id="login-error" class="text-red-500 text-sm text-center mt-3 hidden"></p>
+                <p class="text-xs text-[#8A8F95] text-center mt-4">Versión 3.0 · Profesional</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- APLICACIÓN PRINCIPAL -->
+    <div id="app" class="hidden min-h-screen flex flex-col">
+        <!-- Barra superior con LOGO -->
+        <nav class="bg-[#1E1E1E] border-b border-[#1F7EDC] p-4 sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-[#1F7EDC] rounded-lg flex items-center justify-center text-white font-bold overflow-hidden">
+                        <img src="./logo.webp" 
+                             alt="SrFix" 
+                             class="w-full h-full object-contain bg-white p-1"
+                             onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='./logo.png';return;} this.onerror=null; this.src=''; this.parentNode.innerHTML='<i class=\'fa-solid fa-microchip\'></i>'">
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-[#1F7EDC]">SR<span class="text-[#1F7EDC]">FIX</span></h1>
+                        <p class="text-xs text-[#8A8F95]">Panel Técnico · <span id="fecha-actual"></span></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="refrescarManual()" id="btn-refresh" class="text-[#8A8F95] hover:text-[#F2F2F2] text-sm flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-[#2B2B2B]">
+                        <i class="fa-solid fa-rotate-right"></i> <span class="hidden sm:inline">Actualizar</span>
+                    </button>
+                    <button onclick="logout()" class="text-[#8A8F95] hover:text-[#F2F2F2] text-sm flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-[#2B2B2B]">
+                        <i class="fa-solid fa-right-from-bracket"></i> <span class="hidden sm:inline">Salir</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <main class="p-4 md:p-6 max-w-7xl mx-auto w-full">
+            <!-- KPIs (mantienen la paleta) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center justify-between">
+                    <div>
+                        <div class="text-3xl font-bold text-red-500" id="count-urgentes">-</div>
+                        <div class="text-xs text-red-400 uppercase font-semibold">Críticos (≤2 días)</div>
+                    </div>
+                    <i class="fa-solid fa-circle-exclamation text-red-500 text-3xl opacity-50"></i>
+                </div>
+                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center justify-between">
+                    <div>
+                        <div class="text-3xl font-bold text-yellow-500" id="count-atencion">-</div>
+                        <div class="text-xs text-yellow-400 uppercase font-semibold">Atención (3-4 días)</div>
+                    </div>
+                    <i class="fa-solid fa-clock text-yellow-500 text-3xl opacity-50"></i>
+                </div>
+                <div class="bg-green-500/10 border border-green-500/30 rounded-xl p-4 flex items-center justify-between">
+                    <div>
+                        <div class="text-3xl font-bold text-green-500" id="count-tiempo">-</div>
+                        <div class="text-xs text-green-400 uppercase font-semibold">A tiempo (≥5 días)</div>
+                    </div>
+                    <i class="fa-solid fa-check-circle text-green-500 text-3xl opacity-50"></i>
+                </div>
+                <div class="bg-[#1F7EDC]/10 border border-[#1F7EDC]/30 rounded-xl p-4 flex items-center justify-between">
+                    <div>
+                        <div class="text-3xl font-bold text-[#1F7EDC]" id="count-total">-</div>
+                        <div class="text-xs text-[#1F7EDC] uppercase font-semibold">Total en taller</div>
+                    </div>
+                    <i class="fa-solid fa-cubes text-[#1F7EDC] text-3xl opacity-50"></i>
+                </div>
+            </div>
+
+            <!-- Barra de búsqueda y filtros -->
+            <div class="bg-[#2B2B2B] rounded-xl p-4 border border-[#1F7EDC] mb-6">
+                <div class="flex flex-col md:flex-row gap-4 items-center">
+                    <div class="relative flex-1 w-full">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[#8A8F95]"></i>
+                        <input type="text" id="buscador" placeholder="Buscar por folio, cliente o equipo..." 
+                               class="w-full bg-[#1E1E1E] border border-[#1F7EDC] rounded-lg py-2.5 pl-10 pr-4 text-[#F2F2F2] focus:border-[#FF6A2A] outline-none">
+                    </div>
+                    <select id="filtro-color" class="bg-[#1E1E1E] border border-[#1F7EDC] rounded-lg py-2.5 px-4 text-[#F2F2F2] focus:border-[#FF6A2A] outline-none">
+                        <option value="todos">Todos los colores</option>
+                        <option value="rojo">🔴 Urgente</option>
+                        <option value="amarillo">🟡 Atención</option>
+                        <option value="verde">🟢 A tiempo</option>
+                    </select>
+                    <select id="filtro-estado" class="bg-[#1E1E1E] border border-[#1F7EDC] rounded-lg py-2.5 px-4 text-[#F2F2F2] focus:border-[#FF6A2A] outline-none">
+                        <option value="todos">Todos los estados</option>
+                        <option value="Recibido">📦 Recibido</option>
+                        <option value="En Diagnóstico">🔍 En Diagnóstico</option>
+                        <option value="En Reparación">🔧 En Reparación</option>
+                        <option value="Esperando Refacción">⏳ Esperando Refacción</option>
+                        <option value="Listo">✅ Listo</option>
+                    </select>
+                    <select id="ordenar-por" class="bg-[#1E1E1E] border border-[#1F7EDC] rounded-lg py-2.5 px-4 text-[#F2F2F2] focus:border-[#FF6A2A] outline-none">
+                        <option value="dias_asc">Días (menor primero)</option>
+                        <option value="dias_desc">Días (mayor primero)</option>
+                        <option value="folio_asc">Folio A-Z</option>
+                        <option value="folio_desc">Folio Z-A</option>
+                    </select>
+                    <button onclick="limpiarFiltros()" class="bg-[#1F7EDC] hover:bg-[#1a6ab8] text-white px-4 py-2.5 rounded-lg text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-eraser"></i> Limpiar
+                    </button>
+                </div>
+                <div class="flex justify-end items-center mt-2 text-xs text-[#8A8F95]">
+                    <span id="last-update"></span>
+                    <span id="refreshing-indicator" class="ml-2 hidden"><i class="fa-solid fa-circle-notch fa-spin text-[#FF6A2A]"></i></span>
+                </div>
+            </div>
+
+            <!-- Grid de equipos -->
+            <div id="equipos-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="col-span-full text-center py-12">
+                    <div class="spinner w-8 h-8 mx-auto mb-4"></div>
+                    <p class="text-[#8A8F95]">Cargando equipos...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 bg-black/70 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-[#2B2B2B] w-full max-w-3xl rounded-2xl border border-[#1F7EDC] max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="p-6 border-b border-[#1F7EDC] flex justify-between items-center sticky top-0 bg-[#2B2B2B] z-10">
+                <h3 class="text-xl font-bold text-[#1F7EDC] flex items-center gap-2">
+                    <i class="fa-solid fa-file-lines text-[#1F7EDC]"></i>
+                    <span id="modal-folio">FOLIO</span>
+                </h3>
+                <button onclick="cerrarModal()" class="text-[#8A8F95] hover:text-[#FF6A2A]"><i class="fa-solid fa-xmark text-2xl"></i></button>
+            </div>
+            <div class="p-6 space-y-5" id="modal-content"></div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-[#2B2B2B] text-[#F2F2F2] px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 transform transition-all duration-300 translate-y-20 opacity-0 z-50 border-l-4 border-[#FF6A2A]">
+        <i class="fa-solid fa-circle-check text-green-500"></i>
+        <span id="toast-message">Mensaje</span>
+    </div>
+    <script src="./panel-tecnico.js"></script>
+</body>
+</html>

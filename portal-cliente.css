@@ -1,0 +1,76 @@
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1E1E1E;
+            color: #F2F2F2;
+            background-image: radial-gradient(circle at 10% 20%, rgba(31, 126, 220, 0.05) 0%, transparent 30%);
+        }
+        
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeInUp { animation: fadeInUp 0.5s ease forwards; }
+
+        .tech-card {
+            background: #2B2B2B;
+            border: 1px solid #1F7EDC;
+            box-shadow: 0 4px 20px rgba(31, 126, 220, 0.2);
+            border-radius: 1.5rem;
+        }
+
+        .status-badge {
+            padding: 0.25rem 1rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            display: inline-block;
+            background-color: #1F7EDC;
+            color: #F2F2F2;
+            border: 1px solid #1F7EDC;
+        }
+        .status-Listo, .status-Reparación {
+            background-color: #FF6A2A;
+            border-color: #FF6A2A;
+        }
+
+        .loading-spinner {
+            border: 3px solid rgba(31, 126, 220, 0.2);
+            border-radius: 50%;
+            border-top-color: #1F7EDC;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .btn-naranja {
+            background-color: #FF6A2A;
+            color: #F2F2F2;
+            transition: all 0.2s;
+        }
+        .btn-naranja:hover {
+            background-color: #E85A1F;
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(255, 106, 42, 0.5);
+        }
+
+        .btn-wa {
+            background-color: #25D366;
+            color: #F2F2F2;
+        }
+        .btn-wa:hover {
+            background-color: #20BD5A;
+        }
+
+        .input-tech {
+            background-color: #2B2B2B;
+            border: 2px solid #1F7EDC;
+            color: #F2F2F2;
+        }
+        .input-tech:focus {
+            border-color: #FF6A2A;
+            outline: none;
+        }
+
+        .text-metal {
+            color: #8A8F95;
+        }

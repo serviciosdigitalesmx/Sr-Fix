@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRFIX - Recepción Profesional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="./panel-operativo.css">
+
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- CONFIGURACIÓN -->
+
+    <!-- LOGIN -->
+    <div id="login-screen" class="fixed inset-0 bg-[#1E1E1E] flex items-center justify-center z-50 p-4">
+        <div class="w-full max-w-sm text-center">
+            <div class="w-20 h-20 bg-[#1F7EDC] rounded-full flex items-center justify-center mx-auto mb-4 text-white text-3xl overflow-hidden">
+                <img src="./logo.webp" 
+                     alt="SrFix" 
+                     class="w-full h-full object-contain bg-white p-1"
+                     onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='./logo.png';return;} this.onerror=null; this.src=''; this.parentNode.innerHTML='<i class=\'fa-solid fa-plus\'></i>'">
+            </div>
+            <h1 class="text-3xl font-bold text-[#1F7EDC] mb-2">SR<span class="text-[#1F7EDC]">FIX</span></h1>
+            <p class="text-[#8A8F95] mb-8">Panel de Recepción Profesional</p>
+            
+            <div class="card-srf p-6">
+                <input type="password" id="password-input" placeholder="Contraseña" 
+                       class="w-full input-srf rounded-xl p-4 text-center mb-4"
+                       onkeypress="if(event.key==='Enter') login()">
+                <button onclick="login()" id="btn-login" class="btn-naranja w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2">
+                    <span>INGRESAR</span>
+                </button>
+                <p id="login-error" class="text-red-500 text-sm mt-3 hidden"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- APP PRINCIPAL -->
+    <div id="app" class="hidden flex-grow max-w-2xl mx-auto w-full p-4">
+        <header class="mb-6 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-[#1F7EDC] rounded-lg flex items-center justify-center text-white font-bold overflow-hidden">
+                    <img src="./logo.webp" 
+                         alt="SrFix" 
+                         class="w-full h-full object-contain bg-white p-1"
+                         onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='./logo.png';return;} this.onerror=null; this.src=''; this.parentNode.innerHTML='<i class=\'fa-solid fa-clipboard-list\'></i>'">
+                </div>
+                <h2 class="text-xl font-bold text-[#1F7EDC] flex items-center gap-2">
+                    Nueva Orden de Servicio
+                </h2>
+            </div>
+            <button onclick="logout()" class="text-[#8A8F95] hover:text-[#FF6A2A] text-sm flex items-center gap-1">
+                <i class="fa-solid fa-right-from-bracket"></i> Salir
+            </button>
+        </header>
+
+        <!-- PASOS (indicador mejorado) -->
+        <div class="flex justify-center mb-6">
+            <div class="flex items-center gap-2">
+                <div id="step-1-ind" class="w-10 h-10 rounded-full flex items-center justify-center font-bold step-active transition-all">1</div>
+                <div class="w-8 h-1 bg-[#1F7EDC] opacity-30"></div>
+                <div id="step-2-ind" class="w-10 h-10 rounded-full flex items-center justify-center font-bold step-inactive transition-all">2</div>
+                <div class="w-8 h-1 bg-[#1F7EDC] opacity-30"></div>
+                <div id="step-3-ind" class="w-10 h-10 rounded-full flex items-center justify-center font-bold step-inactive transition-all">3</div>
+            </div>
+        </div>
+
+        <!-- PASO 1: Datos del cliente -->
+        <div id="step-1" class="card-srf p-6">
+            <h3 class="text-lg font-bold text-[#1F7EDC] mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-user"></i> Datos del Cliente
+            </h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-[#8A8F95] mb-1">Nombre completo <span class="text-red-500">*</span></label>
+                    <input type="text" id="cliente-nombre" placeholder="Ej: Juan Pérez" class="w-full input-srf rounded-lg p-3">
+                    <div id="error-nombre" class="error-message hidden"></div>
+                </div>
+                <div>
+                    <label class="block text-sm text-[#8A8F95] mb-1">WhatsApp <span class="text-red-500">*</span> <span class="text-xs">(10 dígitos)</span></label>
+                    <input type="tel" id="cliente-telefono" placeholder="5512345678" maxlength="10" class="w-full input-srf rounded-lg p-3">
+                    <div id="error-telefono" class="error-message hidden"></div>
+                </div>
+                <div>
+                    <label class="block text-sm text-[#8A8F95] mb-1">Email <span class="text-[#8A8F95]">(opcional)</span></label>
+                    <input type="email" id="cliente-email" placeholder="cliente@email.com" class="w-full input-srf rounded-lg p-3">
+                </div>
+            </div>
+            <button onclick="irPaso(2)" class="btn-naranja w-full font-bold py-3 rounded-lg mt-6 flex items-center justify-center gap-2">
+                Continuar <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+
+        <!-- PASO 2: Información del equipo -->
+        <div id="step-2" class="hidden card-srf p-6">
+            <h3 class="text-lg font-bold text-[#1F7EDC] mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-mobile-screen"></i> Información del Equipo
+            </h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-[#8A8F95] mb-1">Tipo de dispositivo <span class="text-red-500">*</span></label>
+                    <select id="equipo-tipo" class="w-full input-srf rounded-lg p-3">
+                        <option value="">Selecciona...</option>
+                        <option value="Smartphone">Smartphone</option>
+                        <option value="Tablet">Tablet</option>
+                        <option value="Laptop">Laptop</option>
+                        <option value="Computadora">Computadora</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                    <div id="error-tipo" class="error-message hidden"></div>
+                </div>
+                <div>
+                    <label class="block text-sm text-[#8A8F95] mb-1">Marca y modelo <span class="text-red-500">*</span></label>
+                    <input type="text" id="equipo-modelo" placeholder="Ej: iPhone 13 Pro" class="w-full input-srf rounded-lg p-3">
+                    <div id="error-modelo" class="error-message hidden"></div>
+                </div>
+                <div>
+                    <label class="block text-sm text-[#8A8F95] mb-1">Falla reportada <span class="text-red-500">*</span></label>
+                    <textarea id="equipo-falla" placeholder="Describe el problema que comenta el cliente" rows="3" class="w-full input-srf rounded-lg p-3"></textarea>
+                    <div id="error-falla" class="error-message hidden"></div>
+                </div>
+            </div>
+
+            <!-- CHECKLIST mejorado -->
+            <div class="bg-[#1E1E1E] rounded-lg p-4 my-4 border border-[#1F7EDC]">
+                <p class="text-sm text-[#8A8F95] mb-3 font-semibold flex items-center gap-2">
+                    <i class="fa-solid fa-clipboard-check text-[#1F7EDC]"></i> Checklist de Recepción:
+                </p>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#2B2B2B] transition">
+                        <input type="checkbox" id="chk-cargador" class="w-4 h-4 rounded border-[#1F7EDC] text-[#FF6A2A] bg-[#2B2B2B] focus:ring-0">
+                        <span class="text-[#F2F2F2]"><i class="fa-solid fa-bolt mr-1 text-[#FF6A2A]"></i>Trae cargador</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#2B2B2B] transition">
+                        <input type="checkbox" id="chk-pantalla" class="w-4 h-4 rounded border-[#1F7EDC] text-[#FF6A2A] bg-[#2B2B2B]">
+                        <span class="text-[#F2F2F2]"><i class="fa-solid fa-mobile-screen mr-1 text-[#1F7EDC]"></i>Pantalla OK</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#2B2B2B] transition">
+                        <input type="checkbox" id="chk-prende" class="w-4 h-4 rounded border-[#1F7EDC] text-[#FF6A2A] bg-[#2B2B2B]">
+                        <span class="text-[#F2F2F2]"><i class="fa-solid fa-power-off mr-1 text-green-500"></i>Equipo prende</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#2B2B2B] transition">
+                        <input type="checkbox" id="chk-respaldo" class="w-4 h-4 rounded border-[#1F7EDC] text-[#FF6A2A] bg-[#2B2B2B]">
+                        <span class="text-[#F2F2F2]"><i class="fa-solid fa-database mr-1 text-purple-400"></i>Datos respaldados</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- FECHA Y COSTO -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm text-[#FF6A2A] mb-1">Fecha promesa <span class="text-red-500">*</span></label>
+                    <input type="date" id="fecha-promesa" class="w-full input-srf rounded-lg p-3">
+                    <div id="error-fecha" class="error-message hidden"></div>
+                </div>
+                <div>
+                    <label class="block text-sm text-[#8A8F95] mb-1">Costo estimado $</label>
+                    <input type="number" id="costo" placeholder="0.00" min="0" step="0.01" class="w-full input-srf rounded-lg p-3">
+                </div>
+            </div>
+
+            <!-- NOTAS ADICIONALES -->
+            <div class="mb-4">
+                <label class="block text-sm text-[#8A8F95] mb-1">Notas adicionales (opcional)</label>
+                <input type="text" id="notas-extra" placeholder="Ej: Cliente dejó funda, teléfono con contraseña..." class="w-full input-srf rounded-lg p-3">
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="irPaso(1)" class="flex-1 bg-[#2B2B2B] hover:bg-[#3a3a3a] text-[#F2F2F2] font-bold py-3 rounded-lg transition flex items-center justify-center gap-2 border border-[#1F7EDC]">
+                    <i class="fa-solid fa-arrow-left"></i> Atrás
+                </button>
+                <button onclick="irPaso(3)" class="flex-1 btn-naranja font-bold py-3 rounded-lg flex items-center justify-center gap-2">
+                    Continuar <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- PASO 3: Confirmar Orden -->
+        <div id="step-3" class="hidden card-srf p-6">
+            <h3 class="text-lg font-bold text-[#1F7EDC] mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-check-circle"></i> Confirmar Orden
+            </h3>
+            
+            <div class="bg-[#1E1E1E] rounded-lg p-4 mb-6 space-y-3 text-sm border border-[#1F7EDC]">
+                <div class="flex justify-between border-b border-[#1F7EDC] pb-2">
+                    <span class="text-[#8A8F95]">Cliente:</span>
+                    <span id="res-cliente" class="text-[#F2F2F2] font-medium"></span>
+                </div>
+                <div class="flex justify-between border-b border-[#1F7EDC] pb-2">
+                    <span class="text-[#8A8F95]">Teléfono:</span>
+                    <span id="res-telefono" class="text-[#F2F2F2]"></span>
+                </div>
+                <div class="flex justify-between border-b border-[#1F7EDC] pb-2">
+                    <span class="text-[#8A8F95]">Email:</span>
+                    <span id="res-email" class="text-[#F2F2F2]"></span>
+                </div>
+                <div class="flex justify-between border-b border-[#1F7EDC] pb-2">
+                    <span class="text-[#8A8F95]">Equipo:</span>
+                    <span id="res-equipo" class="text-[#F2F2F2]"></span>
+                </div>
+                <div class="flex justify-between border-b border-[#1F7EDC] pb-2">
+                    <span class="text-[#8A8F95]">Falla:</span>
+                    <span id="res-falla" class="text-[#F2F2F2] text-right max-w-[60%]"></span>
+                </div>
+                <div class="flex justify-between border-b border-[#1F7EDC] pb-2">
+                    <span class="text-[#8A8F95]">Checklist:</span>
+                    <span id="res-checklist" class="text-[#F2F2F2] text-right text-xs"></span>
+                </div>
+                <div class="flex justify-between border-b border-[#1F7EDC] pb-2">
+                    <span class="text-[#8A8F95]">Entrega:</span>
+                    <span id="res-fecha" class="text-[#FF6A2A] font-bold"></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-[#8A8F95]">Costo estimado:</span>
+                    <span id="res-costo" class="text-[#F2F2F2]">$0</span>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="irPaso(2)" class="flex-1 bg-[#2B2B2B] hover:bg-[#3a3a3a] text-[#F2F2F2] font-bold py-3 rounded-lg transition flex items-center justify-center gap-2 border border-[#1F7EDC]">
+                    <i class="fa-solid fa-pencil"></i> Corregir
+                </button>
+                <button onclick="guardarOrden()" id="btn-guardar" class="flex-1 btn-wa font-bold py-3 rounded-lg flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-save"></i> Guardar Orden
+                </button>
+            </div>
+        </div>
+
+        <!-- ÉXITO (folio generado) -->
+        <div id="exito" class="hidden text-center py-8">
+            <div class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 text-white text-3xl animate-bounce">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-[#1F7EDC] mb-2">¡Orden Registrada!</h2>
+            <p class="text-[#8A8F95] mb-4">El folio generado es:</p>
+            <div class="card-srf border-2 border-[#FF6A2A] rounded-xl p-6 max-w-xs mx-auto mb-6">
+                <span id="folio-generado" class="text-3xl font-mono font-bold text-[#FF6A2A] tracking-wider"></span>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-3 justify-center mb-6">
+                <button onclick="copiarFolio()" class="btn-azul font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2">
+                    <i class="fa-regular fa-copy"></i> Copiar folio
+                </button>
+                <a href="#" id="whatsapp-link" target="_blank" class="btn-wa font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2">
+                    <i class="fa-brands fa-whatsapp"></i> Enviar por WhatsApp
+                </a>
+            </div>
+            <p class="text-sm text-[#8A8F95] mb-6">Comparte este folio con el cliente para que pueda consultar el estado.</p>
+            <button onclick="nuevaOrden()" class="btn-naranja font-bold py-3 px-8 rounded-lg flex items-center justify-center gap-2 mx-auto">
+                <i class="fa-solid fa-plus"></i> Nueva Orden
+            </button>
+        </div>
+    </div>
+
+    <!-- TOAST de notificación -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-[#2B2B2B] text-[#F2F2F2] px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 transform transition-all duration-300 translate-y-20 opacity-0 z-50 border-l-4 border-[#FF6A2A]">
+        <i class="fa-solid fa-circle-check text-green-500"></i>
+        <span id="toast-message">Mensaje</span>
+    </div>
+    <script src="./panel-operativo.js"></script>
+</body>
+</html>

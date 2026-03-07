@@ -1,13 +1,25 @@
 # SRFIX Cloud - Sistema de Gestión de Taller
 
-Sistema de gestión de reparaciones multi-dispositivo basado en Google Apps Script y Google Sheets.
+Proyecto web + Google Apps Script para gestionar recepción, diagnóstico y seguimiento de equipos.
 
-## 🚀 Características
+## Enlaces finales (solo 2)
 
-- **Tres módulos independientes**: Panel Técnico (Semáforo), Panel Operativo (Recepción) y Portal Cliente
-- **Sincronización en tiempo real**: Todos los dispositivos ven los mismos datos instantáneamente
-- **Auto-configuración**: Crea automáticamente la estructura de Google Sheets al primer uso
-- **Seguridad por tokens**: Acceso diferenciado para técnicos, operarios y clientes
-- **Semáforo inteligente**: Priorización automática por fecha de entrega
+1. Clientes: `index.html`
+2. Interno (integrador): `integrador.html`
 
-## 📁 Estructura del Proyecto
+## Cómo funciona
+
+- `index.html`
+  - Vista pública principal.
+  - Si recibe `?view=portal`, redirige al portal cliente.
+  - Soporta consulta directa por folio usando `?view=portal&folio=SRF-1234`.
+
+- `integrador.html`
+  - Entrada interna única.
+  - Permite alternar entre módulos Operativo y Técnico sin repartir más enlaces.
+
+## Archivos principales
+
+- Front cliente: `Pagina-principal.html`, `portal-cliente.html`
+- Front interno: `panel-operativo.html`, `panel-tecnico.html`, `integrador.html`
+- Backend GAS: `codigo.gs`

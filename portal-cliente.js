@@ -7,6 +7,11 @@
 
         (function() {
             document.getElementById('fecha-header').textContent = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const folioParam = new URLSearchParams(window.location.search).get('folio');
+            if (folioParam) {
+                document.getElementById('folio-input').value = String(folioParam).toUpperCase();
+                buscar();
+            }
         })();
 
         async function buscar() {

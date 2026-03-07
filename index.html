@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SrFix Oficial | Reparación Profesional de Electrónicos</title>
     <meta name="description" content="Servicio técnico especializado en reparación de laptops, GPUs, controles. Verifica el estado de tu equipo online. Plaza Chapultepec, San Nicolás de los Garza.">
+    <script>
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('view') === 'portal') {
+                params.delete('view');
+                const qs = params.toString();
+                const target = './portal-cliente.html' + (qs ? `?${qs}` : '');
+                window.location.replace(target);
+            }
+        })();
+    </script>
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

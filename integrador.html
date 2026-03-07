@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRFIX - Integrador Interno</title>
+    <style>
+        :root {
+            --bg: #1e1e1e;
+            --panel: #2b2b2b;
+            --text: #f2f2f2;
+            --muted: #8a8f95;
+            --blue: #1f7edc;
+            --orange: #ff6a2a;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+        .bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--blue);
+            background: #161616;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+        .left { display: flex; align-items: center; gap: 8px; }
+        .logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #fff;
+            padding: 4px;
+            object-fit: contain;
+        }
+        .title { font-weight: 700; letter-spacing: .3px; }
+        .tabs { display: flex; gap: 8px; }
+        .tab {
+            border: 1px solid var(--blue);
+            background: var(--panel);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .tab.active {
+            background: var(--orange);
+            border-color: var(--orange);
+        }
+        .wrap { height: calc(100vh - 62px); }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            background: var(--bg);
+        }
+        .fallback {
+            padding: 8px 16px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+        .fallback a { color: var(--blue); }
+    </style>
+</head>
+<body>
+    <header class="bar">
+        <div class="left">
+            <img src="./logo.webp" alt="SRFIX" class="logo" onerror="this.src='./logo.png'">
+            <div class="title">SRFIX Integrador Interno</div>
+        </div>
+        <nav class="tabs">
+            <button id="tab-operativo" class="tab" type="button">Operativo</button>
+            <button id="tab-tecnico" class="tab" type="button">Técnico</button>
+        </nav>
+    </header>
+    <div class="wrap">
+        <iframe id="frame" title="Modulo interno"></iframe>
+    </div>
+    <div class="fallback">
+        Si algo falla: <a href="./panel-operativo.html" target="_blank">Operativo</a> |
+        <a href="./panel-tecnico.html" target="_blank">Técnico</a>
+    </div>
+
+    <script>
+        const FRAME = document.getElementById('frame');
+        const BTN_OP = document.getElementById('tab-operativo');
+        const BTN_TE = document.getElementById('tab-tecnico');
+
+        function cargarModulo(modulo) {
+            const isTecnico = modulo === 'tecnico';
+            FRAME.src = isTecnico ? './panel-tecnico.html' : './panel-operativo.html';
+            BTN_OP.classList.toggle('active', !isTecnico);
+            BTN_TE.classList.toggle('active', isTecnico);
+
+            const url = new URL(window.location.href);
+            url.searchParams.set('modulo', isTecnico ? 'tecnico' : 'operativo');
+            window.history.replaceState({}, '', url);
+        }
+
+        BTN_OP.addEventListener('click', () => cargarModulo('operativo'));
+        BTN_TE.addEventListener('click', () => cargarModulo('tecnico'));
+
+        const modulo = new URLSearchParams(window.location.search).get('modulo');
+        cargarModulo(modulo === 'tecnico' ? 'tecnico' : 'operativo');
+    </script>
+</body>
+</html>

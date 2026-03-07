@@ -163,8 +163,7 @@ function getSemaforoData() {
   const equipos = datos.slice(1)
     .filter(row => row[8] !== 'Entregado') // No entregados
     .map(row => {
-      const eq = {};
-      headers.forEach((h, i) => eq[h] = row[i]);
+      const eq = mapearFilaEquipo(headers, row);
 
       const hoy = new Date();
       hoy.setHours(0,0,0,0);
@@ -204,8 +203,7 @@ function getEquipoByFolio(folio) {
   const fila = datos.find(row => row[1] === folio);
   if (!fila) return jsonResponse({ error: 'No encontrado' });
 
-  const equipo = {};
-  headers.forEach((h, i) => equipo[h] = fila[i]);
+  const equipo = mapearFilaEquipo(headers, fila);
 
   const fechaPromesa = parseFechaFlexible(equipo.FECHA_PROMESA);
   if (fechaPromesa) equipo.FECHA_PROMESA = formatearFechaYMD(fechaPromesa);
@@ -241,6 +239,19 @@ function parseFechaFlexible(valor) {
 
 function formatearFechaYMD(fecha) {
   return Utilities.formatDate(fecha, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+function mapearFilaEquipo(headers, row) {
+  const eq = {};
+  headers.forEach((h, i) => {
+    if (h) eq[h] = row[i];
+  });
+
+  // Fallbacks por índice para hojas viejas sin encabezados nuevos.
+  if (!eq.FOTO_RECEPCION && row[19]) eq.FOTO_RECEPCION = row[19];
+  if (!eq.SEGUIMIENTO_CLIENTE && row[20]) eq.SEGUIMIENTO_CLIENTE = row[20];
+
+  return eq;
 }
 
 function crearEquipo(data) {

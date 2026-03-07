@@ -4,13 +4,13 @@
  */
 
 // ==========================================
-// CONFIGURACIÓN - CAMBIA ESTAS CONTRASEÑAS
+// CONFIGURACIÓN
 // ==========================================
 const CONFIG = {
   SHEET_NAME: 'SRFIX_DATABASE',
-  PASSWORDS: {
-    TECNICO: 'SrFix123',
-    OPERATIVO: 'SrFix123'
+  SCRIPT_PROP_KEYS: {
+    TECNICO: 'SRFIX_PASSWORD_TECNICO',
+    OPERATIVO: 'SRFIX_PASSWORD_OPERATIVO'
   },
   ESTADOS: ['Recibido', 'En Diagnóstico', 'En Reparación', 'Esperando Refacción', 'Listo', 'Entregado']
 };
@@ -38,6 +38,9 @@ function inicializarSistema() {
       'ID', 'NOMBRE', 'TELEFONO', 'EMAIL', 'FECHA_REGISTRO'
     ]);
 
+    // Deja contraseñas de ejemplo si aún no existen.
+    inicializarPasswordsPorDefecto();
+
     Logger.log('✅ Sistema listo. URL Web App: ' + ScriptApp.getService().getUrl());
     return { success: true, url: ScriptApp.getService().getUrl() };
 
@@ -56,6 +59,44 @@ function crearHojaSiNoExiste(ss, nombre, headers) {
     hoja.setFrozenRows(1);
   }
   return hoja;
+}
+
+function inicializarPasswordsPorDefecto() {
+  const props = PropertiesService.getScriptProperties();
+  const actual = props.getProperties();
+
+  const updates = {};
+  if (!actual[CONFIG.SCRIPT_PROP_KEYS.TECNICO]) updates[CONFIG.SCRIPT_PROP_KEYS.TECNICO] = 'SrFix123';
+  if (!actual[CONFIG.SCRIPT_PROP_KEYS.OPERATIVO]) updates[CONFIG.SCRIPT_PROP_KEYS.OPERATIVO] = 'SrFix123';
+
+  if (Object.keys(updates).length > 0) {
+    props.setProperties(updates, false);
+  }
+}
+
+function obtenerPasswords() {
+  const props = PropertiesService.getScriptProperties();
+  const tecnico = props.getProperty(CONFIG.SCRIPT_PROP_KEYS.TECNICO);
+  const operativo = props.getProperty(CONFIG.SCRIPT_PROP_KEYS.OPERATIVO);
+
+  if (!tecnico || !operativo) {
+    throw new Error('Configura SRFIX_PASSWORD_TECNICO y SRFIX_PASSWORD_OPERATIVO en Script Properties');
+  }
+
+  return { tecnico: tecnico, operativo: operativo };
+}
+
+function configurarPasswords(tecnico, operativo) {
+  if (!tecnico || !operativo) {
+    throw new Error('Debes enviar ambas contraseñas');
+  }
+
+  PropertiesService.getScriptProperties().setProperties({
+    [CONFIG.SCRIPT_PROP_KEYS.TECNICO]: String(tecnico),
+    [CONFIG.SCRIPT_PROP_KEYS.OPERATIVO]: String(operativo)
+  }, false);
+
+  return { success: true };
 }
 
 // ==========================================
@@ -85,11 +126,13 @@ function doPost(e) {
   const action = data.action;
 
   try {
+    const passwords = obtenerPasswords();
+
     // Verificar contraseñas según el módulo
-    if (data.modulo === 'tecnico' && data.password !== CONFIG.PASSWORDS.TECNICO) {
+    if (data.modulo === 'tecnico' && data.password !== passwords.tecnico) {
       return jsonResponse({ error: 'Acceso denegado' });
     }
-    if (data.modulo === 'operativo' && data.password !== CONFIG.PASSWORDS.OPERATIVO) {
+    if (data.modulo === 'operativo' && data.password !== passwords.operativo) {
       return jsonResponse({ error: 'Acceso denegado' });
     }
 

@@ -135,16 +135,6 @@ function doPost(e) {
   const action = data.action;
 
   try {
-    const passwords = obtenerPasswords();
-
-    // Verificar contraseñas según el módulo
-    if (data.modulo === 'tecnico' && data.password !== passwords.tecnico) {
-      return jsonResponse({ error: 'Acceso denegado' });
-    }
-    if (data.modulo === 'operativo' && data.password !== passwords.operativo) {
-      return jsonResponse({ error: 'Acceso denegado' });
-    }
-
     switch(action) {
       case 'crear_equipo':
         return crearEquipo(data);

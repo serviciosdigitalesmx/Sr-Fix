@@ -1,7 +1,8 @@
         const CONFIG = {
             BACKEND_URL: 'https://script.google.com/macros/s/AKfycbw548d2MN54QEFoua9XPcLCaHSlSFjZ1mlIYKVVHM0w2ZAakOm02MYjhLPiko5pic33/exec',
             MODULO: 'tecnico',
-            LOGO_URL: './logo.webp'
+            LOGO_URL: './logo.webp',
+            FRONT_PASSWORD: 'Admin1'
         };
 
         // ==========================================
@@ -40,6 +41,7 @@
         async function login() {
             PASSWORD = document.getElementById('password-input').value.trim();
             if (!PASSWORD) return mostrarErrorLogin('Ingresa la contraseña');
+            if (PASSWORD !== CONFIG.FRONT_PASSWORD) return mostrarErrorLogin('Contraseña incorrecta');
 
             const btn = document.getElementById('btn-login');
             btn.disabled = true;

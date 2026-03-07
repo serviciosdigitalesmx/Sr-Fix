@@ -8,6 +8,7 @@
         // VARIABLES GLOBALES
         // ==========================================
         let PASSWORD = '';
+        let fotoRecepcionBase64 = '';
 
         (function() {
             const saved = sessionStorage.getItem('srfix_pass_operativo');
@@ -92,7 +93,8 @@
                     pantalla: document.getElementById('chk-pantalla').checked,
                     prende: document.getElementById('chk-prende').checked,
                     respaldo: document.getElementById('chk-respaldo').checked
-                }
+                },
+                fotoRecepcion: fotoRecepcionBase64 || ''
             };
             localStorage.setItem('srfix_borrador_orden', JSON.stringify(datos));
         }
@@ -115,7 +117,50 @@
                 document.getElementById('chk-pantalla').checked = datos.checks?.pantalla || false;
                 document.getElementById('chk-prende').checked = datos.checks?.prende || false;
                 document.getElementById('chk-respaldo').checked = datos.checks?.respaldo || false;
+                fotoRecepcionBase64 = datos.fotoRecepcion || '';
+                if (fotoRecepcionBase64) {
+                    document.getElementById('foto-preview').src = fotoRecepcionBase64;
+                    document.getElementById('foto-preview-wrap').classList.remove('hidden');
+                } else {
+                    document.getElementById('foto-preview-wrap').classList.add('hidden');
+                }
             } catch (e) {}
+        }
+
+        async function manejarFotoRecepcion(input) {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            try {
+                fotoRecepcionBase64 = await comprimirImagenADataURL(file, 1280, 0.75);
+                document.getElementById('foto-preview').src = fotoRecepcionBase64;
+                document.getElementById('foto-preview-wrap').classList.remove('hidden');
+                guardarBorradorLocal();
+            } catch (e) {
+                console.error('Error al procesar imagen:', e);
+                mostrarToast('No se pudo procesar la foto', 'error');
+            }
+        }
+
+        function comprimirImagenADataURL(file, maxWidth = 1280, quality = 0.75) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const ratio = Math.min(1, maxWidth / img.width);
+                        const canvas = document.createElement('canvas');
+                        canvas.width = Math.round(img.width * ratio);
+                        canvas.height = Math.round(img.height * ratio);
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.onerror = reject;
+                    img.src = reader.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
         }
 
         document.addEventListener('input', (e) => {
@@ -242,6 +287,7 @@
             if (document.getElementById('chk-prende').checked) checks.push('🔌Prende');
             if (document.getElementById('chk-respaldo').checked) checks.push('💾Respaldo');
             document.getElementById('res-checklist').textContent = checks.join(' • ') || 'Ninguno';
+            document.getElementById('res-foto').textContent = fotoRecepcionBase64 ? 'Adjunta' : 'Sin foto';
         }
 
         // ==========================================
@@ -275,7 +321,8 @@
                     pantalla: document.getElementById('chk-pantalla').checked,
                     prende: document.getElementById('chk-prende').checked,
                     respaldo: document.getElementById('chk-respaldo').checked
-                }
+                },
+                fotoRecepcion: fotoRecepcionBase64 || ''
             };
 
             try {
@@ -325,6 +372,9 @@
             document.getElementById('costo').value = '';
             document.getElementById('notas-extra').value = '';
             document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            document.getElementById('foto-recepcion').value = '';
+            document.getElementById('foto-preview-wrap').classList.add('hidden');
+            fotoRecepcionBase64 = '';
 
             const f = new Date(); f.setDate(f.getDate() + 3);
             document.getElementById('fecha-promesa').valueAsDate = f;

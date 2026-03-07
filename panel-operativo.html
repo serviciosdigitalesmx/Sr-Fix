@@ -149,6 +149,18 @@
                 </div>
             </div>
 
+            <!-- FOTO DE RECEPCIÓN -->
+            <div class="bg-[#1E1E1E] rounded-lg p-4 my-4 border border-[#1F7EDC]">
+                <label class="block text-sm text-[#8A8F95] mb-2 font-semibold flex items-center gap-2">
+                    <i class="fa-solid fa-camera text-[#FF6A2A]"></i> Foto del estado en recepción
+                </label>
+                <input type="file" id="foto-recepcion" accept="image/*" class="w-full text-sm text-[#F2F2F2]" onchange="manejarFotoRecepcion(this)">
+                <p class="text-xs text-[#8A8F95] mt-2">Se comprimirá automáticamente para envío rápido.</p>
+                <div id="foto-preview-wrap" class="hidden mt-3">
+                    <img id="foto-preview" alt="Vista previa" class="max-h-48 rounded border border-[#1F7EDC]">
+                </div>
+            </div>
+
             <!-- FECHA Y COSTO -->
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
@@ -208,6 +220,10 @@
                 <div class="flex justify-between border-b border-[#1F7EDC] pb-2">
                     <span class="text-[#8A8F95]">Checklist:</span>
                     <span id="res-checklist" class="text-[#F2F2F2] text-right text-xs"></span>
+                </div>
+                <div class="flex justify-between border-b border-[#1F7EDC] pb-2">
+                    <span class="text-[#8A8F95]">Foto recepción:</span>
+                    <span id="res-foto" class="text-[#F2F2F2] text-right text-xs"></span>
                 </div>
                 <div class="flex justify-between border-b border-[#1F7EDC] pb-2">
                     <span class="text-[#8A8F95]">Entrega:</span>

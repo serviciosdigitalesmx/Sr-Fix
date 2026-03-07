@@ -253,6 +253,14 @@
             document.getElementById('modal-yt').value = eq.YOUTUBE_ID || '';
             document.getElementById('modal-notas').value = eq.NOTAS_INTERNAS || '';
 
+            if (eq.FOTO_RECEPCION) {
+                document.getElementById('modal-foto').src = eq.FOTO_RECEPCION;
+                document.getElementById('modal-foto-wrap').classList.remove('hidden');
+            } else {
+                document.getElementById('modal-foto-wrap').classList.add('hidden');
+                document.getElementById('modal-foto').removeAttribute('src');
+            }
+
             document.getElementById('check-cargador').checked = eq.CHECK_CARGADOR === 'SÍ';
             document.getElementById('check-pantalla').checked = eq.CHECK_PANTALLA === 'SÍ';
             document.getElementById('check-prende').checked = eq.CHECK_PRENDE === 'SÍ';

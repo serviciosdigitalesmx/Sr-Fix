@@ -31,7 +31,7 @@ function inicializarSistema() {
       'ID', 'FOLIO', 'FECHA_INGRESO', 'CLIENTE_NOMBRE', 'CLIENTE_TELEFONO',
       'DISPOSITIVO', 'MODELO', 'FALLA_REPORTADA', 'ESTADO', 'TECNICO_ASIGNADO',
       'FECHA_PROMESA', 'FECHA_ENTREGA', 'COSTO_ESTIMADO', 'NOTAS_INTERNAS',
-      'YOUTUBE_ID', 'CHECK_CARGADOR', 'CHECK_PANTALLA', 'CHECK_PRENDE', 'CHECK_RESPALDO'
+      'YOUTUBE_ID', 'CHECK_CARGADOR', 'CHECK_PANTALLA', 'CHECK_PRENDE', 'CHECK_RESPALDO', 'FOTO_RECEPCION'
     ]);
 
     crearHojaSiNoExiste(ss, 'Clientes', [
@@ -54,10 +54,18 @@ function crearHojaSiNoExiste(ss, nombre, headers) {
   let hoja = ss.getSheetByName(nombre);
   if (!hoja) {
     hoja = ss.insertSheet(nombre);
-    hoja.getRange(1, 1, 1, headers.length).setValues([headers])
-      .setFontWeight('bold').setBackground('#FFC107').setFontColor('#000');
+    hoja.getRange(1, 1, 1, headers.length).setValues([headers]);
     hoja.setFrozenRows(1);
+  } else {
+    const lastCol = Math.max(hoja.getLastColumn(), 1);
+    const actuales = hoja.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h || '').trim());
+    const faltantes = headers.filter(h => !actuales.includes(h));
+    if (faltantes.length > 0) {
+      hoja.getRange(1, lastCol + 1, 1, faltantes.length).setValues([faltantes]);
+    }
   }
+  hoja.getRange(1, 1, 1, hoja.getLastColumn())
+    .setFontWeight('bold').setBackground('#FFC107').setFontColor('#000');
   return hoja;
 }
 
@@ -265,7 +273,8 @@ function crearEquipo(data) {
     data.checks?.cargador ? 'SÍ' : 'NO',
     data.checks?.pantalla ? 'SÍ' : 'NO',
     data.checks?.prende ? 'SÍ' : 'NO',
-    data.checks?.respaldo ? 'SÍ' : 'NO'
+    data.checks?.respaldo ? 'SÍ' : 'NO',
+    data.fotoRecepcion || ''
   ]);
 
   if (data.clienteTelefono) {
@@ -300,7 +309,8 @@ function actualizarEquipo(data) {
     TECNICO_ASIGNADO: 10,
     FECHA_ENTREGA: 12,
     NOTAS_INTERNAS: 14,
-    YOUTUBE_ID: 15
+    YOUTUBE_ID: 15,
+    FOTO_RECEPCION: 20
   };
 
   const campos = data.campos || {};

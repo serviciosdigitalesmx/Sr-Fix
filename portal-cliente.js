@@ -49,6 +49,7 @@
             document.getElementById('res-fecha').textContent = eq.FECHA_PROMESA || 'Por definir';
             document.getElementById('res-ingreso').textContent = eq.FECHA_INGRESO ? new Date(eq.FECHA_INGRESO).toLocaleDateString() : '---';
             document.getElementById('res-actualizacion').textContent = new Date().toLocaleString();
+            document.getElementById('res-seguimiento').textContent = eq.SEGUIMIENTO_CLIENTE || 'Sin avances registrados por el momento.';
 
             let diasTexto = '---';
             if (eq.diasRestantes !== undefined) {

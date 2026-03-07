@@ -252,6 +252,7 @@
             document.getElementById('modal-tecnico').value = eq.TECNICO_ASIGNADO || '';
             document.getElementById('modal-yt').value = eq.YOUTUBE_ID || '';
             document.getElementById('modal-notas').value = eq.NOTAS_INTERNAS || '';
+            document.getElementById('modal-seguimiento').value = eq.SEGUIMIENTO_CLIENTE || '';
 
             if (eq.FOTO_RECEPCION) {
                 document.getElementById('modal-foto').src = eq.FOTO_RECEPCION;
@@ -305,6 +306,7 @@
                 TECNICO_ASIGNADO: document.getElementById('modal-tecnico').value,
                 YOUTUBE_ID: document.getElementById('modal-yt').value,
                 NOTAS_INTERNAS: document.getElementById('modal-notas').value,
+                SEGUIMIENTO_CLIENTE: document.getElementById('modal-seguimiento').value,
                 CHECK_CARGADOR: document.getElementById('check-cargador').checked ? 'SÍ' : 'NO',
                 CHECK_PANTALLA: document.getElementById('check-pantalla').checked ? 'SÍ' : 'NO',
                 CHECK_PRENDE: document.getElementById('check-prende').checked ? 'SÍ' : 'NO',

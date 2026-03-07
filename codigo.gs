@@ -31,7 +31,7 @@ function inicializarSistema() {
       'ID', 'FOLIO', 'FECHA_INGRESO', 'CLIENTE_NOMBRE', 'CLIENTE_TELEFONO',
       'DISPOSITIVO', 'MODELO', 'FALLA_REPORTADA', 'ESTADO', 'TECNICO_ASIGNADO',
       'FECHA_PROMESA', 'FECHA_ENTREGA', 'COSTO_ESTIMADO', 'NOTAS_INTERNAS',
-      'YOUTUBE_ID', 'CHECK_CARGADOR', 'CHECK_PANTALLA', 'CHECK_PRENDE', 'CHECK_RESPALDO', 'FOTO_RECEPCION'
+      'YOUTUBE_ID', 'CHECK_CARGADOR', 'CHECK_PANTALLA', 'CHECK_PRENDE', 'CHECK_RESPALDO', 'FOTO_RECEPCION', 'SEGUIMIENTO_CLIENTE'
     ]);
 
     crearHojaSiNoExiste(ss, 'Clientes', [
@@ -274,7 +274,8 @@ function crearEquipo(data) {
     data.checks?.pantalla ? 'SÍ' : 'NO',
     data.checks?.prende ? 'SÍ' : 'NO',
     data.checks?.respaldo ? 'SÍ' : 'NO',
-    data.fotoRecepcion || ''
+    data.fotoRecepcion || '',
+    data.seguimientoCliente || ''
   ]);
 
   if (data.clienteTelefono) {
@@ -299,27 +300,22 @@ function actualizarEquipo(data) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const hoja = ss.getSheetByName('Equipos');
   const datos = hoja.getDataRange().getValues();
+  const headers = datos[0];
 
   const filaIdx = datos.findIndex(row => row[1] === data.folio);
   if (filaIdx === -1) return jsonResponse({ error: 'No encontrado' });
 
   const fila = filaIdx + 1;
-  const COL = {
-    ESTADO: 9,
-    TECNICO_ASIGNADO: 10,
-    FECHA_ENTREGA: 12,
-    NOTAS_INTERNAS: 14,
-    YOUTUBE_ID: 15,
-    FOTO_RECEPCION: 20
-  };
+  const colIndex = {};
+  headers.forEach((h, i) => colIndex[String(h).trim()] = i + 1);
 
   const campos = data.campos || {};
   Object.keys(campos).forEach(k => {
-    if (COL[k]) hoja.getRange(fila, COL[k]).setValue(campos[k]);
+    if (colIndex[k]) hoja.getRange(fila, colIndex[k]).setValue(campos[k]);
   });
 
-  if (campos.ESTADO === 'Entregado') {
-    hoja.getRange(fila, COL.FECHA_ENTREGA).setValue(new Date().toISOString());
+  if (campos.ESTADO === 'Entregado' && colIndex.FECHA_ENTREGA) {
+    hoja.getRange(fila, colIndex.FECHA_ENTREGA).setValue(new Date().toISOString());
   }
 
   return jsonResponse({ success: true });

@@ -33,7 +33,7 @@
     </main>
 
     <div id="cotizacion-modal" class="hidden fixed inset-0 bg-black/70 z-20 flex items-center justify-center p-4">
-        <div class="bg-[#2B2B2B] border border-[#1F7EDC] rounded-xl w-full max-w-xl p-5">
+        <div class="bg-[#2B2B2B] border border-[#1F7EDC] rounded-xl w-full max-w-3xl p-5 max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-lg font-bold text-[#1F7EDC]"><i class="fa-solid fa-file-invoice"></i> Cotización</h2>
                 <button id="btn-cotizacion-cerrar" class="text-[#8A8F95] hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
@@ -46,12 +46,40 @@
                 <p><span class="text-[#8A8F95]">Problema:</span> <span id="cot-problema"></span></p>
                 <p><span class="text-[#8A8F95]">Urgencia:</span> <span id="cot-urgencia"></span></p>
             </div>
+
+            <div class="mt-5 border border-[#1F7EDC]/40 rounded-lg p-4 bg-[#1E1E1E]">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-semibold text-[#1F7EDC]">Conceptos de cotización</h3>
+                    <button id="btn-cot-item-add" class="bg-[#1F7EDC] hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-semibold">
+                        <i class="fa-solid fa-plus"></i> Agregar concepto
+                    </button>
+                </div>
+                <div id="cot-items" class="space-y-2"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                <div>
+                    <label class="text-xs text-[#8A8F95] uppercase">Notas de cotización</label>
+                    <textarea id="cot-notas" rows="4" class="w-full mt-1 rounded-lg bg-[#1E1E1E] border border-[#1F7EDC]/40 p-2 text-sm text-white" placeholder="Garantía, tiempos de entrega, condiciones..."></textarea>
+                </div>
+                <div class="bg-[#1E1E1E] border border-[#1F7EDC]/40 rounded-lg p-3 text-sm">
+                    <div class="flex justify-between py-1"><span class="text-[#8A8F95]">Subtotal</span><span id="cot-subtotal">$0.00</span></div>
+                    <div class="flex justify-between py-1"><span class="text-[#8A8F95]">IVA (16%)</span><span id="cot-iva">$0.00</span></div>
+                    <div class="flex justify-between py-1 font-bold text-[#1F7EDC]"><span>Total</span><span id="cot-total">$0.00</span></div>
+                    <div class="flex justify-between items-center py-1 mt-2 border-t border-[#1F7EDC]/30 pt-2">
+                        <span class="text-[#8A8F95]">Anticipo</span>
+                        <input id="cot-anticipo" type="number" min="0" step="0.01" value="0" class="w-28 rounded bg-[#0f0f0f] border border-[#1F7EDC]/30 px-2 py-1 text-right">
+                    </div>
+                    <div class="flex justify-between py-1 font-semibold"><span class="text-[#8A8F95]">Saldo</span><span id="cot-saldo">$0.00</span></div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5">
                 <button id="btn-cotizacion-pdf" class="bg-[#1F7EDC] hover:bg-blue-600 text-white rounded-lg py-2 text-sm font-semibold">
-                    <i class="fa-solid fa-file-pdf"></i> Descargar PDF
+                    <i class="fa-solid fa-file-pdf"></i> Generar PDF
                 </button>
                 <button id="btn-cotizacion-wa" class="bg-green-600 hover:bg-green-500 text-white rounded-lg py-2 text-sm font-semibold">
-                    <i class="fa-brands fa-whatsapp"></i> WhatsApp
+                    <i class="fa-brands fa-whatsapp"></i> Enviar cotización por WhatsApp
                 </button>
             </div>
         </div>

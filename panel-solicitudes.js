@@ -7,8 +7,10 @@ const elLoading = document.getElementById('loading');
 const elEmpty = document.getElementById('empty');
 const elCount = document.getElementById('count');
 const elModal = document.getElementById('cotizacion-modal');
+const elCotItems = document.getElementById('cot-items');
 let solicitudesCache = [];
 let solicitudActual = null;
+let cotizacionItems = [];
 
 function escapeHtml(v) {
     return String(v || '')
@@ -48,6 +50,14 @@ function abrirCotizacion(folio) {
     document.getElementById('cot-equipo').textContent = `${s.DISPOSITIVO || ''} ${s.MODELO || ''}`.trim() || '---';
     document.getElementById('cot-problema').textContent = s.DESCRIPCION || s.PROBLEMAS || '---';
     document.getElementById('cot-urgencia').textContent = s.URGENCIA || '---';
+    document.getElementById('cot-notas').value = '';
+    document.getElementById('cot-anticipo').value = '0';
+    cotizacionItems = [{
+        concepto: s.PROBLEMAS || s.DESCRIPCION || 'Diagnóstico y reparación',
+        cantidad: 1,
+        precio: 0
+    }];
+    renderCotizacionItems();
     elModal.classList.remove('hidden');
 }
 
@@ -55,9 +65,72 @@ function cerrarCotizacion() {
     elModal.classList.add('hidden');
 }
 
+function formatMoney(n) {
+    const val = Number(n || 0);
+    return `$${val.toFixed(2)}`;
+}
+
+function crearItemCotizacion() {
+    cotizacionItems.push({ concepto: '', cantidad: 1, precio: 0 });
+    renderCotizacionItems();
+}
+
+function eliminarItemCotizacion(idx) {
+    cotizacionItems.splice(idx, 1);
+    if (!cotizacionItems.length) cotizacionItems.push({ concepto: '', cantidad: 1, precio: 0 });
+    renderCotizacionItems();
+}
+
+function recalcularTotalesCotizacion() {
+    const subtotal = cotizacionItems.reduce((acc, it) => acc + (Number(it.cantidad || 0) * Number(it.precio || 0)), 0);
+    const iva = subtotal * 0.16;
+    const total = subtotal + iva;
+    const anticipo = Number(document.getElementById('cot-anticipo').value || 0);
+    const saldo = Math.max(0, total - anticipo);
+    document.getElementById('cot-subtotal').textContent = formatMoney(subtotal);
+    document.getElementById('cot-iva').textContent = formatMoney(iva);
+    document.getElementById('cot-total').textContent = formatMoney(total);
+    document.getElementById('cot-saldo').textContent = formatMoney(saldo);
+    return { subtotal, iva, total, anticipo, saldo };
+}
+
+function renderCotizacionItems() {
+    elCotItems.innerHTML = '';
+    cotizacionItems.forEach((it, idx) => {
+        const row = document.createElement('div');
+        row.className = 'grid grid-cols-12 gap-2 items-center';
+        row.innerHTML = `
+            <input data-field="concepto" data-idx="${idx}" class="col-span-6 rounded bg-[#0f0f0f] border border-[#1F7EDC]/30 px-2 py-2 text-sm" placeholder="Concepto" value="${escapeHtml(it.concepto || '')}">
+            <input data-field="cantidad" data-idx="${idx}" type="number" min="1" step="1" class="col-span-2 rounded bg-[#0f0f0f] border border-[#1F7EDC]/30 px-2 py-2 text-sm text-right" value="${Number(it.cantidad || 1)}">
+            <input data-field="precio" data-idx="${idx}" type="number" min="0" step="0.01" class="col-span-3 rounded bg-[#0f0f0f] border border-[#1F7EDC]/30 px-2 py-2 text-sm text-right" value="${Number(it.precio || 0)}">
+            <button data-del="${idx}" class="col-span-1 rounded bg-red-600 hover:bg-red-500 py-2 text-xs"><i class="fa-solid fa-trash"></i></button>
+        `;
+        elCotItems.appendChild(row);
+    });
+    recalcularTotalesCotizacion();
+}
+
 function descargarCotizacionPDF() {
     if (!solicitudActual) return;
     const s = solicitudActual;
+    const resumen = recalcularTotalesCotizacion();
+    const filas = cotizacionItems
+        .filter(it => (it.concepto || '').trim())
+        .map(it => {
+            const cantidad = Number(it.cantidad || 0);
+            const precio = Number(it.precio || 0);
+            return {
+                concepto: it.concepto,
+                cantidad: cantidad,
+                precio: precio,
+                total: cantidad * precio
+            };
+        });
+    if (!filas.length) {
+        alert('Agrega al menos un concepto para generar la cotización.');
+        return;
+    }
+    const notas = document.getElementById('cot-notas').value.trim();
     const html = `
         <!DOCTYPE html>
         <html lang="es">
@@ -85,6 +158,10 @@ function descargarCotizacionPDF() {
                 .k { color: #475569; font-weight: 600; }
                 .v { color: #0f172a; font-weight: 500; text-align: right; max-width: 62%; }
                 .desc { margin-top: 18px; background: #fff7ed; border-left: 6px solid #FF6A2A; padding: 16px; border-radius: 12px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 13px; }
+                th, td { border: 1px solid #d8dee8; padding: 8px; }
+                th { background: #eef4ff; text-align: left; }
+                td.num { text-align: right; }
                 .footer { background: #f1f5f9; padding: 14px 24px; text-align: center; color: #64748b; font-size: 13px; border-top: 1px solid #cbd5e1; }
                 @media print { body { background: #fff; padding: 0; } .container { box-shadow: none; } }
             </style>
@@ -118,6 +195,30 @@ function descargarCotizacionPDF() {
                         <strong>Descripción:</strong>
                         <div style="margin-top:6px; line-height:1.5;">${escapeHtml(s.DESCRIPCION || '---')}</div>
                     </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Concepto</th>
+                                <th style="width:80px">Cant.</th>
+                                <th style="width:120px">Precio</th>
+                                <th style="width:120px">Importe</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filas.map(f => `<tr><td>${escapeHtml(f.concepto)}</td><td class="num">${f.cantidad}</td><td class="num">${formatMoney(f.precio)}</td><td class="num">${formatMoney(f.total)}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                    <div style="margin-top:12px; text-align:right; font-size:13px; line-height:1.8;">
+                        <div><strong>Subtotal:</strong> ${formatMoney(resumen.subtotal)}</div>
+                        <div><strong>IVA (16%):</strong> ${formatMoney(resumen.iva)}</div>
+                        <div style="font-size:16px;"><strong>Total:</strong> ${formatMoney(resumen.total)}</div>
+                        <div><strong>Anticipo:</strong> ${formatMoney(resumen.anticipo)}</div>
+                        <div><strong>Saldo:</strong> ${formatMoney(resumen.saldo)}</div>
+                    </div>
+                    <div class="desc" style="margin-top:12px;">
+                        <strong>Notas de cotización:</strong>
+                        <div style="margin-top:6px; line-height:1.5;">${escapeHtml(notas || 'Sin notas adicionales')}</div>
+                    </div>
                 </div>
                 <div class="footer">SrFix Oficial · Plaza Chapultepec · 81 1700 6536</div>
             </div>
@@ -133,6 +234,24 @@ function descargarCotizacionPDF() {
     w.document.open();
     w.document.write(html);
     w.document.close();
+}
+
+function enviarCotizacionWhatsApp() {
+    if (!solicitudActual) return;
+    const tel = normalizarTelefono(solicitudActual.TELEFONO);
+    if (!tel) return alert('La solicitud no tiene teléfono válido.');
+    const resumen = recalcularTotalesCotizacion();
+    const conceptos = cotizacionItems
+        .filter(it => (it.concepto || '').trim())
+        .map(it => `- ${it.concepto} (${Number(it.cantidad || 0)} x ${formatMoney(it.precio || 0)})`)
+        .join('\n');
+    if (!conceptos) return alert('Agrega al menos un concepto antes de enviar por WhatsApp.');
+    const notas = document.getElementById('cot-notas').value.trim();
+    let msg = `Hola ${solicitudActual.NOMBRE || ''}, te compartimos tu cotización ${solicitudActual.FOLIO_COTIZACION}:\n\n`;
+    msg += `${conceptos}\n\n`;
+    msg += `Subtotal: ${formatMoney(resumen.subtotal)}\nIVA: ${formatMoney(resumen.iva)}\nTotal: ${formatMoney(resumen.total)}\nAnticipo: ${formatMoney(resumen.anticipo)}\nSaldo: ${formatMoney(resumen.saldo)}\n`;
+    if (notas) msg += `\nNotas: ${notas}\n`;
+    window.open(`https://wa.me/52${tel}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 function render(solicitudes) {
@@ -226,9 +345,23 @@ async function archivarSolicitud(folio) {
 document.getElementById('btn-refresh').addEventListener('click', cargarSolicitudes);
 document.getElementById('btn-cotizacion-cerrar').addEventListener('click', cerrarCotizacion);
 document.getElementById('btn-cotizacion-pdf').addEventListener('click', descargarCotizacionPDF);
-document.getElementById('btn-cotizacion-wa').addEventListener('click', () => {
-    if (!solicitudActual) return;
-    enviarWhatsApp(solicitudActual.TELEFONO, solicitudActual.FOLIO_COTIZACION);
+document.getElementById('btn-cotizacion-wa').addEventListener('click', enviarCotizacionWhatsApp);
+document.getElementById('btn-cot-item-add').addEventListener('click', crearItemCotizacion);
+document.getElementById('cot-anticipo').addEventListener('input', recalcularTotalesCotizacion);
+elCotItems.addEventListener('input', (e) => {
+    const idx = Number(e.target.getAttribute('data-idx'));
+    const field = e.target.getAttribute('data-field');
+    if (Number.isNaN(idx) || !field || !cotizacionItems[idx]) return;
+    let val = e.target.value;
+    if (field === 'cantidad') val = Math.max(1, Number(val || 1));
+    if (field === 'precio') val = Math.max(0, Number(val || 0));
+    cotizacionItems[idx][field] = val;
+    recalcularTotalesCotizacion();
+});
+elCotItems.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-del]');
+    if (!btn) return;
+    eliminarItemCotizacion(Number(btn.getAttribute('data-del')));
 });
 elModal.addEventListener('click', (e) => {
     if (e.target.id === 'cotizacion-modal') cerrarCotizacion();

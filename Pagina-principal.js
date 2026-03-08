@@ -1,5 +1,5 @@
         const CONFIG = {
-            BACKEND_URL: 'https://script.google.com/macros/s/AKfycbwiBtY7zqrt_exF1fcBq632j_MD1apPJU2VnFb4ohKaieekuVCiJOsf8sATNVgFMcN-/exec',
+            BACKEND_URL: 'https://script.google.com/macros/s/AKfycby4DDFuSWcxUvuNxPdc5EuhKFKRTUqQwiUjFDIGdvInY81oT2LYlegLrhJpXZtxSbY/exec',
             WHATSAPP: '528117006536'
         };
 

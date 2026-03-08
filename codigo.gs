@@ -8,10 +8,23 @@
 // ==========================================
 const CONFIG = {
   SHEET_NAME: 'SRFIX_DATABASE',
-  API_VERSION: '2.4.0',
+  API_VERSION: '2.5.0',
   SCRIPT_PROP_KEYS: {
     TECNICO: 'SRFIX_PASSWORD_TECNICO',
-    OPERATIVO: 'SRFIX_PASSWORD_OPERATIVO'
+    OPERATIVO: 'SRFIX_PASSWORD_OPERATIVO',
+    FOLIO_EQUIPO_SEQ: 'SRFIX_FOLIO_EQUIPO_SEQ',
+    FOLIO_COTIZACION_SEQ: 'SRFIX_FOLIO_COTIZACION_SEQ',
+    DRIVE_FOLDER_ID: 'SRFIX_DRIVE_FOLDER_ID'
+  },
+  LIMITS: {
+    MAX_PAGE_SIZE: 2000,
+    DEFAULT_PAGE_SIZE: 1000,
+    MAX_FOTO_SIZE_BYTES: 3 * 1024 * 1024,
+    MAX_SEGUIMIENTO_FOTOS: 8
+  },
+  RETRY: {
+    MAX_ATTEMPTS: 3,
+    BASE_SLEEP_MS: 120
   },
   ESTADOS: ['Recibido', 'En Diagnóstico', 'En Reparación', 'Esperando Refacción', 'Listo', 'Entregado']
 };
@@ -122,16 +135,17 @@ function doGet(e) {
   const action = e.parameter.action || 'status';
 
   try {
+    const pag = parsePaginacion(e.parameter || {});
     switch(action) {
       case 'status':
-        return jsonResponse({ status: 'online', version: CONFIG.API_VERSION });
+        return jsonResponse({ status: 'online', version: CONFIG.API_VERSION, storage: 'google_sheets' });
       case 'equipo':
         if (!e.parameter.folio) return jsonResponse({ error: 'Folio requerido' });
         return getEquipoByFolio(e.parameter.folio);
       case 'semaforo':
-        return getSemaforoData();
+        return getSemaforoData(pag);
       case 'listar_solicitudes':
-        return listarSolicitudes();
+        return listarSolicitudes({ page: pag.page, pageSize: pag.pageSize });
       case 'archivar_solicitud':
         if (!e.parameter.folio) return jsonResponse({ error: 'Folio requerido' });
         return archivarSolicitud({ folio: e.parameter.folio });
@@ -142,7 +156,9 @@ function doGet(e) {
         return listarArchivo({
           from: e.parameter.from || '',
           to: e.parameter.to || '',
-          tipo: e.parameter.tipo || 'todos'
+          tipo: e.parameter.tipo || 'todos',
+          page: pag.page,
+          pageSize: pag.pageSize
         });
       case 'crear_solicitud':
         return crearSolicitud({
@@ -159,6 +175,7 @@ function doGet(e) {
         return jsonResponse({ error: 'Acción no válida' });
     }
   } catch (error) {
+    logError('doGet', error, { action: action, params: e && e.parameter ? e.parameter : {} });
     return jsonResponse({ error: error.toString() });
   }
 }
@@ -167,6 +184,7 @@ function doPost(e) {
   try {
     const data = parsePostData(e);
     const action = data.action;
+    const pag = parsePaginacion(data || {});
 
     switch(action) {
       case 'crear_equipo':
@@ -174,21 +192,22 @@ function doPost(e) {
       case 'actualizar_equipo':
         return actualizarEquipo(data);
       case 'semaforo':
-        return getSemaforoData();
+        return getSemaforoData(pag);
       case 'crear_solicitud':
         return crearSolicitud(data);
       case 'listar_solicitudes':
-        return listarSolicitudes();
+        return listarSolicitudes({ page: pag.page, pageSize: pag.pageSize });
       case 'archivar_solicitud':
         return archivarSolicitud(data);
       case 'archivar_cotizacion':
         return archivarCotizacion(data);
       case 'listar_archivo':
-        return listarArchivo(data);
+        return listarArchivo({ ...data, page: pag.page, pageSize: pag.pageSize });
       default:
         return jsonResponse({ error: 'Acción no válida' });
     }
   } catch (error) {
+    logError('doPost', error);
     return jsonResponse({ error: error.toString() });
   }
 }
@@ -232,30 +251,159 @@ function parseQueryString(qs) {
   return out;
 }
 
+function logError(contexto, error, extra) {
+  const detalle = {
+    contexto: contexto || 'sin_contexto',
+    mensaje: error && error.message ? error.message : String(error || ''),
+    stack: error && error.stack ? String(error.stack) : '',
+    extra: extra || null
+  };
+  console.error(JSON.stringify(detalle));
+}
+
+function normalizarNumero(valor, fallback, min, max) {
+  const num = Number(valor);
+  if (!isFinite(num)) return fallback;
+  let out = num;
+  if (min !== undefined) out = Math.max(min, out);
+  if (max !== undefined) out = Math.min(max, out);
+  return out;
+}
+
+function parsePaginacion(input) {
+  const page = Math.floor(normalizarNumero(input && input.page, 1, 1));
+  const requested = Math.floor(normalizarNumero(input && input.pageSize, CONFIG.LIMITS.DEFAULT_PAGE_SIZE, 1));
+  const pageSize = Math.min(requested, CONFIG.LIMITS.MAX_PAGE_SIZE);
+  return { page: page, pageSize: pageSize };
+}
+
+function paginarArreglo(items, page, pageSize) {
+  const total = items.length;
+  const offset = (page - 1) * pageSize;
+  const data = items.slice(offset, offset + pageSize);
+  return {
+    total: total,
+    page: page,
+    pageSize: pageSize,
+    hasMore: (offset + data.length) < total,
+    data: data
+  };
+}
+
+function withRetry(fn, contexto) {
+  let ultimoError = null;
+  for (let intento = 1; intento <= CONFIG.RETRY.MAX_ATTEMPTS; intento++) {
+    try {
+      return fn();
+    } catch (error) {
+      ultimoError = error;
+      logError(contexto || 'withRetry', error, { intento: intento });
+      if (intento < CONFIG.RETRY.MAX_ATTEMPTS) {
+        Utilities.sleep(CONFIG.RETRY.BASE_SLEEP_MS * intento);
+      }
+    }
+  }
+  throw ultimoError;
+}
+
+function withDocumentLock(fn, timeoutMs) {
+  const lock = LockService.getDocumentLock();
+  lock.waitLock(timeoutMs || 10000);
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function normalizarTelefono(valor) {
+  return String(valor || '').replace(/\D/g, '');
+}
+
+function boolFromCheck(valor) {
+  if (valor === true) return true;
+  const s = String(valor || '').trim().toUpperCase();
+  return s === 'SI' || s === 'SÍ' || s === 'TRUE' || s === '1';
+}
+
+function checkToText(valor) {
+  return boolFromCheck(valor) ? 'SÍ' : 'NO';
+}
+
+function validarEmailSimple(email) {
+  if (!email) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
+}
+
+function obtenerSiguienteFolio(key, prefix) {
+  const props = PropertiesService.getScriptProperties();
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const actual = Number(props.getProperty(key) || 0);
+    const siguiente = actual + 1;
+    props.setProperty(key, String(siguiente));
+    return `${prefix}${String(siguiente).padStart(5, '0')}`;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function maybePersistImage(dataUrl, nombreBase) {
+  const raw = String(dataUrl || '').trim();
+  if (!raw) return '';
+  if (!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(raw)) return raw;
+
+  const bytes = Utilities.base64Decode(raw.split(',')[1] || '');
+  if (bytes.length > CONFIG.LIMITS.MAX_FOTO_SIZE_BYTES) {
+    throw new Error('Imagen demasiado grande. Máximo 3MB por imagen.');
+  }
+
+  const folderId = PropertiesService.getScriptProperties().getProperty(CONFIG.SCRIPT_PROP_KEYS.DRIVE_FOLDER_ID);
+  let folder = DriveApp.getRootFolder();
+  if (folderId) {
+    try {
+      folder = DriveApp.getFolderById(folderId);
+    } catch (error) {
+      logError('maybePersistImage.folder', error, { folderId: folderId });
+      folder = DriveApp.getRootFolder();
+    }
+  }
+  const ext = (raw.match(/^data:image\/([a-zA-Z0-9.+-]+);base64,/) || [])[1] || 'jpeg';
+  const contentType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+  const nombre = `${nombreBase}_${new Date().getTime()}.${ext}`;
+  const blob = Utilities.newBlob(bytes, contentType, nombre);
+  const file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return file.getUrl();
+}
+
 // ==========================================
 // LÓGICA DE NEGOCIO
 // ==========================================
 
-function getSemaforoData() {
+function getSemaforoData(pag) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const hoja = ss.getSheetByName('Equipos');
-  const datos = hoja.getDataRange().getValues();
+  if (!hoja) return jsonResponse({ total: 0, urgentes: 0, atencion: 0, aTiempo: 0, equipos: [] });
+
+  const datos = withRetry(() => hoja.getDataRange().getValues(), 'getSemaforoData.getValues');
+  if (!datos || datos.length < 2) return jsonResponse({ total: 0, urgentes: 0, atencion: 0, aTiempo: 0, equipos: [] });
+
   const headers = datos[0];
-
+  const p = parsePaginacion(pag || {});
   const equipos = datos.slice(1)
-    .filter(row => row[8] !== 'Entregado') // No entregados
+    .filter(row => String(row[8] || '') !== 'Entregado')
     .map(row => {
-      const eq = mapearFilaEquipo(headers, row);
-
+      const eq = normalizarEquipoForApi(mapearFilaEquipo(headers, row));
       const hoy = new Date();
-      hoy.setHours(0,0,0,0);
+      hoy.setHours(0, 0, 0, 0);
 
       const promesa = parseFechaFlexible(eq['FECHA_PROMESA']);
       eq['FECHA_PROMESA'] = promesa ? formatearFechaYMD(promesa) : '';
-
       let dias = 9999;
       if (promesa && !isNaN(promesa.getTime())) {
-        promesa.setHours(0,0,0,0);
+        promesa.setHours(0, 0, 0, 0);
         dias = Math.ceil((promesa - hoy) / (1000 * 60 * 60 * 24));
       }
 
@@ -263,33 +411,39 @@ function getSemaforoData() {
       if (dias <= 2) color = 'rojo';
       else if (dias <= 4) color = 'amarillo';
 
-      // El semáforo no necesita cargar blobs de imágenes en la lista.
       delete eq.FOTO_RECEPCION;
       delete eq.SEGUIMIENTO_FOTOS;
-
       return { ...eq, diasRestantes: dias, color: color };
     })
     .sort((a, b) => a.diasRestantes - b.diasRestantes);
 
-  return jsonResponse({
+  const totales = {
     total: equipos.length,
     urgentes: equipos.filter(e => e.color === 'rojo').length,
     atencion: equipos.filter(e => e.color === 'amarillo').length,
-    aTiempo: equipos.filter(e => e.color === 'verde').length,
-    equipos: equipos
+    aTiempo: equipos.filter(e => e.color === 'verde').length
+  };
+  const paginada = paginarArreglo(equipos, p.page, p.pageSize);
+  return jsonResponse({
+    ...totales,
+    equipos: paginada.data,
+    page: paginada.page,
+    pageSize: paginada.pageSize,
+    hasMore: paginada.hasMore
   });
 }
 
 function getEquipoByFolio(folio) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const hoja = ss.getSheetByName('Equipos');
-  const datos = hoja.getDataRange().getValues();
+  if (!hoja) return jsonResponse({ error: 'No encontrado' });
+  const datos = withRetry(() => hoja.getDataRange().getValues(), 'getEquipoByFolio.getValues');
   const headers = datos[0];
 
-  const fila = datos.find(row => row[1] === folio);
+  const fila = datos.find(row => String(row[1] || '') === String(folio || ''));
   if (!fila) return jsonResponse({ error: 'No encontrado' });
 
-  const equipo = mapearFilaEquipo(headers, fila);
+  const equipo = normalizarEquipoForApi(mapearFilaEquipo(headers, fila));
 
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
@@ -335,6 +489,11 @@ function formatearFechaYMD(fecha) {
   return Utilities.formatDate(fecha, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 }
 
+function formatearFechaYMDOrEmpty(valor) {
+  const d = parseFechaFlexible(valor);
+  return d ? formatearFechaYMD(d) : '';
+}
+
 function mapearFilaEquipo(headers, row) {
   const eq = {};
   headers.forEach((h, i) => {
@@ -349,147 +508,217 @@ function mapearFilaEquipo(headers, row) {
   return eq;
 }
 
+function normalizarEquipoForApi(eqRaw) {
+  const eq = { ...eqRaw };
+  eq.CLIENTE_TELEFONO = normalizarTelefono(eq.CLIENTE_TELEFONO);
+
+  ['FECHA_INGRESO', 'FECHA_PROMESA', 'FECHA_ENTREGA'].forEach(k => {
+    const d = parseFechaFlexible(eq[k]);
+    eq[k] = d ? formatearFechaYMD(d) : '';
+  });
+
+  eq.CHECK_CARGADOR = checkToText(eq.CHECK_CARGADOR);
+  eq.CHECK_PANTALLA = checkToText(eq.CHECK_PANTALLA);
+  eq.CHECK_PRENDE = checkToText(eq.CHECK_PRENDE);
+  eq.CHECK_RESPALDO = checkToText(eq.CHECK_RESPALDO);
+  eq.CHECK_CARGADOR_BOOL = boolFromCheck(eq.CHECK_CARGADOR);
+  eq.CHECK_PANTALLA_BOOL = boolFromCheck(eq.CHECK_PANTALLA);
+  eq.CHECK_PRENDE_BOOL = boolFromCheck(eq.CHECK_PRENDE);
+  eq.CHECK_RESPALDO_BOOL = boolFromCheck(eq.CHECK_RESPALDO);
+  eq.CHECKLIST = {
+    cargador: eq.CHECK_CARGADOR_BOOL,
+    pantalla: eq.CHECK_PANTALLA_BOOL,
+    prende: eq.CHECK_PRENDE_BOOL,
+    respaldo: eq.CHECK_RESPALDO_BOOL
+  };
+
+  return eq;
+}
+
 function crearEquipo(data) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const hoja = ss.getSheetByName('Equipos');
+  return withDocumentLock(function() {
+    const payload = validarPayloadCrearEquipo(data || {});
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const hoja = ss.getSheetByName('Equipos');
+    if (!hoja) throw new Error('Hoja Equipos no encontrada');
 
-  let folio;
-  let existe;
-  do {
-    folio = 'SRF-' + Math.floor(1000 + Math.random() * 9000);
-    const datos = hoja.getDataRange().getValues();
-    existe = datos.some(row => row[1] === folio);
-  } while (existe);
+    const folio = obtenerSiguienteFolio(CONFIG.SCRIPT_PROP_KEYS.FOLIO_EQUIPO_SEQ, 'SRF-');
+    const ahora = new Date().toISOString();
 
-  const ahora = new Date().toISOString();
+    const fotoRecepcion = payload.fotoRecepcion
+      ? maybePersistImage(payload.fotoRecepcion, `${folio}_recepcion`)
+      : '';
+    const seguimientoFotos = (payload.seguimientoFotos || [])
+      .slice(0, CONFIG.LIMITS.MAX_SEGUIMIENTO_FOTOS)
+      .map((img, idx) => maybePersistImage(img, `${folio}_seg_${idx + 1}`))
+      .filter(Boolean);
 
-  hoja.appendRow([
-    Utilities.getUuid(), folio, ahora, data.clienteNombre, data.clienteTelefono,
-    data.dispositivo, data.modelo, data.falla, 'Recibido', 'Por asignar',
-    data.fechaPromesa, '', data.costo || 0, '', '',
-    data.checks?.cargador ? 'SÍ' : 'NO',
-    data.checks?.pantalla ? 'SÍ' : 'NO',
-    data.checks?.prende ? 'SÍ' : 'NO',
-    data.checks?.respaldo ? 'SÍ' : 'NO',
-    data.fotoRecepcion || '',
-    data.seguimientoCliente || '',
-    data.seguimientoFotos || '[]'
-  ]);
+    withRetry(() => hoja.appendRow([
+      Utilities.getUuid(), folio, ahora, payload.clienteNombre, payload.clienteTelefono,
+      payload.dispositivo, payload.modelo, payload.falla, 'Recibido', 'Por asignar',
+      payload.fechaPromesa, '', payload.costo, '', '',
+      payload.checks.cargador ? 'SÍ' : 'NO',
+      payload.checks.pantalla ? 'SÍ' : 'NO',
+      payload.checks.prende ? 'SÍ' : 'NO',
+      payload.checks.respaldo ? 'SÍ' : 'NO',
+      fotoRecepcion,
+      payload.seguimientoCliente,
+      JSON.stringify(seguimientoFotos)
+    ]), 'crearEquipo.appendRow');
 
-  if (data.clienteTelefono) {
-    const hojaClientes = ss.getSheetByName('Clientes');
-    const datosClientes = hojaClientes.getDataRange().getValues();
-    const existeCliente = datosClientes.some(row => row[2] === data.clienteTelefono);
-    if (!existeCliente) {
-      hojaClientes.appendRow([
-        Utilities.getUuid(),
-        data.clienteNombre,
-        data.clienteTelefono,
-        data.clienteEmail || '',
-        ahora
-      ]);
+    if (payload.clienteTelefono) {
+      const hojaClientes = ss.getSheetByName('Clientes');
+      if (hojaClientes) {
+        const datosClientes = withRetry(() => hojaClientes.getDataRange().getValues(), 'crearEquipo.getClientes');
+        const existeCliente = datosClientes.some(row => String(row[2] || '') === payload.clienteTelefono);
+        if (!existeCliente) {
+          withRetry(() => hojaClientes.appendRow([
+            Utilities.getUuid(),
+            payload.clienteNombre,
+            payload.clienteTelefono,
+            payload.clienteEmail || '',
+            ahora
+          ]), 'crearEquipo.appendCliente');
+        }
+      }
     }
-  }
 
-  return jsonResponse({ success: true, folio: folio });
+    return jsonResponse({ success: true, folio: folio });
+  }, 12000);
 }
 
 function actualizarEquipo(data) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const hoja = ss.getSheetByName('Equipos');
-  const datos = hoja.getDataRange().getValues();
-  const headers = datos[0];
+  return withDocumentLock(function() {
+    const folio = String((data && data.folio) || '').trim();
+    if (!folio) return jsonResponse({ error: 'Folio requerido' });
 
-  const filaIdx = datos.findIndex(row => row[1] === data.folio);
-  if (filaIdx === -1) return jsonResponse({ error: 'No encontrado' });
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const hoja = ss.getSheetByName('Equipos');
+    if (!hoja) return jsonResponse({ error: 'No encontrado' });
+    const datos = withRetry(() => hoja.getDataRange().getValues(), 'actualizarEquipo.getValues');
+    const headers = datos[0] || [];
 
-  const fila = filaIdx + 1;
-  const colIndex = {};
-  headers.forEach((h, i) => colIndex[String(h).trim()] = i + 1);
+    const filaIdx = datos.findIndex(row => String(row[1] || '') === folio);
+    if (filaIdx === -1) return jsonResponse({ error: 'No encontrado' });
+    const fila = filaIdx + 1;
 
-  const campos = data.campos || {};
-  const faltantes = Object.keys(campos).filter(k => k && !colIndex[k]);
-  if (faltantes.length > 0) {
-    const start = hoja.getLastColumn() + 1;
-    hoja.getRange(1, start, 1, faltantes.length).setValues([faltantes]);
-    faltantes.forEach((k, idx) => {
-      colIndex[k] = start + idx;
+    const colIndex = {};
+    headers.forEach((h, i) => colIndex[String(h).trim()] = i + 1);
+    const camposRaw = data.campos || {};
+    const campos = validarCamposActualizacion(camposRaw);
+    const faltantes = Object.keys(campos).filter(k => k && !colIndex[k]);
+    if (faltantes.length > 0) {
+      const start = hoja.getLastColumn() + 1;
+      withRetry(() => hoja.getRange(1, start, 1, faltantes.length).setValues([faltantes]), 'actualizarEquipo.crearColumnas');
+      faltantes.forEach((k, idx) => {
+        colIndex[k] = start + idx;
+      });
+    }
+
+    Object.keys(campos).forEach(k => {
+      if (k === 'FOTO_RECEPCION' && /^data:image\//.test(String(campos[k] || ''))) {
+        campos[k] = maybePersistImage(campos[k], `${folio}_recepcion_upd`);
+      }
+      if (k === 'SEGUIMIENTO_FOTOS' && Array.isArray(campos[k])) {
+        const fotos = campos[k].slice(0, CONFIG.LIMITS.MAX_SEGUIMIENTO_FOTOS)
+          .map((img, idx) => maybePersistImage(img, `${folio}_segupd_${idx + 1}`))
+          .filter(Boolean);
+        campos[k] = JSON.stringify(fotos);
+      }
+      if (colIndex[k]) {
+        withRetry(() => hoja.getRange(fila, colIndex[k]).setValue(campos[k]), `actualizarEquipo.set.${k}`);
+      }
     });
-  }
 
-  Object.keys(campos).forEach(k => {
-    if (colIndex[k]) hoja.getRange(fila, colIndex[k]).setValue(campos[k]);
-  });
+    if (campos.ESTADO === 'Entregado' && colIndex.FECHA_ENTREGA) {
+      withRetry(() => hoja.getRange(fila, colIndex.FECHA_ENTREGA).setValue(new Date().toISOString()), 'actualizarEquipo.fechaEntrega');
+    }
 
-  if (campos.ESTADO === 'Entregado' && colIndex.FECHA_ENTREGA) {
-    hoja.getRange(fila, colIndex.FECHA_ENTREGA).setValue(new Date().toISOString());
-  }
-
-  return jsonResponse({ success: true });
+    return jsonResponse({ success: true });
+  }, 12000);
 }
 
 function crearSolicitud(data) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const hoja = obtenerHojaSolicitudes(ss);
+  return withDocumentLock(function() {
+    const payload = validarPayloadCrearSolicitud(data || {});
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const hoja = obtenerHojaSolicitudes(ss);
 
-  const folioCotizacion = 'COT-' + Math.floor(1000 + Math.random() * 9000);
-  const ahora = new Date().toISOString();
-  const problemas = Array.isArray(data.problemas) ? data.problemas.join(', ') : (data.problemas || '');
+    const folioCotizacion = obtenerSiguienteFolio(CONFIG.SCRIPT_PROP_KEYS.FOLIO_COTIZACION_SEQ, 'COT-');
+    const ahora = new Date().toISOString();
+    const problemas = Array.isArray(payload.problemas) ? payload.problemas.join(', ') : payload.problemas;
 
-  hoja.appendRow([
-    Utilities.getUuid(),
-    folioCotizacion,
-    ahora,
-    data.nombre || '',
-    data.telefono || '',
-    data.email || '',
-    data.dispositivo || '',
-    data.modelo || '',
-    problemas,
-    data.descripcion || '',
-    data.urgencia || '',
-    'pendiente'
-  ]);
+    withRetry(() => hoja.appendRow([
+      Utilities.getUuid(),
+      folioCotizacion,
+      ahora,
+      payload.nombre,
+      payload.telefono,
+      payload.email,
+      payload.dispositivo,
+      payload.modelo,
+      problemas,
+      payload.descripcion,
+      payload.urgencia,
+      'pendiente',
+      '',
+      '',
+      0
+    ]), 'crearSolicitud.appendRow');
 
-  return jsonResponse({ success: true, folio: folioCotizacion });
+    return jsonResponse({ success: true, folio: folioCotizacion });
+  }, 12000);
 }
 
-function listarSolicitudes() {
+function listarSolicitudes(pag) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const hoja = obtenerHojaSolicitudes(ss);
 
-  const datos = hoja.getDataRange().getValues();
+  const datos = withRetry(() => hoja.getDataRange().getValues(), 'listarSolicitudes.getValues');
   if (!datos || datos.length < 2) return jsonResponse({ solicitudes: [] });
   const headers = datos[0];
+  const p = parsePaginacion(pag || {});
 
   const solicitudes = datos.slice(1).map(row => {
     const obj = {};
     headers.forEach((h, i) => obj[h] = row[i]);
+    obj.TELEFONO = normalizarTelefono(obj.TELEFONO);
+    const fechaSol = parseFechaFlexible(obj.FECHA_SOLICITUD);
+    obj.FECHA_SOLICITUD = fechaSol ? formatearFechaYMD(fechaSol) : '';
+    const fechaCot = parseFechaFlexible(obj.FECHA_COTIZACION);
+    obj.FECHA_COTIZACION = fechaCot ? formatearFechaYMD(fechaCot) : '';
     return obj;
   }).filter(s => String(s.ESTADO || '').toLowerCase() === 'pendiente');
 
-  return jsonResponse({ solicitudes: solicitudes });
+  const paginada = paginarArreglo(solicitudes, p.page, p.pageSize);
+  return jsonResponse({
+    solicitudes: paginada.data,
+    total: paginada.total,
+    page: paginada.page,
+    pageSize: paginada.pageSize,
+    hasMore: paginada.hasMore
+  });
 }
 
 function archivarSolicitud(data) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const hoja = obtenerHojaSolicitudes(ss);
+  return withDocumentLock(function() {
+    const folio = String((data && data.folio) || '').trim();
+    if (!folio) return jsonResponse({ error: 'Folio requerido' });
 
-  const datos = hoja.getDataRange().getValues();
-  if (!datos || datos.length < 2) return jsonResponse({ error: 'Sin solicitudes' });
-  const headers = datos[0];
-  const idxEstado = headers.indexOf('ESTADO');
-  const idxFolio = headers.indexOf('FOLIO_COTIZACION');
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const hoja = obtenerHojaSolicitudes(ss);
+    const datos = withRetry(() => hoja.getDataRange().getValues(), 'archivarSolicitud.getValues');
+    if (!datos || datos.length < 2) return jsonResponse({ error: 'Sin solicitudes' });
+    const headers = datos[0];
+    const idxEstado = headers.indexOf('ESTADO');
+    const idxFolio = headers.indexOf('FOLIO_COTIZACION');
+    if (idxEstado === -1 || idxFolio === -1) return jsonResponse({ error: 'Estructura de hoja incorrecta' });
 
-  if (idxEstado === -1 || idxFolio === -1) {
-    return jsonResponse({ error: 'Estructura de hoja incorrecta' });
-  }
-
-  const filaIdx = datos.findIndex((row, i) => i > 0 && row[idxFolio] === data.folio);
-  if (filaIdx === -1) return jsonResponse({ error: 'No encontrada' });
-
-  hoja.getRange(filaIdx + 1, idxEstado + 1).setValue('archivado');
-  return jsonResponse({ success: true });
+    const filaIdx = datos.findIndex((row, i) => i > 0 && String(row[idxFolio] || '') === folio);
+    if (filaIdx === -1) return jsonResponse({ error: 'No encontrada' });
+    withRetry(() => hoja.getRange(filaIdx + 1, idxEstado + 1).setValue('archivado'), 'archivarSolicitud.setEstado');
+    return jsonResponse({ success: true });
+  }, 12000);
 }
 
 function obtenerHojaSolicitudes(ss) {
@@ -500,36 +729,164 @@ function obtenerHojaSolicitudes(ss) {
   ]);
 }
 
-function archivarCotizacion(data) {
-  if (!data || !data.folio) return jsonResponse({ error: 'Folio requerido' });
+function validarPayloadCrearEquipo(data) {
+  const clienteNombre = String(data.clienteNombre || '').trim();
+  const clienteTelefono = normalizarTelefono(data.clienteTelefono);
+  const clienteEmail = String(data.clienteEmail || '').trim();
+  const dispositivo = String(data.dispositivo || '').trim();
+  const modelo = String(data.modelo || '').trim();
+  const falla = String(data.falla || '').trim();
+  const fechaPromesa = String(data.fechaPromesa || '').trim();
+  const costo = normalizarNumero(data.costo, 0, 0);
+  const checks = data.checks || {};
+  const seguimientoRaw = Array.isArray(data.seguimientoFotos)
+    ? data.seguimientoFotos
+    : safeParseJsonArray(data.seguimientoFotos);
 
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const hoja = obtenerHojaSolicitudes(ss);
-  const datos = hoja.getDataRange().getValues();
-  if (!datos || datos.length < 2) return jsonResponse({ error: 'Sin solicitudes' });
-  const headers = datos[0];
+  if (!clienteNombre) throw new Error('clienteNombre es obligatorio');
+  if (!clienteTelefono || clienteTelefono.length !== 10) throw new Error('clienteTelefono inválido, deben ser 10 dígitos');
+  if (!dispositivo) throw new Error('dispositivo es obligatorio');
+  if (!modelo) throw new Error('modelo es obligatorio');
+  if (!falla) throw new Error('falla es obligatoria');
+  const fechaOk = parseFechaFlexible(fechaPromesa);
+  if (!fechaOk) throw new Error('fechaPromesa inválida, usa yyyy-mm-dd');
+  if (!validarEmailSimple(clienteEmail)) throw new Error('clienteEmail inválido');
 
-  const idxFolio = headers.indexOf('FOLIO_COTIZACION');
-  const idxEstado = headers.indexOf('ESTADO');
-  const idxFecha = headers.indexOf('FECHA_COTIZACION');
-  const idxJson = headers.indexOf('COTIZACION_JSON');
-  const idxTotal = headers.indexOf('COTIZACION_TOTAL');
+  return {
+    clienteNombre,
+    clienteTelefono,
+    clienteEmail,
+    dispositivo,
+    modelo,
+    falla,
+    fechaPromesa: formatearFechaYMD(fechaOk),
+    costo,
+    checks: {
+      cargador: !!checks.cargador,
+      pantalla: !!checks.pantalla,
+      prende: !!checks.prende,
+      respaldo: !!checks.respaldo
+    },
+    fotoRecepcion: String(data.fotoRecepcion || '').trim(),
+    seguimientoCliente: String(data.seguimientoCliente || '').trim(),
+    seguimientoFotos: seguimientoRaw.filter(Boolean)
+  };
+}
 
-  if ([idxFolio, idxEstado, idxFecha, idxJson, idxTotal].some(i => i === -1)) {
-    return jsonResponse({ error: 'Estructura de hoja incorrecta' });
+function validarCamposActualizacion(camposRaw) {
+  const campos = { ...camposRaw };
+  if (campos.CLIENTE_TELEFONO !== undefined) {
+    const tel = normalizarTelefono(campos.CLIENTE_TELEFONO);
+    if (!tel || tel.length !== 10) throw new Error('CLIENTE_TELEFONO inválido, deben ser 10 dígitos');
+    campos.CLIENTE_TELEFONO = tel;
   }
+  if (campos.FECHA_PROMESA !== undefined) {
+    const fecha = parseFechaFlexible(campos.FECHA_PROMESA);
+    if (!fecha) throw new Error('FECHA_PROMESA inválida');
+    campos.FECHA_PROMESA = formatearFechaYMD(fecha);
+  }
+  if (campos.ESTADO !== undefined) {
+    const estado = String(campos.ESTADO || '').trim();
+    if (estado && CONFIG.ESTADOS.indexOf(estado) === -1) throw new Error('ESTADO inválido');
+    campos.ESTADO = estado;
+  }
+  if (campos.COSTO_ESTIMADO !== undefined) {
+    campos.COSTO_ESTIMADO = normalizarNumero(campos.COSTO_ESTIMADO, 0, 0);
+  }
+  return campos;
+}
 
-  const filaIdx = datos.findIndex((row, i) => i > 0 && row[idxFolio] === data.folio);
-  if (filaIdx === -1) return jsonResponse({ error: 'No encontrada' });
+function validarPayloadCrearSolicitud(data) {
+  const nombre = String(data.nombre || '').trim();
+  const telefono = normalizarTelefono(data.telefono);
+  const email = String(data.email || '').trim();
+  const dispositivo = String(data.dispositivo || '').trim();
+  const modelo = String(data.modelo || '').trim();
+  const descripcion = String(data.descripcion || '').trim();
+  const urgencia = String(data.urgencia || '').trim();
+  const problemas = Array.isArray(data.problemas)
+    ? data.problemas.map(p => String(p || '').trim()).filter(Boolean)
+    : String(data.problemas || '').split(',').map(p => String(p || '').trim()).filter(Boolean);
 
-  const fila = filaIdx + 1;
-  const cotizacion = data.cotizacion || {};
-  hoja.getRange(fila, idxEstado + 1).setValue('cotizacion_archivada');
-  hoja.getRange(fila, idxFecha + 1).setValue(new Date().toISOString());
-  hoja.getRange(fila, idxJson + 1).setValue(JSON.stringify(cotizacion));
-  hoja.getRange(fila, idxTotal + 1).setValue(Number(cotizacion.total || 0));
+  if (!nombre) throw new Error('nombre es obligatorio');
+  if (!telefono || telefono.length !== 10) throw new Error('telefono inválido, deben ser 10 dígitos');
+  if (!dispositivo) throw new Error('dispositivo es obligatorio');
+  if (!modelo) throw new Error('modelo es obligatorio');
+  if (!descripcion) throw new Error('descripcion es obligatoria');
+  if (!validarEmailSimple(email)) throw new Error('email inválido');
 
-  return jsonResponse({ success: true });
+  return {
+    nombre,
+    telefono,
+    email,
+    dispositivo,
+    modelo,
+    descripcion,
+    urgencia,
+    problemas
+  };
+}
+
+function safeParseJsonArray(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(String(raw));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function sanitizarCotizacion(cotizacion) {
+  const items = Array.isArray(cotizacion.items) ? cotizacion.items : [];
+  const cleanItems = items.slice(0, 50).map(it => ({
+    concepto: String(it && it.concepto || '').slice(0, 200),
+    cantidad: normalizarNumero(it && it.cantidad, 1, 0),
+    precio: normalizarNumero(it && it.precio, 0, 0),
+    total: normalizarNumero(it && it.total, 0, 0)
+  }));
+  return {
+    items: cleanItems,
+    notas: String(cotizacion.notas || '').slice(0, 2000),
+    subtotal: normalizarNumero(cotizacion.subtotal, 0, 0),
+    iva: normalizarNumero(cotizacion.iva, 0, 0),
+    total: normalizarNumero(cotizacion.total, 0, 0),
+    anticipo: normalizarNumero(cotizacion.anticipo, 0, 0),
+    saldo: normalizarNumero(cotizacion.saldo, 0, 0)
+  };
+}
+
+function archivarCotizacion(data) {
+  return withDocumentLock(function() {
+    const folio = String((data && data.folio) || '').trim();
+    if (!folio) return jsonResponse({ error: 'Folio requerido' });
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const hoja = obtenerHojaSolicitudes(ss);
+    const datos = withRetry(() => hoja.getDataRange().getValues(), 'archivarCotizacion.getValues');
+    if (!datos || datos.length < 2) return jsonResponse({ error: 'Sin solicitudes' });
+    const headers = datos[0];
+
+    const idxFolio = headers.indexOf('FOLIO_COTIZACION');
+    const idxEstado = headers.indexOf('ESTADO');
+    const idxFecha = headers.indexOf('FECHA_COTIZACION');
+    const idxJson = headers.indexOf('COTIZACION_JSON');
+    const idxTotal = headers.indexOf('COTIZACION_TOTAL');
+    if ([idxFolio, idxEstado, idxFecha, idxJson, idxTotal].some(i => i === -1)) {
+      return jsonResponse({ error: 'Estructura de hoja incorrecta' });
+    }
+
+    const filaIdx = datos.findIndex((row, i) => i > 0 && String(row[idxFolio] || '') === folio);
+    if (filaIdx === -1) return jsonResponse({ error: 'No encontrada' });
+
+    const fila = filaIdx + 1;
+    const cotizacion = sanitizarCotizacion(data.cotizacion || {});
+    withRetry(() => hoja.getRange(fila, idxEstado + 1).setValue('cotizacion_archivada'), 'archivarCotizacion.estado');
+    withRetry(() => hoja.getRange(fila, idxFecha + 1).setValue(new Date().toISOString()), 'archivarCotizacion.fecha');
+    withRetry(() => hoja.getRange(fila, idxJson + 1).setValue(JSON.stringify(cotizacion)), 'archivarCotizacion.json');
+    withRetry(() => hoja.getRange(fila, idxTotal + 1).setValue(Number(cotizacion.total || 0)), 'archivarCotizacion.total');
+    return jsonResponse({ success: true });
+  }, 12000);
 }
 
 function listarArchivo(data) {
@@ -537,6 +894,7 @@ function listarArchivo(data) {
   const tipo = String((data && data.tipo) || 'todos').toLowerCase();
   const from = parseFechaFiltro((data && data.from) || '');
   const to = parseFechaFiltro((data && data.to) || '');
+  const p = parsePaginacion(data || {});
   if (to) to.setHours(23, 59, 59, 999);
 
   const archivo = [];
@@ -546,7 +904,7 @@ function listarArchivo(data) {
 
   if (incluirSolicitudes || incluirCotizaciones) {
     const hojaSol = obtenerHojaSolicitudes(ss);
-    const datosSol = hojaSol.getDataRange().getValues();
+    const datosSol = withRetry(() => hojaSol.getDataRange().getValues(), 'listarArchivo.getSolicitudes');
     if (datosSol.length > 1) {
       const headers = datosSol[0];
       const idxEstado = headers.indexOf('ESTADO');
@@ -561,10 +919,10 @@ function listarArchivo(data) {
         if (incluirSolicitudes && estado === 'archivado') {
           archivo.push({
             TIPO_ARCHIVO: 'solicitud',
-            FECHA_ARCHIVO: obj.FECHA_SOLICITUD || '',
+            FECHA_ARCHIVO: formatearFechaYMDOrEmpty(obj.FECHA_SOLICITUD || ''),
             FOLIO: obj.FOLIO_COTIZACION || '',
             CLIENTE: obj.NOMBRE || '',
-            TELEFONO: obj.TELEFONO || '',
+            TELEFONO: normalizarTelefono(obj.TELEFONO || ''),
             DETALLE: obj.DESCRIPCION || obj.PROBLEMAS || '',
             TOTAL: ''
           });
@@ -573,10 +931,10 @@ function listarArchivo(data) {
         if (incluirCotizaciones && estado === 'cotizacion_archivada') {
           archivo.push({
             TIPO_ARCHIVO: 'cotizacion',
-            FECHA_ARCHIVO: obj.FECHA_COTIZACION || obj.FECHA_SOLICITUD || '',
+            FECHA_ARCHIVO: formatearFechaYMDOrEmpty(obj.FECHA_COTIZACION || obj.FECHA_SOLICITUD || ''),
             FOLIO: obj.FOLIO_COTIZACION || '',
             CLIENTE: obj.NOMBRE || '',
-            TELEFONO: obj.TELEFONO || '',
+            TELEFONO: normalizarTelefono(obj.TELEFONO || ''),
             DETALLE: obj.DESCRIPCION || obj.PROBLEMAS || '',
             TOTAL: Number(obj.COTIZACION_TOTAL || 0)
           });
@@ -588,7 +946,7 @@ function listarArchivo(data) {
   if (incluirEquipos) {
     const hojaEq = ss.getSheetByName('Equipos');
     if (hojaEq) {
-      const datosEq = hojaEq.getDataRange().getValues();
+      const datosEq = withRetry(() => hojaEq.getDataRange().getValues(), 'listarArchivo.getEquipos');
       if (datosEq.length > 1) {
         const headersEq = datosEq[0];
         const idxEstadoEq = headersEq.indexOf('ESTADO');
@@ -607,10 +965,10 @@ function listarArchivo(data) {
 
           archivo.push({
             TIPO_ARCHIVO: 'equipo_entregado',
-            FECHA_ARCHIVO: row[idxFechaEntregaEq] || '',
+            FECHA_ARCHIVO: formatearFechaYMDOrEmpty(row[idxFechaEntregaEq] || ''),
             FOLIO: row[idxFolioEq] || '',
             CLIENTE: row[idxClienteEq] || '',
-            TELEFONO: row[idxTelefonoEq] || '',
+            TELEFONO: normalizarTelefono(row[idxTelefonoEq] || ''),
             DETALLE: `${row[idxDisEq] || ''} ${row[idxModeloEq] || ''}`.trim(),
             TOTAL: Number(row[idxCostoEq] || 0)
           });
@@ -627,7 +985,14 @@ function listarArchivo(data) {
     return tb - ta;
   });
 
-  return jsonResponse({ archivo: archivo });
+  const paginada = paginarArreglo(archivo, p.page, p.pageSize);
+  return jsonResponse({
+    archivo: paginada.data,
+    total: paginada.total,
+    page: paginada.page,
+    pageSize: paginada.pageSize,
+    hasMore: paginada.hasMore
+  });
 }
 
 function parseFechaFiltro(valor) {

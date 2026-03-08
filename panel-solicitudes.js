@@ -15,6 +15,8 @@ let audioCtx = null;
 let intervaloSolicitudes = null;
 let conteoSolicitudesPrevio = 0;
 let primeraCargaSolicitudes = true;
+let cotizacionEditando = false;
+let cotizacionDirty = false;
 
 function escapeHtml(v) {
     return String(v || '')
@@ -26,12 +28,17 @@ function escapeHtml(v) {
 }
 
 function formatoFecha(iso) {
-    try { return new Date(iso).toLocaleString('es-MX'); }
-    catch (e) { return iso || '---'; }
+    if (!iso) return '---';
+    const raw = String(iso).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return raw;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function normalizarTelefono(telefono) {
-    return String(telefono || '').replace(/\D/g, '');
+    const digits = String(telefono || '').replace(/\D/g, '');
+    return digits.length === 10 ? digits : '';
 }
 
 function getAudioCtx() {
@@ -92,11 +99,15 @@ function abrirCotizacion(folio) {
         cantidad: 1,
         precio: 0
     }];
+    cotizacionEditando = true;
+    cotizacionDirty = false;
     renderCotizacionItems();
     elModal.classList.remove('hidden');
 }
 
 function cerrarCotizacion() {
+    cotizacionEditando = false;
+    cotizacionDirty = false;
     elModal.classList.add('hidden');
 }
 
@@ -107,6 +118,7 @@ function formatMoney(n) {
 
 function crearItemCotizacion() {
     cotizacionItems.push({ concepto: '', cantidad: 1, precio: 0 });
+    cotizacionDirty = true;
     renderCotizacionItems();
 }
 
@@ -147,6 +159,41 @@ function prepararDatosCotizacion() {
     return { resumen, items, notas };
 }
 
+function validarItemsCotizacion(items) {
+    if (!Array.isArray(items) || !items.length) {
+        return { ok: false, error: 'Agrega al menos un concepto para cotizar.' };
+    }
+    for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        const concepto = String(it.concepto || '').trim();
+        const cantidad = Number(it.cantidad || 0);
+        const precio = Number(it.precio || 0);
+        if (!concepto) return { ok: false, error: `El concepto #${i + 1} está vacío.` };
+        if (!Number.isFinite(cantidad) || cantidad <= 0) return { ok: false, error: `Cantidad inválida en concepto #${i + 1}.` };
+        if (!Number.isFinite(precio) || precio <= 0) return { ok: false, error: `Precio inválido en concepto #${i + 1}.` };
+    }
+    return { ok: true };
+}
+
+function construirCotizacionPayload(resumen, items, notas) {
+    return {
+        version: '1.0',
+        moneda: 'MXN',
+        items: items.map(it => ({
+            concepto: String(it.concepto || '').trim(),
+            cantidad: Number(it.cantidad || 0),
+            precio: Number(it.precio || 0),
+            total: Number((Number(it.cantidad || 0) * Number(it.precio || 0)).toFixed(2))
+        })),
+        notas: String(notas || '').trim(),
+        subtotal: Number(Number(resumen.subtotal || 0).toFixed(2)),
+        iva: Number(Number(resumen.iva || 0).toFixed(2)),
+        total: Number(Number(resumen.total || 0).toFixed(2)),
+        anticipo: Number(Number(resumen.anticipo || 0).toFixed(2)),
+        saldo: Number(Number(resumen.saldo || 0).toFixed(2))
+    };
+}
+
 function renderCotizacionItems() {
     elCotItems.innerHTML = '';
     cotizacionItems.forEach((it, idx) => {
@@ -167,10 +214,8 @@ function descargarCotizacionPDF() {
     if (!solicitudActual) return;
     const s = solicitudActual;
     const { resumen, items: filas, notas } = prepararDatosCotizacion();
-    if (!filas.length) {
-        alert('Agrega al menos un concepto para generar la cotización.');
-        return;
-    }
+    const validacion = validarItemsCotizacion(filas);
+    if (!validacion.ok) return alert(validacion.error);
     const html = `
         <!DOCTYPE html>
         <html lang="es">
@@ -281,6 +326,8 @@ function enviarCotizacionWhatsApp() {
     const tel = normalizarTelefono(solicitudActual.TELEFONO);
     if (!tel) return alert('La solicitud no tiene teléfono válido.');
     const { resumen, items, notas } = prepararDatosCotizacion();
+    const validacion = validarItemsCotizacion(items);
+    if (!validacion.ok) return alert(validacion.error);
     const conceptos = items
         .map(it => `- ${it.concepto} (${Number(it.cantidad || 0)} x ${formatMoney(it.precio || 0)})`)
         .join('\n');
@@ -295,23 +342,14 @@ function enviarCotizacionWhatsApp() {
 async function archivarCotizacionActual() {
     if (!solicitudActual) return;
     const { resumen, items, notas } = prepararDatosCotizacion();
-    if (!items.length) {
-        alert('Agrega al menos un concepto antes de archivar la cotización.');
-        return;
-    }
+    const validacion = validarItemsCotizacion(items);
+    if (!validacion.ok) return alert(validacion.error);
+    const cotizacionPayload = construirCotizacionPayload(resumen, items, notas);
 
     const payload = {
         action: 'archivar_cotizacion',
         folio: solicitudActual.FOLIO_COTIZACION,
-        cotizacion: {
-            items: items,
-            notas: notas,
-            subtotal: resumen.subtotal,
-            iva: resumen.iva,
-            total: resumen.total,
-            anticipo: resumen.anticipo,
-            saldo: resumen.saldo
-        }
+        cotizacion: cotizacionPayload
     };
 
     try {
@@ -331,7 +369,7 @@ async function archivarCotizacionActual() {
         }
         if (data.error || !data.success) throw new Error(data.error || 'No se pudo archivar la cotización');
         cerrarCotizacion();
-        await cargarSolicitudes();
+        await cargarSolicitudes(true);
         alert('Cotización archivada correctamente.');
     } catch (e) {
         alert('Error al archivar cotización: ' + e.message);
@@ -384,7 +422,8 @@ function render(solicitudes) {
     });
 }
 
-async function cargarSolicitudes() {
+async function cargarSolicitudes(force = false) {
+    if (!force && cotizacionEditando) return;
     elLoading.classList.remove('hidden');
     elEmpty.classList.add('hidden');
     try {
@@ -426,13 +465,13 @@ async function archivarSolicitud(folio) {
             data = await res.json();
         }
         if (data.error || !data.success) throw new Error(data.error || 'No se pudo archivar');
-        await cargarSolicitudes();
+        await cargarSolicitudes(true);
     } catch (e) {
         alert('Error al archivar: ' + e.message);
     }
 }
 
-document.getElementById('btn-refresh').addEventListener('click', cargarSolicitudes);
+document.getElementById('btn-refresh').addEventListener('click', () => cargarSolicitudes(true));
 document.getElementById('btn-cotizacion-cerrar').addEventListener('click', cerrarCotizacion);
 document.getElementById('btn-cotizacion-pdf').addEventListener('click', descargarCotizacionPDF);
 document.getElementById('btn-cotizacion-wa').addEventListener('click', enviarCotizacionWhatsApp);
@@ -441,6 +480,8 @@ document.getElementById('btn-cotizacion-archivar').addEventListener('click', () 
 });
 document.getElementById('btn-cot-item-add').addEventListener('click', crearItemCotizacion);
 document.getElementById('cot-anticipo').addEventListener('input', recalcularTotalesCotizacion);
+document.getElementById('cot-anticipo').addEventListener('input', () => { cotizacionDirty = true; });
+document.getElementById('cot-notas').addEventListener('input', () => { cotizacionDirty = true; });
 elCotItems.addEventListener('input', (e) => {
     const idx = Number(e.target.getAttribute('data-idx'));
     const field = e.target.getAttribute('data-field');
@@ -449,15 +490,19 @@ elCotItems.addEventListener('input', (e) => {
     if (field === 'cantidad') val = Math.max(1, Number(val || 1));
     if (field === 'precio') val = Math.max(0, Number(val || 0));
     cotizacionItems[idx][field] = val;
+    cotizacionDirty = true;
     recalcularTotalesCotizacion();
 });
 elCotItems.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-del]');
     if (!btn) return;
     eliminarItemCotizacion(Number(btn.getAttribute('data-del')));
+    cotizacionDirty = true;
 });
 elModal.addEventListener('click', (e) => {
-    if (e.target.id === 'cotizacion-modal') cerrarCotizacion();
+    if (e.target.id !== 'cotizacion-modal') return;
+    if (cotizacionDirty && !confirm('Hay cambios sin guardar en la cotización. ¿Cerrar de todos modos?')) return;
+    cerrarCotizacion();
 });
 elList.addEventListener('click', (e) => {
     const btnWa = e.target.closest('.btn-wa');
@@ -479,9 +524,12 @@ elList.addEventListener('click', (e) => {
     if (confirm(`¿Archivar solicitud ${folio}?`)) archivarSolicitud(folio);
 });
 
-cargarSolicitudes();
+cargarSolicitudes(true);
 if (intervaloSolicitudes) clearInterval(intervaloSolicitudes);
-intervaloSolicitudes = setInterval(cargarSolicitudes, 30000);
+intervaloSolicitudes = setInterval(() => {
+    if (document.hidden) return;
+    cargarSolicitudes(false);
+}, 30000);
 document.addEventListener('click', () => {
     const ctx = getAudioCtx();
     if (ctx && ctx.state === 'suspended') ctx.resume();

@@ -105,7 +105,7 @@
                     prende: document.getElementById('chk-prende').checked,
                     respaldo: document.getElementById('chk-respaldo').checked
                 },
-                fotoRecepcion: fotoRecepcionBase64 || ''
+                fotoAdjunta: !!fotoRecepcionBase64
             };
             localStorage.setItem('srfix_borrador_orden', JSON.stringify(datos));
         }
@@ -128,13 +128,8 @@
                 document.getElementById('chk-pantalla').checked = datos.checks?.pantalla || false;
                 document.getElementById('chk-prende').checked = datos.checks?.prende || false;
                 document.getElementById('chk-respaldo').checked = datos.checks?.respaldo || false;
-                fotoRecepcionBase64 = datos.fotoRecepcion || '';
-                if (fotoRecepcionBase64) {
-                    document.getElementById('foto-preview').src = fotoRecepcionBase64;
-                    document.getElementById('foto-preview-wrap').classList.remove('hidden');
-                } else {
-                    document.getElementById('foto-preview-wrap').classList.add('hidden');
-                }
+                fotoRecepcionBase64 = '';
+                document.getElementById('foto-preview-wrap').classList.add('hidden');
             } catch (e) {}
         }
 
@@ -213,7 +208,7 @@
         function validarPaso1() {
             let ok = true;
             const nombre = document.getElementById('cliente-nombre').value.trim();
-            const tel = document.getElementById('cliente-telefono').value.replace(/\D/g, '');
+            const tel = normalizarTelefono10(document.getElementById('cliente-telefono').value);
             
             document.querySelectorAll('#step-1 .error-message, #step-1 .input-error').forEach(el => {
                 if (el.classList.contains('error-message')) el.classList.add('hidden');
@@ -225,12 +220,17 @@
                 document.getElementById('cliente-nombre').classList.add('input-error');
                 ok = false;
             }
-            if (!tel || tel.length < 10) {
-                mostrarError('error-telefono', 'Teléfono debe tener 10 dígitos');
+            if (!tel) {
+                mostrarError('error-telefono', 'Teléfono debe tener exactamente 10 dígitos');
                 document.getElementById('cliente-telefono').classList.add('input-error');
                 ok = false;
             }
             return ok;
+        }
+
+        function normalizarTelefono10(raw) {
+            const digits = String(raw || '').replace(/\D/g, '');
+            return digits.length === 10 ? digits : '';
         }
 
         function validarPaso2() {
@@ -305,6 +305,10 @@
         // GUARDAR ORDEN
         // ==========================================
         async function guardarOrden() {
+            if (!validarPaso1()) {
+                irPaso(1);
+                return;
+            }
             if (!validarPaso2()) {
                 irPaso(2);
                 return;
@@ -314,10 +318,17 @@
             btn.disabled = true;
             btn.innerHTML = '<div class="loading-spinner w-5 h-5"></div> Guardando...';
 
+            const telefono10 = normalizarTelefono10(document.getElementById('cliente-telefono').value);
+            if (!telefono10) {
+                mostrarToast('Teléfono inválido: deben ser 10 dígitos', 'error');
+                irPaso(1);
+                return;
+            }
+
             const data = {
                 action: 'crear_equipo',
                 clienteNombre: document.getElementById('cliente-nombre').value.trim(),
-                clienteTelefono: document.getElementById('cliente-telefono').value.replace(/\D/g, ''),
+                clienteTelefono: telefono10,
                 clienteEmail: document.getElementById('cliente-email').value.trim() || '',
                 dispositivo: document.getElementById('equipo-tipo').value,
                 modelo: document.getElementById('equipo-modelo').value.trim(),
@@ -357,11 +368,10 @@
                     document.getElementById('exito').classList.remove('hidden');
                     document.getElementById('folio-generado').textContent = result.folio;
 
-                    const telefono = document.getElementById('cliente-telefono').value.replace(/\D/g, '');
                     const portalUrl = new URL('./portal-cliente.html', window.location.href);
                     portalUrl.searchParams.set('folio', result.folio);
                     const mensaje = `Hola, tu equipo ha sido registrado en SRFIX con el folio ${result.folio}. Puedes consultar el estado en: ${portalUrl.toString()}`;
-                    document.getElementById('whatsapp-link').href = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
+                    document.getElementById('whatsapp-link').href = `https://wa.me/${telefono10}?text=${encodeURIComponent(mensaje)}`;
                     mostrarToast('Orden guardada con éxito', 'success');
                 } else {
                     throw new Error(result.error || 'Error al guardar');
@@ -421,6 +431,12 @@
             if (datos.checks?.respaldo) checksList.push('✅ Datos respaldados');
             const checksHTML = checksList.length ? checksList.map(c => `<span class="check-item">${c}</span>`).join('') : '<span class="check-item">---</span>';
 
+            const accionPDF = tipo === 'previa'
+                ? `<div style="text-align:center;padding:14px;background:#fff">
+                        <button onclick="window.print()" style="background:#1F7EDC;color:#fff;border:0;border-radius:8px;padding:10px 16px;font-weight:600;cursor:pointer">Imprimir / Guardar PDF</button>
+                   </div>`
+                : `<script>window.onload=()=>window.print();<\/script>`;
+
             const html = `
                 <!DOCTYPE html>
                 <html lang="es">
@@ -478,7 +494,7 @@
                         </div>
                         <div class="footer">SrFix Oficial · Plaza Chapultepec · 81 1700 6536</div>
                     </div>
-                    <script>window.onload=()=>window.print();<\/script>
+                    ${accionPDF}
                 </body>
                 </html>
             `;

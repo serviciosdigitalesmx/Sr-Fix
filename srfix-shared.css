@@ -1,0 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+* {
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  background-color: #1E1E1E;
+  color: #F2F2F2;
+  background-image: radial-gradient(circle at 10% 20%, rgba(31, 126, 220, 0.05) 0%, transparent 30%);
+}
+
+.card-srf,
+.tech-card {
+  background: #2B2B2B;
+  border: 1px solid #1F7EDC;
+  box-shadow: 0 4px 20px rgba(31, 126, 220, 0.2);
+  border-radius: 1.5rem;
+}
+
+.btn-naranja {
+  background-color: #FF6A2A;
+  color: #F2F2F2;
+  transition: all 0.2s;
+}
+
+.btn-naranja:hover {
+  background-color: #E85A1F;
+  transform: scale(1.02);
+  box-shadow: 0 0 15px rgba(255, 106, 42, 0.5);
+}
+
+.btn-azul {
+  background-color: #1F7EDC;
+  color: #F2F2F2;
+}
+
+.btn-azul:hover {
+  background-color: #1a6ab8;
+}
+
+.btn-wa {
+  background-color: #25D366;
+  color: #F2F2F2;
+}
+
+.btn-wa:hover {
+  background-color: #20BD5A;
+}
+
+.input-tech,
+.input-srf {
+  background-color: #2B2B2B;
+  border: 2px solid #1F7EDC;
+  color: #F2F2F2;
+}
+
+.input-tech:focus,
+.input-srf:focus {
+  border-color: #FF6A2A;
+  outline: none;
+}
+
+.text-metal {
+  color: #8A8F95;
+}
+
+.loading-spinner,
+.spinner {
+  border: 3px solid rgba(31, 126, 220, 0.2);
+  border-radius: 50%;
+  border-top-color: #1F7EDC;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1E1E1E;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1F7EDC;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #FF6A2A;
+}

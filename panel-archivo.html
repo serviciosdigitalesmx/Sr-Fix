@@ -30,8 +30,9 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 py-6">
-        <div class="mb-4 text-sm text-[#8A8F95]">
-            Registros: <span id="count" class="text-[#1F7EDC] font-bold">0</span>
+        <div class="mb-4 text-sm text-[#8A8F95] flex flex-wrap items-center gap-3">
+            <span>Registros: <span id="count" class="text-[#1F7EDC] font-bold">0</span></span>
+            <span id="page-info" class="text-xs text-[#8A8F95]"></span>
         </div>
 
         <div id="loading" class="text-center py-10 text-[#8A8F95]">
@@ -56,6 +57,11 @@
                 </thead>
                 <tbody id="rows"></tbody>
             </table>
+        </div>
+        <div class="mt-4 flex justify-center">
+            <button id="btn-more" class="hidden px-4 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">
+                <i class="fa-solid fa-angles-down"></i> Cargar más
+            </button>
         </div>
     </main>
 

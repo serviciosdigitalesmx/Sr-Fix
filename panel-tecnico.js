@@ -14,9 +14,12 @@
         let seguimientoFotosBase64 = [];
         let intervalo = null;
         let audioCtx = null;
+        let audioUnlocked = false;
         let urgentesPrevio = 0;
         let primeraCargaTecnico = true;
         let ultimoBeepRojoTs = 0;
+        let ultimaFirmaSemaforo = '';
+        let seguimientoOriginalSerializado = '[]';
         let filtros = {
             texto: '',
             color: 'todos',
@@ -96,9 +99,20 @@
             return audioCtx;
         }
 
-        function beep(freq = 520, duration = 0.12, delay = 0) {
+        async function unlockAudio() {
             const ctx = getAudioCtx();
             if (!ctx) return;
+            try {
+                if (ctx.state === 'suspended') await ctx.resume();
+                audioUnlocked = ctx.state === 'running';
+            } catch (e) {
+                audioUnlocked = false;
+            }
+        }
+
+        function beep(freq = 520, duration = 0.12, delay = 0) {
+            const ctx = getAudioCtx();
+            if (!ctx || !audioUnlocked || ctx.state !== 'running') return;
             const t0 = ctx.currentTime + delay;
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
@@ -118,13 +132,22 @@
             beep(430, 0.14, 0.14);
         }
 
+        function calcularFirmaSemaforo(lista) {
+            return (lista || [])
+                .map(eq => `${eq.FOLIO}|${eq.ESTADO}|${eq.diasRestantes}|${eq.color}|${eq.TECNICO_ASIGNADO || ''}`)
+                .join('||');
+        }
+
         async function cargarDatos(esLogin = false) {
             mostrarRefreshing(true);
             try {
+                const pageSize = Math.max(1000, equiposData.length || 0);
                 let res = await fetch(CONFIG.BACKEND_URL, {
                     method: 'POST',
                     body: JSON.stringify({
-                        action: 'semaforo'
+                        action: 'semaforo',
+                        page: 1,
+                        pageSize: pageSize
                     })
                 });
                 let data = null;
@@ -132,17 +155,21 @@
                     try { data = await res.json(); } catch (e) {}
                 }
                 if (!data || data.error) {
-                    res = await fetch(`${CONFIG.BACKEND_URL}?action=semaforo&t=${Date.now()}`);
+                    res = await fetch(`${CONFIG.BACKEND_URL}?action=semaforo&page=1&pageSize=${encodeURIComponent(pageSize)}&t=${Date.now()}`);
                     if (!res.ok) throw new Error('Error de conexión');
                     data = await res.json();
                 }
                 if (data.error) throw new Error(data.error);
 
-                equiposData = data.equipos || [];
+                const nuevosEquipos = data.equipos || [];
+                const firmaNueva = calcularFirmaSemaforo(nuevosEquipos);
+                const huboCambios = firmaNueva !== ultimaFirmaSemaforo;
+                equiposData = nuevosEquipos;
+                ultimaFirmaSemaforo = firmaNueva;
                 document.getElementById('count-urgentes').textContent = data.urgentes || 0;
                 document.getElementById('count-atencion').textContent = data.atencion || 0;
                 document.getElementById('count-tiempo').textContent = data.aTiempo || 0;
-                document.getElementById('count-total').textContent = equiposData.length;
+                document.getElementById('count-total').textContent = Number(data.total || equiposData.length);
                 const urgentesActual = Number(data.urgentes || 0);
                 const now = Date.now();
                 const cooldownMs = 120000;
@@ -153,9 +180,9 @@
                 urgentesPrevio = urgentesActual;
                 primeraCargaTecnico = false;
 
-                aplicarFiltrosYOrdenar();
+                if (huboCambios || esLogin) aplicarFiltrosYOrdenar();
                 actualizarHoraActualizacion();
-                mostrarToast('Datos actualizados', 'success');
+                if (!esLogin && huboCambios) mostrarToast('Datos actualizados', 'success');
                 return true;
             } catch (e) {
                 console.error('Error cargando datos:', e);
@@ -320,6 +347,7 @@
             document.getElementById('modal-notas').value = eq.NOTAS_INTERNAS || '';
             document.getElementById('modal-seguimiento').value = eq.SEGUIMIENTO_CLIENTE || '';
             seguimientoFotosBase64 = parseSeguimientoFotos(eq.SEGUIMIENTO_FOTOS);
+            seguimientoOriginalSerializado = JSON.stringify(seguimientoFotosBase64);
             renderizarGaleriaSeguimiento();
 
             if (eq.FOTO_RECEPCION) {
@@ -330,10 +358,10 @@
                 document.getElementById('modal-foto').removeAttribute('src');
             }
 
-            document.getElementById('check-cargador').checked = eq.CHECK_CARGADOR === 'SÍ';
-            document.getElementById('check-pantalla').checked = eq.CHECK_PANTALLA === 'SÍ';
-            document.getElementById('check-prende').checked = eq.CHECK_PRENDE === 'SÍ';
-            document.getElementById('check-respaldo').checked = eq.CHECK_RESPALDO === 'SÍ';
+            document.getElementById('check-cargador').checked = checkToBool(eq.CHECK_CARGADOR, eq.CHECK_CARGADOR_BOOL);
+            document.getElementById('check-pantalla').checked = checkToBool(eq.CHECK_PANTALLA, eq.CHECK_PANTALLA_BOOL);
+            document.getElementById('check-prende').checked = checkToBool(eq.CHECK_PRENDE, eq.CHECK_PRENDE_BOOL);
+            document.getElementById('check-respaldo').checked = checkToBool(eq.CHECK_RESPALDO, eq.CHECK_RESPALDO_BOOL);
 
             const historial = (eq.NOTAS_INTERNAS || '')
                 .split('\n')
@@ -359,19 +387,20 @@
         }
 
         function mostrarSeccion(tabId) {
-            document.querySelectorAll('.tab-section').forEach(s => s.classList.add('hidden'));
-            const section = document.getElementById(`section-${tabId}`);
-            if (section) section.classList.remove('hidden');
-
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('active', 'text-[#1F7EDC]', 'border-b-2', 'border-[#1F7EDC]');
-                btn.classList.add('text-[#8A8F95]');
+            document.querySelectorAll('[data-tab]').forEach(btn => {
+                const active = btn.dataset.tab === tabId;
+                btn.dataset.active = active ? '1' : '0';
+                btn.classList.toggle('active', active);
+                btn.classList.toggle('text-[#1F7EDC]', active);
+                btn.classList.toggle('border-b-2', active);
+                btn.classList.toggle('border-[#1F7EDC]', active);
+                btn.classList.toggle('text-[#8A8F95]', !active);
             });
-            const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
-            if (activeBtn) {
-                activeBtn.classList.add('active', 'text-[#1F7EDC]', 'border-b-2', 'border-[#1F7EDC]');
-                activeBtn.classList.remove('text-[#8A8F95]');
-            }
+            document.querySelectorAll('.tab-section').forEach(section => {
+                const active = section.id === `section-${tabId}`;
+                section.dataset.active = active ? '1' : '0';
+                section.classList.toggle('hidden', !active);
+            });
         }
 
         function cerrarModal() {
@@ -383,18 +412,40 @@
         }
 
         async function guardarCambios() {
-            const campos = {
-                ESTADO: document.getElementById('modal-estado').value,
-                TECNICO_ASIGNADO: document.getElementById('modal-tecnico').value,
-                YOUTUBE_ID: document.getElementById('modal-yt').value,
-                NOTAS_INTERNAS: document.getElementById('modal-notas').value,
-                SEGUIMIENTO_CLIENTE: document.getElementById('modal-seguimiento').value,
-                SEGUIMIENTO_FOTOS: JSON.stringify(seguimientoFotosBase64),
-                CHECK_CARGADOR: document.getElementById('check-cargador').checked ? 'SÍ' : 'NO',
-                CHECK_PANTALLA: document.getElementById('check-pantalla').checked ? 'SÍ' : 'NO',
-                CHECK_PRENDE: document.getElementById('check-prende').checked ? 'SÍ' : 'NO',
-                CHECK_RESPALDO: document.getElementById('check-respaldo').checked ? 'SÍ' : 'NO'
-            };
+            const estado = document.getElementById('modal-estado').value;
+            const tecnico = document.getElementById('modal-tecnico').value;
+            const yt = document.getElementById('modal-yt').value;
+            const notas = document.getElementById('modal-notas').value;
+            const seguimiento = document.getElementById('modal-seguimiento').value;
+            const checkCargador = document.getElementById('check-cargador').checked ? 'SÍ' : 'NO';
+            const checkPantalla = document.getElementById('check-pantalla').checked ? 'SÍ' : 'NO';
+            const checkPrende = document.getElementById('check-prende').checked ? 'SÍ' : 'NO';
+            const checkRespaldo = document.getElementById('check-respaldo').checked ? 'SÍ' : 'NO';
+            const fotosLimitadas = (seguimientoFotosBase64 || []).slice(0, 8);
+            const fotosSerializadas = JSON.stringify(fotosLimitadas);
+
+            const campos = {};
+            if (estado !== (equipoActual.ESTADO || '')) campos.ESTADO = estado;
+            if (tecnico !== (equipoActual.TECNICO_ASIGNADO || '')) campos.TECNICO_ASIGNADO = tecnico;
+            if (yt !== (equipoActual.YOUTUBE_ID || '')) campos.YOUTUBE_ID = yt;
+            if (notas !== (equipoActual.NOTAS_INTERNAS || '')) campos.NOTAS_INTERNAS = notas;
+            if (seguimiento !== (equipoActual.SEGUIMIENTO_CLIENTE || '')) campos.SEGUIMIENTO_CLIENTE = seguimiento;
+            if (checkCargador !== (equipoActual.CHECK_CARGADOR || 'NO')) campos.CHECK_CARGADOR = checkCargador;
+            if (checkPantalla !== (equipoActual.CHECK_PANTALLA || 'NO')) campos.CHECK_PANTALLA = checkPantalla;
+            if (checkPrende !== (equipoActual.CHECK_PRENDE || 'NO')) campos.CHECK_PRENDE = checkPrende;
+            if (checkRespaldo !== (equipoActual.CHECK_RESPALDO || 'NO')) campos.CHECK_RESPALDO = checkRespaldo;
+            if (fotosSerializadas !== seguimientoOriginalSerializado) {
+                if (fotosSerializadas.length > 280000) {
+                    mostrarToast('SEGUIMIENTO_FOTOS es muy grande. Reduce fotos o tamaño.', 'error');
+                    return;
+                }
+                // Enviamos arreglo, backend lo serializa/persiste de forma segura.
+                campos.SEGUIMIENTO_FOTOS = fotosLimitadas;
+            }
+            if (!Object.keys(campos).length) {
+                mostrarToast('No hay cambios para guardar', 'success');
+                return;
+            }
 
             try {
                 const res = await fetch(CONFIG.BACKEND_URL, {
@@ -455,6 +506,12 @@
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
+        }
+
+        function checkToBool(value, boolValue) {
+            if (typeof boolValue === 'boolean') return boolValue;
+            const s = String(value || '').trim().toUpperCase();
+            return s === 'SÍ' || s === 'SI' || s === 'TRUE' || s === '1';
         }
 
         function construirWaUrl(telefono, folio) {
@@ -553,11 +610,11 @@
 
         function parseSeguimientoFotos(raw) {
             if (!raw) return [];
-            if (Array.isArray(raw)) return raw.filter(v => typeof v === 'string' && v.startsWith('data:image/'));
+            if (Array.isArray(raw)) return raw.filter(v => typeof v === 'string' && (v.startsWith('data:image/') || /^https?:\/\//.test(v)));
             try {
                 const parsed = JSON.parse(raw);
                 if (Array.isArray(parsed)) {
-                    return parsed.filter(v => typeof v === 'string' && v.startsWith('data:image/'));
+                    return parsed.filter(v => typeof v === 'string' && (v.startsWith('data:image/') || /^https?:\/\//.test(v)));
                 }
             } catch (e) {}
             return [];
@@ -589,6 +646,10 @@
             if (!files.length) return;
             try {
                 for (const file of files) {
+                    if (seguimientoFotosBase64.length >= 8) {
+                        mostrarToast('Máximo 8 fotos de seguimiento', 'error');
+                        break;
+                    }
                     const dataUrl = await comprimirImagenADataURL(file, 1280, 0.75);
                     if (dataUrl) seguimientoFotosBase64.push(dataUrl);
                 }
@@ -669,7 +730,6 @@
                 login();
             }
         });
-        document.addEventListener('click', () => {
-            const ctx = getAudioCtx();
-            if (ctx && ctx.state === 'suspended') ctx.resume();
-        }, { once: true });
+        ['click', 'touchstart', 'keydown'].forEach(evt => {
+            document.addEventListener(evt, unlockAudio, { once: true, passive: true });
+        });

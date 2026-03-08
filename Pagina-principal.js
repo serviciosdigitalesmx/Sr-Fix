@@ -3,6 +3,11 @@
             WHATSAPP: '528117006536'
         };
 
+        function normalizarTelefono10(raw) {
+            const digits = String(raw || '').replace(/\D/g, '');
+            return digits.length === 10 ? digits : '';
+        }
+
         // Navbar scroll effect
         window.addEventListener('scroll', () => {
             const navbar = document.getElementById('navbar');
@@ -70,12 +75,16 @@
 
                 // Obtener valores del formulario
                 const nombre = document.querySelector('input[name="nombre"]').value.trim();
-                const telefono = document.querySelector('input[name="telefono"]').value.trim();
+                const telefono = normalizarTelefono10(document.querySelector('input[name="telefono"]').value.trim());
                 const dispositivo = dispositivoSelect || (servicioSeleccionado ? servicioSeleccionado.dataset.servicio : 'No especificado');
                 const modelo = document.querySelector('input[name="modelo"]').value.trim();
                 const descripcion = document.querySelector('textarea[name="descripcion"]').value.trim();
                 const urgencia = document.getElementById('urgenciaInput').value;
                 const email = document.querySelector('input[name="email"]')?.value.trim() || '';
+                if (!telefono) {
+                    alert('El teléfono debe tener exactamente 10 dígitos.');
+                    return;
+                }
 
                 // Recoger problemas seleccionados
                 const problemas = [];

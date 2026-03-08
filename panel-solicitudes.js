@@ -11,6 +11,10 @@ const elCotItems = document.getElementById('cot-items');
 let solicitudesCache = [];
 let solicitudActual = null;
 let cotizacionItems = [];
+let audioCtx = null;
+let intervaloSolicitudes = null;
+let conteoSolicitudesPrevio = 0;
+let primeraCargaSolicitudes = true;
 
 function escapeHtml(v) {
     return String(v || '')
@@ -28,6 +32,37 @@ function formatoFecha(iso) {
 
 function normalizarTelefono(telefono) {
     return String(telefono || '').replace(/\D/g, '');
+}
+
+function getAudioCtx() {
+    if (!audioCtx) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return null;
+        audioCtx = new Ctx();
+    }
+    return audioCtx;
+}
+
+function beep(freq = 880, duration = 0.08, delay = 0) {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const t0 = ctx.currentTime + delay;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.12, t0 + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.01);
+}
+
+function sonidoNuevaSolicitud() {
+    beep(950, 0.07, 0);
+    beep(1250, 0.09, 0.12);
 }
 
 function enviarWhatsApp(telefono, folio) {
@@ -316,6 +351,12 @@ async function cargarSolicitudes() {
         }
         if (data.error) throw new Error(data.error);
         solicitudesCache = data.solicitudes || [];
+        const conteoActual = solicitudesCache.length;
+        if (!primeraCargaSolicitudes && conteoActual > conteoSolicitudesPrevio) {
+            sonidoNuevaSolicitud();
+        }
+        conteoSolicitudesPrevio = conteoActual;
+        primeraCargaSolicitudes = false;
         render(solicitudesCache);
     } catch (e) {
         elLoading.classList.add('hidden');
@@ -387,3 +428,9 @@ elList.addEventListener('click', (e) => {
 });
 
 cargarSolicitudes();
+if (intervaloSolicitudes) clearInterval(intervaloSolicitudes);
+intervaloSolicitudes = setInterval(cargarSolicitudes, 30000);
+document.addEventListener('click', () => {
+    const ctx = getAudioCtx();
+    if (ctx && ctx.state === 'suspended') ctx.resume();
+}, { once: true });

@@ -13,6 +13,10 @@
         let equiposFiltrados = [];
         let seguimientoFotosBase64 = [];
         let intervalo = null;
+        let audioCtx = null;
+        let urgentesPrevio = 0;
+        let primeraCargaTecnico = true;
+        let ultimoBeepRojoTs = 0;
         let filtros = {
             texto: '',
             color: 'todos',
@@ -83,6 +87,37 @@
         // ==========================================
         // CARGA DE DATOS
         // ==========================================
+        function getAudioCtx() {
+            if (!audioCtx) {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return null;
+                audioCtx = new Ctx();
+            }
+            return audioCtx;
+        }
+
+        function beep(freq = 520, duration = 0.12, delay = 0) {
+            const ctx = getAudioCtx();
+            if (!ctx) return;
+            const t0 = ctx.currentTime + delay;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.0001, t0);
+            gain.gain.exponentialRampToValueAtTime(0.14, t0 + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t0);
+            osc.stop(t0 + duration + 0.01);
+        }
+
+        function sonidoAlertaRojo() {
+            beep(520, 0.1, 0);
+            beep(430, 0.14, 0.14);
+        }
+
         async function cargarDatos(esLogin = false) {
             mostrarRefreshing(true);
             try {
@@ -108,6 +143,15 @@
                 document.getElementById('count-atencion').textContent = data.atencion || 0;
                 document.getElementById('count-tiempo').textContent = data.aTiempo || 0;
                 document.getElementById('count-total').textContent = equiposData.length;
+                const urgentesActual = Number(data.urgentes || 0);
+                const now = Date.now();
+                const cooldownMs = 120000;
+                if (!primeraCargaTecnico && urgentesActual > urgentesPrevio && now - ultimoBeepRojoTs > cooldownMs) {
+                    sonidoAlertaRojo();
+                    ultimoBeepRojoTs = now;
+                }
+                urgentesPrevio = urgentesActual;
+                primeraCargaTecnico = false;
 
                 aplicarFiltrosYOrdenar();
                 actualizarHoraActualizacion();
@@ -625,3 +669,7 @@
                 login();
             }
         });
+        document.addEventListener('click', () => {
+            const ctx = getAudioCtx();
+            if (ctx && ctx.state === 'suspended') ctx.resume();
+        }, { once: true });

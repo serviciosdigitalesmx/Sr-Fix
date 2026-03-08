@@ -73,6 +73,7 @@ function descargarCotizacionPDF() {
                 .container { max-width: 960px; margin: 0 auto; background: #fff; border-radius: 24px; box-shadow: 0 20px 40px -10px rgba(0,20,50,.15); overflow: hidden; border: 1px solid #e2e8f0; }
                 .header { background: linear-gradient(135deg, #0F4C81 0%, #1F7EDC 100%); color: #fff; padding: 28px 34px; display: flex; justify-content: space-between; align-items: center; }
                 .header h1 { font-size: 30px; font-weight: 800; letter-spacing: 1px; }
+                .header h1 span { color: #FF6A2A; }
                 .folio { background: rgba(255,255,255,.15); padding: 9px 20px; border-radius: 999px; border: 1px solid rgba(255,255,255,.28); font-weight: 700; }
                 .content { padding: 32px; }
                 .pillbar { display: flex; justify-content: space-between; gap: 12px; background: #f1f5f9; padding: 12px 16px; border-radius: 999px; margin-bottom: 22px; font-size: 14px; }
@@ -91,7 +92,7 @@ function descargarCotizacionPDF() {
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>SRFIX - Cotización</h1>
+                    <h1>SR<span>FIX</span> - Cotización</h1>
                     <div class="folio">${escapeHtml(s.FOLIO_COTIZACION || '---')}</div>
                 </div>
                 <div class="content">

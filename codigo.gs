@@ -417,8 +417,7 @@ function actualizarEquipo(data) {
 
 function crearSolicitud(data) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const hoja = ss.getSheetByName('Solicitudes');
-  if (!hoja) return jsonResponse({ error: 'Hoja Solicitudes no encontrada' });
+  const hoja = obtenerHojaSolicitudes(ss);
 
   const folioCotizacion = 'COT-' + Math.floor(1000 + Math.random() * 9000);
   const ahora = new Date().toISOString();
@@ -444,8 +443,7 @@ function crearSolicitud(data) {
 
 function listarSolicitudes() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const hoja = ss.getSheetByName('Solicitudes');
-  if (!hoja) return jsonResponse({ solicitudes: [] });
+  const hoja = obtenerHojaSolicitudes(ss);
 
   const datos = hoja.getDataRange().getValues();
   if (!datos || datos.length < 2) return jsonResponse({ solicitudes: [] });
@@ -462,8 +460,7 @@ function listarSolicitudes() {
 
 function archivarSolicitud(data) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const hoja = ss.getSheetByName('Solicitudes');
-  if (!hoja) return jsonResponse({ error: 'Hoja Solicitudes no encontrada' });
+  const hoja = obtenerHojaSolicitudes(ss);
 
   const datos = hoja.getDataRange().getValues();
   if (!datos || datos.length < 2) return jsonResponse({ error: 'Sin solicitudes' });
@@ -480,6 +477,14 @@ function archivarSolicitud(data) {
 
   hoja.getRange(filaIdx + 1, idxEstado + 1).setValue('archivado');
   return jsonResponse({ success: true });
+}
+
+function obtenerHojaSolicitudes(ss) {
+  return crearHojaSiNoExiste(ss, 'Solicitudes', [
+    'ID', 'FOLIO_COTIZACION', 'FECHA_SOLICITUD', 'NOMBRE', 'TELEFONO',
+    'EMAIL', 'DISPOSITIVO', 'MODELO', 'PROBLEMAS', 'DESCRIPCION',
+    'URGENCIA', 'ESTADO'
+  ]);
 }
 
 // ==========================================

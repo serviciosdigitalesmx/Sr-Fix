@@ -14,6 +14,7 @@ const CONFIG = {
     OPERATIVO: 'SRFIX_PASSWORD_OPERATIVO',
     FOLIO_EQUIPO_SEQ: 'SRFIX_FOLIO_EQUIPO_SEQ',
     FOLIO_COTIZACION_SEQ: 'SRFIX_FOLIO_COTIZACION_SEQ',
+    FOLIO_COTIZACION_MANUAL_SEQ: 'SRFIX_FOLIO_COTIZACION_MANUAL_SEQ',
     DRIVE_FOLDER_ID: 'SRFIX_DRIVE_FOLDER_ID'
   },
   LIMITS: {
@@ -55,7 +56,7 @@ function inicializarSistema() {
     crearHojaSiNoExiste(ss, 'Solicitudes', [
       'ID', 'FOLIO_COTIZACION', 'FECHA_SOLICITUD', 'NOMBRE', 'TELEFONO',
       'EMAIL', 'DISPOSITIVO', 'MODELO', 'PROBLEMAS', 'DESCRIPCION',
-      'URGENCIA', 'ESTADO', 'FECHA_COTIZACION', 'COTIZACION_JSON', 'COTIZACION_TOTAL'
+      'URGENCIA', 'ESTADO', 'FECHA_COTIZACION', 'COTIZACION_JSON', 'COTIZACION_TOTAL', 'FOLIO_COTIZACION_MANUAL'
     ]);
 
     // Deja contraseñas de ejemplo si aún no existen.
@@ -725,7 +726,7 @@ function obtenerHojaSolicitudes(ss) {
   return crearHojaSiNoExiste(ss, 'Solicitudes', [
     'ID', 'FOLIO_COTIZACION', 'FECHA_SOLICITUD', 'NOMBRE', 'TELEFONO',
     'EMAIL', 'DISPOSITIVO', 'MODELO', 'PROBLEMAS', 'DESCRIPCION',
-    'URGENCIA', 'ESTADO', 'FECHA_COTIZACION', 'COTIZACION_JSON', 'COTIZACION_TOTAL'
+    'URGENCIA', 'ESTADO', 'FECHA_COTIZACION', 'COTIZACION_JSON', 'COTIZACION_TOTAL', 'FOLIO_COTIZACION_MANUAL'
   ]);
 }
 
@@ -872,7 +873,8 @@ function archivarCotizacion(data) {
     const idxFecha = headers.indexOf('FECHA_COTIZACION');
     const idxJson = headers.indexOf('COTIZACION_JSON');
     const idxTotal = headers.indexOf('COTIZACION_TOTAL');
-    if ([idxFolio, idxEstado, idxFecha, idxJson, idxTotal].some(i => i === -1)) {
+    const idxFolioManual = headers.indexOf('FOLIO_COTIZACION_MANUAL');
+    if ([idxFolio, idxEstado, idxFecha, idxJson, idxTotal, idxFolioManual].some(i => i === -1)) {
       return jsonResponse({ error: 'Estructura de hoja incorrecta' });
     }
 
@@ -881,11 +883,15 @@ function archivarCotizacion(data) {
 
     const fila = filaIdx + 1;
     const cotizacion = sanitizarCotizacion(data.cotizacion || {});
+    const folioManualActual = String(datos[filaIdx][idxFolioManual] || '').trim();
+    const folioCotizacionManual = folioManualActual || obtenerSiguienteFolio(CONFIG.SCRIPT_PROP_KEYS.FOLIO_COTIZACION_MANUAL_SEQ, 'CTM-');
+    cotizacion.folioCotizacionManual = folioCotizacionManual;
     withRetry(() => hoja.getRange(fila, idxEstado + 1).setValue('cotizacion_archivada'), 'archivarCotizacion.estado');
     withRetry(() => hoja.getRange(fila, idxFecha + 1).setValue(new Date().toISOString()), 'archivarCotizacion.fecha');
     withRetry(() => hoja.getRange(fila, idxJson + 1).setValue(JSON.stringify(cotizacion)), 'archivarCotizacion.json');
     withRetry(() => hoja.getRange(fila, idxTotal + 1).setValue(Number(cotizacion.total || 0)), 'archivarCotizacion.total');
-    return jsonResponse({ success: true });
+    withRetry(() => hoja.getRange(fila, idxFolioManual + 1).setValue(folioCotizacionManual), 'archivarCotizacion.folioManual');
+    return jsonResponse({ success: true, folioCotizacionManual: folioCotizacionManual });
   }, 12000);
 }
 
@@ -929,10 +935,11 @@ function listarArchivo(data) {
         }
 
         if (incluirCotizaciones && estado === 'cotizacion_archivada') {
+          const folioCot = String(obj.FOLIO_COTIZACION_MANUAL || '').trim() || String(obj.FOLIO_COTIZACION || '');
           archivo.push({
             TIPO_ARCHIVO: 'cotizacion',
             FECHA_ARCHIVO: formatearFechaYMDOrEmpty(obj.FECHA_COTIZACION || obj.FECHA_SOLICITUD || ''),
-            FOLIO: obj.FOLIO_COTIZACION || '',
+            FOLIO: folioCot,
             CLIENTE: obj.NOMBRE || '',
             TELEFONO: normalizarTelefono(obj.TELEFONO || ''),
             DETALLE: obj.DESCRIPCION || obj.PROBLEMAS || '',

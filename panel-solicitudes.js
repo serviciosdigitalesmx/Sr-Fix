@@ -368,9 +368,14 @@ async function archivarCotizacionActual() {
             data = await res.json();
         }
         if (data.error || !data.success) throw new Error(data.error || 'No se pudo archivar la cotización');
+        const folioManual = String(data.folioCotizacionManual || '').trim();
         cerrarCotizacion();
         await cargarSolicitudes(true);
-        alert('Cotización archivada correctamente.');
+        if (folioManual) {
+            alert(`Cotización archivada correctamente.\nFolio de cotización: ${folioManual}`);
+        } else {
+            alert('Cotización archivada correctamente.');
+        }
     } catch (e) {
         alert('Error al archivar cotización: ' + e.message);
     }

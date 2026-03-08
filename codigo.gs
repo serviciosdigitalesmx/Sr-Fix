@@ -8,7 +8,7 @@
 // ==========================================
 const CONFIG = {
   SHEET_NAME: 'SRFIX_DATABASE',
-  API_VERSION: '2.3.1',
+  API_VERSION: '2.4.0',
   SCRIPT_PROP_KEYS: {
     TECNICO: 'SRFIX_PASSWORD_TECNICO',
     OPERATIVO: 'SRFIX_PASSWORD_OPERATIVO'
@@ -42,7 +42,7 @@ function inicializarSistema() {
     crearHojaSiNoExiste(ss, 'Solicitudes', [
       'ID', 'FOLIO_COTIZACION', 'FECHA_SOLICITUD', 'NOMBRE', 'TELEFONO',
       'EMAIL', 'DISPOSITIVO', 'MODELO', 'PROBLEMAS', 'DESCRIPCION',
-      'URGENCIA', 'ESTADO'
+      'URGENCIA', 'ESTADO', 'FECHA_COTIZACION', 'COTIZACION_JSON', 'COTIZACION_TOTAL'
     ]);
 
     // Deja contraseñas de ejemplo si aún no existen.
@@ -135,6 +135,15 @@ function doGet(e) {
       case 'archivar_solicitud':
         if (!e.parameter.folio) return jsonResponse({ error: 'Folio requerido' });
         return archivarSolicitud({ folio: e.parameter.folio });
+      case 'archivar_cotizacion':
+        if (!e.parameter.folio) return jsonResponse({ error: 'Folio requerido' });
+        return archivarCotizacion({ folio: e.parameter.folio, cotizacion: {} });
+      case 'listar_archivo':
+        return listarArchivo({
+          from: e.parameter.from || '',
+          to: e.parameter.to || '',
+          tipo: e.parameter.tipo || 'todos'
+        });
       case 'crear_solicitud':
         return crearSolicitud({
           nombre: e.parameter.nombre || '',
@@ -172,6 +181,10 @@ function doPost(e) {
         return listarSolicitudes();
       case 'archivar_solicitud':
         return archivarSolicitud(data);
+      case 'archivar_cotizacion':
+        return archivarCotizacion(data);
+      case 'listar_archivo':
+        return listarArchivo(data);
       default:
         return jsonResponse({ error: 'Acción no válida' });
     }
@@ -483,8 +496,155 @@ function obtenerHojaSolicitudes(ss) {
   return crearHojaSiNoExiste(ss, 'Solicitudes', [
     'ID', 'FOLIO_COTIZACION', 'FECHA_SOLICITUD', 'NOMBRE', 'TELEFONO',
     'EMAIL', 'DISPOSITIVO', 'MODELO', 'PROBLEMAS', 'DESCRIPCION',
-    'URGENCIA', 'ESTADO'
+    'URGENCIA', 'ESTADO', 'FECHA_COTIZACION', 'COTIZACION_JSON', 'COTIZACION_TOTAL'
   ]);
+}
+
+function archivarCotizacion(data) {
+  if (!data || !data.folio) return jsonResponse({ error: 'Folio requerido' });
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const hoja = obtenerHojaSolicitudes(ss);
+  const datos = hoja.getDataRange().getValues();
+  if (!datos || datos.length < 2) return jsonResponse({ error: 'Sin solicitudes' });
+  const headers = datos[0];
+
+  const idxFolio = headers.indexOf('FOLIO_COTIZACION');
+  const idxEstado = headers.indexOf('ESTADO');
+  const idxFecha = headers.indexOf('FECHA_COTIZACION');
+  const idxJson = headers.indexOf('COTIZACION_JSON');
+  const idxTotal = headers.indexOf('COTIZACION_TOTAL');
+
+  if ([idxFolio, idxEstado, idxFecha, idxJson, idxTotal].some(i => i === -1)) {
+    return jsonResponse({ error: 'Estructura de hoja incorrecta' });
+  }
+
+  const filaIdx = datos.findIndex((row, i) => i > 0 && row[idxFolio] === data.folio);
+  if (filaIdx === -1) return jsonResponse({ error: 'No encontrada' });
+
+  const fila = filaIdx + 1;
+  const cotizacion = data.cotizacion || {};
+  hoja.getRange(fila, idxEstado + 1).setValue('cotizacion_archivada');
+  hoja.getRange(fila, idxFecha + 1).setValue(new Date().toISOString());
+  hoja.getRange(fila, idxJson + 1).setValue(JSON.stringify(cotizacion));
+  hoja.getRange(fila, idxTotal + 1).setValue(Number(cotizacion.total || 0));
+
+  return jsonResponse({ success: true });
+}
+
+function listarArchivo(data) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const tipo = String((data && data.tipo) || 'todos').toLowerCase();
+  const from = parseFechaFiltro((data && data.from) || '');
+  const to = parseFechaFiltro((data && data.to) || '');
+  if (to) to.setHours(23, 59, 59, 999);
+
+  const archivo = [];
+  const incluirSolicitudes = (tipo === 'todos' || tipo === 'solicitudes');
+  const incluirCotizaciones = (tipo === 'todos' || tipo === 'cotizaciones');
+  const incluirEquipos = (tipo === 'todos' || tipo === 'equipos');
+
+  if (incluirSolicitudes || incluirCotizaciones) {
+    const hojaSol = obtenerHojaSolicitudes(ss);
+    const datosSol = hojaSol.getDataRange().getValues();
+    if (datosSol.length > 1) {
+      const headers = datosSol[0];
+      const idxEstado = headers.indexOf('ESTADO');
+      datosSol.slice(1).forEach(row => {
+        const estado = String(row[idxEstado] || '').toLowerCase();
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = row[i]);
+
+        const fechaBase = parseFechaFlexible(obj.FECHA_COTIZACION || obj.FECHA_SOLICITUD);
+        if (!cumpleRango(fechaBase, from, to)) return;
+
+        if (incluirSolicitudes && estado === 'archivado') {
+          archivo.push({
+            TIPO_ARCHIVO: 'solicitud',
+            FECHA_ARCHIVO: obj.FECHA_SOLICITUD || '',
+            FOLIO: obj.FOLIO_COTIZACION || '',
+            CLIENTE: obj.NOMBRE || '',
+            TELEFONO: obj.TELEFONO || '',
+            DETALLE: obj.DESCRIPCION || obj.PROBLEMAS || '',
+            TOTAL: ''
+          });
+        }
+
+        if (incluirCotizaciones && estado === 'cotizacion_archivada') {
+          archivo.push({
+            TIPO_ARCHIVO: 'cotizacion',
+            FECHA_ARCHIVO: obj.FECHA_COTIZACION || obj.FECHA_SOLICITUD || '',
+            FOLIO: obj.FOLIO_COTIZACION || '',
+            CLIENTE: obj.NOMBRE || '',
+            TELEFONO: obj.TELEFONO || '',
+            DETALLE: obj.DESCRIPCION || obj.PROBLEMAS || '',
+            TOTAL: Number(obj.COTIZACION_TOTAL || 0)
+          });
+        }
+      });
+    }
+  }
+
+  if (incluirEquipos) {
+    const hojaEq = ss.getSheetByName('Equipos');
+    if (hojaEq) {
+      const datosEq = hojaEq.getDataRange().getValues();
+      if (datosEq.length > 1) {
+        const headersEq = datosEq[0];
+        const idxEstadoEq = headersEq.indexOf('ESTADO');
+        const idxFolioEq = headersEq.indexOf('FOLIO');
+        const idxClienteEq = headersEq.indexOf('CLIENTE_NOMBRE');
+        const idxTelefonoEq = headersEq.indexOf('CLIENTE_TELEFONO');
+        const idxModeloEq = headersEq.indexOf('MODELO');
+        const idxDisEq = headersEq.indexOf('DISPOSITIVO');
+        const idxFechaEntregaEq = headersEq.indexOf('FECHA_ENTREGA');
+        const idxCostoEq = headersEq.indexOf('COSTO_ESTIMADO');
+
+        datosEq.slice(1).forEach(row => {
+          if (String(row[idxEstadoEq] || '') !== 'Entregado') return;
+          const fechaEnt = parseFechaFlexible(row[idxFechaEntregaEq] || '');
+          if (!cumpleRango(fechaEnt, from, to)) return;
+
+          archivo.push({
+            TIPO_ARCHIVO: 'equipo_entregado',
+            FECHA_ARCHIVO: row[idxFechaEntregaEq] || '',
+            FOLIO: row[idxFolioEq] || '',
+            CLIENTE: row[idxClienteEq] || '',
+            TELEFONO: row[idxTelefonoEq] || '',
+            DETALLE: `${row[idxDisEq] || ''} ${row[idxModeloEq] || ''}`.trim(),
+            TOTAL: Number(row[idxCostoEq] || 0)
+          });
+        });
+      }
+    }
+  }
+
+  archivo.sort((a, b) => {
+    const da = parseFechaFlexible(a.FECHA_ARCHIVO);
+    const db = parseFechaFlexible(b.FECHA_ARCHIVO);
+    const ta = da ? da.getTime() : 0;
+    const tb = db ? db.getTime() : 0;
+    return tb - ta;
+  });
+
+  return jsonResponse({ archivo: archivo });
+}
+
+function parseFechaFiltro(valor) {
+  if (!valor) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(valor))) {
+    const d = new Date(`${valor}T00:00:00`);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return parseFechaFlexible(valor);
+}
+
+function cumpleRango(fecha, from, to) {
+  if (!from && !to) return true;
+  if (!fecha || isNaN(fecha.getTime())) return false;
+  if (from && fecha < from) return false;
+  if (to && fecha > to) return false;
+  return true;
 }
 
 // ==========================================

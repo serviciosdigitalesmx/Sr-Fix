@@ -152,6 +152,7 @@
             <button id="tab-operativo" class="tab" type="button">Operativo</button>
             <button id="tab-tecnico" class="tab" type="button">Técnico</button>
             <button id="tab-solicitudes" class="tab" type="button">Solicitudes</button>
+            <button id="tab-archivo" class="tab" type="button">Archivo</button>
         </nav>
     </header>
     <div class="wrap">
@@ -164,23 +165,30 @@
         <section id="panel-solicitudes" class="panel" aria-label="Módulo Solicitudes">
             <iframe id="frame-solicitudes" title="Modulo Solicitudes" src="about:blank"></iframe>
         </section>
+        <section id="panel-archivo" class="panel" aria-label="Módulo Archivo">
+            <iframe id="frame-archivo" title="Modulo Archivo" src="about:blank"></iframe>
+        </section>
     </div>
     <div class="fallback">
         Si algo falla: <a href="./panel-operativo.html" target="_blank">Operativo</a> |
         <a href="./panel-tecnico.html" target="_blank">Técnico</a> |
-        <a href="./panel-solicitudes.html" target="_blank">Solicitudes</a>
+        <a href="./panel-solicitudes.html" target="_blank">Solicitudes</a> |
+        <a href="./panel-archivo.html" target="_blank">Archivo</a>
     </div>
 
     <script>
         const PANEL_OP = document.getElementById('panel-operativo');
         const PANEL_TE = document.getElementById('panel-tecnico');
         const PANEL_SO = document.getElementById('panel-solicitudes');
+        const PANEL_AR = document.getElementById('panel-archivo');
         const BTN_OP = document.getElementById('tab-operativo');
         const BTN_TE = document.getElementById('tab-tecnico');
         const BTN_SO = document.getElementById('tab-solicitudes');
+        const BTN_AR = document.getElementById('tab-archivo');
         const FRAME_OP = document.getElementById('frame-operativo');
         const FRAME_TE = document.getElementById('frame-tecnico');
         const FRAME_SO = document.getElementById('frame-solicitudes');
+        const FRAME_AR = document.getElementById('frame-archivo');
         const LOGIN_SCREEN = document.getElementById('login-screen');
         const MASTER_INPUT = document.getElementById('master-password');
         const MASTER_BTN = document.getElementById('master-login-btn');
@@ -189,7 +197,8 @@
         const FRAME_SRC = {
             operativo: './panel-operativo.html',
             tecnico: './panel-tecnico.html',
-            solicitudes: './panel-solicitudes.html'
+            solicitudes: './panel-solicitudes.html',
+            archivo: './panel-archivo.html'
         };
 
         function asegurarCargaIframe(modulo) {
@@ -202,17 +211,22 @@
             if (modulo === 'solicitudes' && FRAME_SO.src === 'about:blank') {
                 FRAME_SO.src = FRAME_SRC.solicitudes;
             }
+            if (modulo === 'archivo' && FRAME_AR.src === 'about:blank') {
+                FRAME_AR.src = FRAME_SRC.archivo;
+            }
         }
 
         function mostrarModulo(modulo) {
-            const actual = ['operativo', 'tecnico', 'solicitudes'].includes(modulo) ? modulo : 'operativo';
+            const actual = ['operativo', 'tecnico', 'solicitudes', 'archivo'].includes(modulo) ? modulo : 'operativo';
             asegurarCargaIframe(actual);
             PANEL_OP.classList.toggle('active', actual === 'operativo');
             PANEL_TE.classList.toggle('active', actual === 'tecnico');
             PANEL_SO.classList.toggle('active', actual === 'solicitudes');
+            PANEL_AR.classList.toggle('active', actual === 'archivo');
             BTN_OP.classList.toggle('active', actual === 'operativo');
             BTN_TE.classList.toggle('active', actual === 'tecnico');
             BTN_SO.classList.toggle('active', actual === 'solicitudes');
+            BTN_AR.classList.toggle('active', actual === 'archivo');
 
             const url = new URL(window.location.href);
             url.searchParams.set('modulo', actual);
@@ -222,6 +236,7 @@
         BTN_OP.addEventListener('click', () => mostrarModulo('operativo'));
         BTN_TE.addEventListener('click', () => mostrarModulo('tecnico'));
         BTN_SO.addEventListener('click', () => mostrarModulo('solicitudes'));
+        BTN_AR.addEventListener('click', () => mostrarModulo('archivo'));
 
         function entrarIntegrador() {
             sessionStorage.setItem('srfix_pass_master', MASTER_PASS);

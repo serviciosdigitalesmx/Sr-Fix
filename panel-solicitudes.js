@@ -129,6 +129,24 @@ function recalcularTotalesCotizacion() {
     return { subtotal, iva, total, anticipo, saldo };
 }
 
+function prepararDatosCotizacion() {
+    const resumen = recalcularTotalesCotizacion();
+    const items = cotizacionItems
+        .filter(it => (it.concepto || '').trim())
+        .map(it => {
+            const cantidad = Number(it.cantidad || 0);
+            const precio = Number(it.precio || 0);
+            return {
+                concepto: String(it.concepto || '').trim(),
+                cantidad: cantidad,
+                precio: precio,
+                total: cantidad * precio
+            };
+        });
+    const notas = document.getElementById('cot-notas').value.trim();
+    return { resumen, items, notas };
+}
+
 function renderCotizacionItems() {
     elCotItems.innerHTML = '';
     cotizacionItems.forEach((it, idx) => {
@@ -148,24 +166,11 @@ function renderCotizacionItems() {
 function descargarCotizacionPDF() {
     if (!solicitudActual) return;
     const s = solicitudActual;
-    const resumen = recalcularTotalesCotizacion();
-    const filas = cotizacionItems
-        .filter(it => (it.concepto || '').trim())
-        .map(it => {
-            const cantidad = Number(it.cantidad || 0);
-            const precio = Number(it.precio || 0);
-            return {
-                concepto: it.concepto,
-                cantidad: cantidad,
-                precio: precio,
-                total: cantidad * precio
-            };
-        });
+    const { resumen, items: filas, notas } = prepararDatosCotizacion();
     if (!filas.length) {
         alert('Agrega al menos un concepto para generar la cotización.');
         return;
     }
-    const notas = document.getElementById('cot-notas').value.trim();
     const html = `
         <!DOCTYPE html>
         <html lang="es">
@@ -275,18 +280,62 @@ function enviarCotizacionWhatsApp() {
     if (!solicitudActual) return;
     const tel = normalizarTelefono(solicitudActual.TELEFONO);
     if (!tel) return alert('La solicitud no tiene teléfono válido.');
-    const resumen = recalcularTotalesCotizacion();
-    const conceptos = cotizacionItems
-        .filter(it => (it.concepto || '').trim())
+    const { resumen, items, notas } = prepararDatosCotizacion();
+    const conceptos = items
         .map(it => `- ${it.concepto} (${Number(it.cantidad || 0)} x ${formatMoney(it.precio || 0)})`)
         .join('\n');
     if (!conceptos) return alert('Agrega al menos un concepto antes de enviar por WhatsApp.');
-    const notas = document.getElementById('cot-notas').value.trim();
     let msg = `Hola ${solicitudActual.NOMBRE || ''}, te compartimos tu cotización ${solicitudActual.FOLIO_COTIZACION}:\n\n`;
     msg += `${conceptos}\n\n`;
     msg += `Subtotal: ${formatMoney(resumen.subtotal)}\nIVA: ${formatMoney(resumen.iva)}\nTotal: ${formatMoney(resumen.total)}\nAnticipo: ${formatMoney(resumen.anticipo)}\nSaldo: ${formatMoney(resumen.saldo)}\n`;
     if (notas) msg += `\nNotas: ${notas}\n`;
     window.open(`https://wa.me/52${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+async function archivarCotizacionActual() {
+    if (!solicitudActual) return;
+    const { resumen, items, notas } = prepararDatosCotizacion();
+    if (!items.length) {
+        alert('Agrega al menos un concepto antes de archivar la cotización.');
+        return;
+    }
+
+    const payload = {
+        action: 'archivar_cotizacion',
+        folio: solicitudActual.FOLIO_COTIZACION,
+        cotizacion: {
+            items: items,
+            notas: notas,
+            subtotal: resumen.subtotal,
+            iva: resumen.iva,
+            total: resumen.total,
+            anticipo: resumen.anticipo,
+            saldo: resumen.saldo
+        }
+    };
+
+    try {
+        let data = null;
+        let res = await fetch(CONFIG.BACKEND_URL, { method: 'POST', body: JSON.stringify(payload) });
+        if (res.ok) {
+            try { data = await res.json(); } catch (e) {}
+        }
+        if (!data || data.error) {
+            const q = new URLSearchParams({
+                action: 'archivar_cotizacion',
+                folio: String(solicitudActual.FOLIO_COTIZACION || ''),
+                t: String(Date.now())
+            });
+            res = await fetch(`${CONFIG.BACKEND_URL}?${q.toString()}`);
+            data = await res.json();
+        }
+        if (data.error || !data.success) throw new Error(data.error || 'No se pudo archivar la cotización');
+        cerrarCotizacion();
+        await cargarSolicitudes();
+        alert('Cotización archivada correctamente.');
+    } catch (e) {
+        alert('Error al archivar cotización: ' + e.message);
+    }
 }
 
 function render(solicitudes) {
@@ -387,6 +436,9 @@ document.getElementById('btn-refresh').addEventListener('click', cargarSolicitud
 document.getElementById('btn-cotizacion-cerrar').addEventListener('click', cerrarCotizacion);
 document.getElementById('btn-cotizacion-pdf').addEventListener('click', descargarCotizacionPDF);
 document.getElementById('btn-cotizacion-wa').addEventListener('click', enviarCotizacionWhatsApp);
+document.getElementById('btn-cotizacion-archivar').addEventListener('click', () => {
+    if (confirm('¿Archivar esta cotización en el módulo Archivo?')) archivarCotizacionActual();
+});
 document.getElementById('btn-cot-item-add').addEventListener('click', crearItemCotizacion);
 document.getElementById('cot-anticipo').addEventListener('input', recalcularTotalesCotizacion);
 elCotItems.addEventListener('input', (e) => {

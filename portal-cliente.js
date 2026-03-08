@@ -1,5 +1,5 @@
         const CONFIG = {
-            BACKEND_URL: 'https://script.google.com/macros/s/AKfycbz8kwnncjT8hEy2o-KOoUSQBHBzFpTLjqqZ-EwANJ8mx_XzeB-4FIsD_DWvJQVOuTjM/exec',
+            BACKEND_URL: 'https://script.google.com/macros/s/AKfycbwiBtY7zqrt_exF1fcBq632j_MD1apPJU2VnFb4ohKaieekuVCiJOsf8sATNVgFMcN-/exec',
             TIENDA_WHATSAPP: '528117006536',
             TIENDA_MAPS: 'https://maps.app.goo.gl/WfZYxbunp9XhXHgr5',
             LOGO_URL: './logo.webp'

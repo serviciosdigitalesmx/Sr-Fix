@@ -1,5 +1,5 @@
 const CONFIG = {
-    BACKEND_URL: 'https://script.google.com/macros/s/AKfycby7ImB8qOFGJbB9OYASi_pysQi9KvWHgzeRm_JPdEMR69RPHNREgB-T_K_Km_HojrAw/exec'
+    BACKEND_URL: 'https://script.google.com/macros/s/AKfycbxH1zD8_14TvCajstFhtEpLNODwG9GZXkLoCXOb1IBNm0JIRmpCwS6SRsuGhZETK88z/exec'
 };
 
 const elRows = document.getElementById('rows');

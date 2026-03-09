@@ -17,6 +17,7 @@ let conteoSolicitudesPrevio = 0;
 let primeraCargaSolicitudes = true;
 let cotizacionEditando = false;
 let cotizacionDirty = false;
+const IVA_RATE = 0.16;
 
 function escapeHtml(v) {
     return String(v || '')
@@ -94,6 +95,7 @@ function abrirCotizacion(folio) {
     document.getElementById('cot-urgencia').textContent = s.URGENCIA || '---';
     document.getElementById('cot-notas').value = '';
     document.getElementById('cot-anticipo').value = '0';
+    document.getElementById('cot-aplica-iva').checked = false;
     cotizacionItems = [{
         concepto: s.PROBLEMAS || s.DESCRIPCION || 'Diagnóstico y reparación',
         cantidad: 1,
@@ -130,15 +132,17 @@ function eliminarItemCotizacion(idx) {
 
 function recalcularTotalesCotizacion() {
     const subtotal = cotizacionItems.reduce((acc, it) => acc + (Number(it.cantidad || 0) * Number(it.precio || 0)), 0);
-    const iva = subtotal * 0.16;
+    const aplicaIva = !!document.getElementById('cot-aplica-iva').checked;
+    const iva = aplicaIva ? subtotal * IVA_RATE : 0;
     const total = subtotal + iva;
     const anticipo = Number(document.getElementById('cot-anticipo').value || 0);
     const saldo = Math.max(0, total - anticipo);
+    document.getElementById('cot-iva-label').textContent = aplicaIva ? 'IVA (16%)' : 'IVA (No aplicado)';
     document.getElementById('cot-subtotal').textContent = formatMoney(subtotal);
     document.getElementById('cot-iva').textContent = formatMoney(iva);
     document.getElementById('cot-total').textContent = formatMoney(total);
     document.getElementById('cot-saldo').textContent = formatMoney(saldo);
-    return { subtotal, iva, total, anticipo, saldo };
+    return { subtotal, iva, total, anticipo, saldo, aplicaIva, ivaRate: IVA_RATE };
 }
 
 function prepararDatosCotizacion() {
@@ -186,6 +190,8 @@ function construirCotizacionPayload(resumen, items, notas) {
             total: Number((Number(it.cantidad || 0) * Number(it.precio || 0)).toFixed(2))
         })),
         notas: String(notas || '').trim(),
+        aplicaIva: !!resumen.aplicaIva,
+        ivaRate: Number(resumen.ivaRate || IVA_RATE),
         subtotal: Number(Number(resumen.subtotal || 0).toFixed(2)),
         iva: Number(Number(resumen.iva || 0).toFixed(2)),
         total: Number(Number(resumen.total || 0).toFixed(2)),
@@ -295,7 +301,7 @@ function descargarCotizacionPDF() {
                     </table>
                     <div style="margin-top:12px; text-align:right; font-size:13px; line-height:1.8;">
                         <div><strong>Subtotal:</strong> ${formatMoney(resumen.subtotal)}</div>
-                        <div><strong>IVA (16%):</strong> ${formatMoney(resumen.iva)}</div>
+                        <div><strong>${resumen.aplicaIva ? 'IVA (16%)' : 'IVA (No aplicado)'}:</strong> ${formatMoney(resumen.iva)}</div>
                         <div style="font-size:16px;"><strong>Total:</strong> ${formatMoney(resumen.total)}</div>
                         <div><strong>Anticipo:</strong> ${formatMoney(resumen.anticipo)}</div>
                         <div><strong>Saldo:</strong> ${formatMoney(resumen.saldo)}</div>
@@ -334,7 +340,8 @@ function enviarCotizacionWhatsApp() {
     if (!conceptos) return alert('Agrega al menos un concepto antes de enviar por WhatsApp.');
     let msg = `Hola ${solicitudActual.NOMBRE || ''}, te compartimos tu cotización ${solicitudActual.FOLIO_COTIZACION}:\n\n`;
     msg += `${conceptos}\n\n`;
-    msg += `Subtotal: ${formatMoney(resumen.subtotal)}\nIVA: ${formatMoney(resumen.iva)}\nTotal: ${formatMoney(resumen.total)}\nAnticipo: ${formatMoney(resumen.anticipo)}\nSaldo: ${formatMoney(resumen.saldo)}\n`;
+    const ivaTexto = resumen.aplicaIva ? `IVA (16%): ${formatMoney(resumen.iva)}` : `IVA (No aplicado): ${formatMoney(resumen.iva)}`;
+    msg += `Subtotal: ${formatMoney(resumen.subtotal)}\n${ivaTexto}\nTotal: ${formatMoney(resumen.total)}\nAnticipo: ${formatMoney(resumen.anticipo)}\nSaldo: ${formatMoney(resumen.saldo)}\n`;
     if (notas) msg += `\nNotas: ${notas}\n`;
     window.open(`https://wa.me/52${tel}?text=${encodeURIComponent(msg)}`, '_blank');
 }
@@ -486,6 +493,10 @@ document.getElementById('btn-cotizacion-archivar').addEventListener('click', () 
 document.getElementById('btn-cot-item-add').addEventListener('click', crearItemCotizacion);
 document.getElementById('cot-anticipo').addEventListener('input', recalcularTotalesCotizacion);
 document.getElementById('cot-anticipo').addEventListener('input', () => { cotizacionDirty = true; });
+document.getElementById('cot-aplica-iva').addEventListener('change', () => {
+    cotizacionDirty = true;
+    recalcularTotalesCotizacion();
+});
 document.getElementById('cot-notas').addEventListener('input', () => { cotizacionDirty = true; });
 elCotItems.addEventListener('input', (e) => {
     const idx = Number(e.target.getAttribute('data-idx'));

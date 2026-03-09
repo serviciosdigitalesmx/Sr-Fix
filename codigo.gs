@@ -849,6 +849,8 @@ function sanitizarCotizacion(cotizacion) {
   return {
     items: cleanItems,
     notas: String(cotizacion.notas || '').slice(0, 2000),
+    aplicaIva: !!cotizacion.aplicaIva,
+    ivaRate: normalizarNumero(cotizacion.ivaRate, 0.16, 0),
     subtotal: normalizarNumero(cotizacion.subtotal, 0, 0),
     iva: normalizarNumero(cotizacion.iva, 0, 0),
     total: normalizarNumero(cotizacion.total, 0, 0),

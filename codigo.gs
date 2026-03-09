@@ -46,7 +46,7 @@ function inicializarSistema() {
       'ID', 'FOLIO', 'FECHA_INGRESO', 'CLIENTE_NOMBRE', 'CLIENTE_TELEFONO',
       'DISPOSITIVO', 'MODELO', 'FALLA_REPORTADA', 'ESTADO', 'TECNICO_ASIGNADO',
       'FECHA_PROMESA', 'FECHA_ENTREGA', 'COSTO_ESTIMADO', 'NOTAS_INTERNAS',
-      'YOUTUBE_ID', 'CHECK_CARGADOR', 'CHECK_PANTALLA', 'CHECK_PRENDE', 'CHECK_RESPALDO', 'FOTO_RECEPCION', 'SEGUIMIENTO_CLIENTE', 'SEGUIMIENTO_FOTOS'
+      'YOUTUBE_ID', 'CHECK_CARGADOR', 'CHECK_PANTALLA', 'CHECK_PRENDE', 'CHECK_RESPALDO', 'FOTO_RECEPCION', 'SEGUIMIENTO_CLIENTE', 'SEGUIMIENTO_FOTOS', 'FOLIO_COTIZACION_ORIGEN'
     ]);
 
     crearHojaSiNoExiste(ss, 'Clientes', [
@@ -147,6 +147,9 @@ function doGet(e) {
         return getSemaforoData(pag);
       case 'listar_solicitudes':
         return listarSolicitudes({ page: pag.page, pageSize: pag.pageSize });
+      case 'solicitud':
+        if (!e.parameter.folio) return jsonResponse({ error: 'Folio requerido' });
+        return getSolicitudByFolio(e.parameter.folio);
       case 'archivar_solicitud':
         if (!e.parameter.folio) return jsonResponse({ error: 'Folio requerido' });
         return archivarSolicitud({ folio: e.parameter.folio });
@@ -198,6 +201,9 @@ function doPost(e) {
         return crearSolicitud(data);
       case 'listar_solicitudes':
         return listarSolicitudes({ page: pag.page, pageSize: pag.pageSize });
+      case 'solicitud':
+        if (!data.folio) return jsonResponse({ error: 'Folio requerido' });
+        return getSolicitudByFolio(data.folio);
       case 'archivar_solicitud':
         return archivarSolicitud(data);
       case 'archivar_cotizacion':
@@ -564,7 +570,8 @@ function crearEquipo(data) {
       payload.checks.respaldo ? 'SÍ' : 'NO',
       fotoRecepcion,
       payload.seguimientoCliente,
-      JSON.stringify(seguimientoFotos)
+      JSON.stringify(seguimientoFotos),
+      payload.folioSolicitudOrigen || ''
     ]), 'crearEquipo.appendRow');
 
     if (payload.clienteTelefono) {
@@ -701,6 +708,31 @@ function listarSolicitudes(pag) {
   });
 }
 
+function getSolicitudByFolio(folio) {
+  const target = String(folio || '').trim().toUpperCase();
+  if (!target) return jsonResponse({ error: 'Folio requerido' });
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const hoja = obtenerHojaSolicitudes(ss);
+  const datos = withRetry(() => hoja.getDataRange().getValues(), 'getSolicitudByFolio.getValues');
+  if (!datos || datos.length < 2) return jsonResponse({ error: 'No encontrada' });
+
+  const headers = datos[0];
+  const idxFolio = headers.indexOf('FOLIO_COTIZACION');
+  if (idxFolio === -1) return jsonResponse({ error: 'Estructura de hoja incorrecta' });
+
+  const fila = datos.find((row, i) => i > 0 && String(row[idxFolio] || '').trim().toUpperCase() === target);
+  if (!fila) return jsonResponse({ error: 'No encontrada' });
+
+  const solicitud = {};
+  headers.forEach((h, i) => solicitud[h] = fila[i]);
+  solicitud.FOLIO_COTIZACION = String(solicitud.FOLIO_COTIZACION || '').trim().toUpperCase();
+  solicitud.TELEFONO = normalizarTelefono(solicitud.TELEFONO || '');
+  solicitud.FECHA_SOLICITUD = formatearFechaYMDOrEmpty(solicitud.FECHA_SOLICITUD || '');
+  solicitud.FECHA_COTIZACION = formatearFechaYMDOrEmpty(solicitud.FECHA_COTIZACION || '');
+  return jsonResponse({ solicitud: solicitud });
+}
+
 function archivarSolicitud(data) {
   return withDocumentLock(function() {
     const folio = String((data && data.folio) || '').trim();
@@ -743,6 +775,7 @@ function validarPayloadCrearEquipo(data) {
   const seguimientoRaw = Array.isArray(data.seguimientoFotos)
     ? data.seguimientoFotos
     : safeParseJsonArray(data.seguimientoFotos);
+  const folioSolicitudOrigen = String(data.folioSolicitudOrigen || '').trim().toUpperCase();
 
   if (!clienteNombre) throw new Error('clienteNombre es obligatorio');
   if (!clienteTelefono || clienteTelefono.length !== 10) throw new Error('clienteTelefono inválido, deben ser 10 dígitos');
@@ -770,7 +803,8 @@ function validarPayloadCrearEquipo(data) {
     },
     fotoRecepcion: String(data.fotoRecepcion || '').trim(),
     seguimientoCliente: String(data.seguimientoCliente || '').trim(),
-    seguimientoFotos: seguimientoRaw.filter(Boolean)
+    seguimientoFotos: seguimientoRaw.filter(Boolean),
+    folioSolicitudOrigen: folioSolicitudOrigen
   };
 }
 

@@ -11,6 +11,7 @@
         let PASSWORD = '';
         let fotoRecepcionBase64 = '';
         let ultimaOrdenRegistrada = null;
+        let folioSolicitudOrigen = '';
 
         (function() {
             const saved = sessionStorage.getItem('srfix_pass_master') || sessionStorage.getItem('srfix_pass_operativo');
@@ -90,6 +91,7 @@
         // ==========================================
         function guardarBorradorLocal() {
             const datos = {
+                folioCotizacion: document.getElementById('folio-cotizacion-input')?.value || '',
                 clienteNombre: document.getElementById('cliente-nombre').value,
                 clienteTelefono: document.getElementById('cliente-telefono').value,
                 clienteEmail: document.getElementById('cliente-email').value,
@@ -115,6 +117,9 @@
             if (!guardado) return;
             try {
                 const datos = JSON.parse(guardado);
+                if (document.getElementById('folio-cotizacion-input')) {
+                    document.getElementById('folio-cotizacion-input').value = String(datos.folioCotizacion || '').toUpperCase();
+                }
                 document.getElementById('cliente-nombre').value = datos.clienteNombre || '';
                 document.getElementById('cliente-telefono').value = datos.clienteTelefono || '';
                 document.getElementById('cliente-email').value = datos.clienteEmail || '';
@@ -131,6 +136,69 @@
                 fotoRecepcionBase64 = '';
                 document.getElementById('foto-preview-wrap').classList.add('hidden');
             } catch (e) {}
+        }
+
+        function setMensajeFolio(texto = '', tipo = 'info') {
+            const el = document.getElementById('folio-cotizacion-msg');
+            if (!el) return;
+            el.textContent = texto;
+            el.classList.remove('text-[#8A8F95]', 'text-red-400', 'text-green-400');
+            if (tipo === 'error') el.classList.add('text-red-400');
+            else if (tipo === 'success') el.classList.add('text-green-400');
+            else el.classList.add('text-[#8A8F95]');
+        }
+
+        async function cargarDesdeFolioCotizacion() {
+            const input = document.getElementById('folio-cotizacion-input');
+            const folio = String(input?.value || '').trim().toUpperCase();
+            if (!folio) {
+                setMensajeFolio('Ingresa un folio de cotización.', 'error');
+                return;
+            }
+
+            setMensajeFolio('Buscando solicitud...');
+            try {
+                let data = null;
+                let res = await fetch(CONFIG.BACKEND_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'solicitud', folio })
+                });
+                if (res.ok) {
+                    try { data = await res.json(); } catch (e) {}
+                }
+                if (!data || data.error) {
+                    res = await fetch(`${CONFIG.BACKEND_URL}?action=solicitud&folio=${encodeURIComponent(folio)}&t=${Date.now()}`);
+                    if (!res.ok) throw new Error('Error de conexión');
+                    data = await res.json();
+                }
+                if (!data || data.error || !data.solicitud) throw new Error(data?.error || 'No se encontró la solicitud');
+
+                const s = data.solicitud;
+                const estadoSolicitud = String(s.ESTADO || '').toLowerCase();
+                if (estadoSolicitud && estadoSolicitud !== 'pendiente') {
+                    setMensajeFolio(`La solicitud ${folio} está en estado "${s.ESTADO}". Se cargó solo como referencia.`, 'info');
+                }
+                document.getElementById('cliente-nombre').value = s.NOMBRE || '';
+                document.getElementById('cliente-telefono').value = s.TELEFONO || '';
+                document.getElementById('cliente-email').value = s.EMAIL || '';
+                document.getElementById('equipo-tipo').value = resolverTipoDispositivo(s.DISPOSITIVO);
+                document.getElementById('equipo-modelo').value = s.MODELO || '';
+                document.getElementById('equipo-falla').value = s.DESCRIPCION || s.PROBLEMAS || '';
+
+                // Si no hay nota manual, deja trazabilidad de origen sin forzar.
+                const notasExtra = document.getElementById('notas-extra');
+                if (notasExtra && !String(notasExtra.value || '').trim()) {
+                    notasExtra.value = `Origen solicitud: ${folio}`;
+                }
+
+                folioSolicitudOrigen = folio;
+                guardarBorradorLocal();
+                setMensajeFolio(`Solicitud ${folio} cargada. Puedes editar todo antes de guardar.`, 'success');
+                mostrarToast(`Solicitud ${folio} cargada`, 'success');
+            } catch (e) {
+                setMensajeFolio(e.message || 'No se pudo cargar la solicitud', 'error');
+                mostrarToast('No se pudo cargar la solicitud', 'error');
+            }
         }
 
         async function manejarFotoRecepcion(input) {
@@ -231,6 +299,17 @@
         function normalizarTelefono10(raw) {
             const digits = String(raw || '').replace(/\D/g, '');
             return digits.length === 10 ? digits : '';
+        }
+
+        function resolverTipoDispositivo(valorSolicitud) {
+            const raw = String(valorSolicitud || '').trim();
+            if (!raw) return '';
+            const v = raw.toLowerCase();
+            if (v.includes('smart') || v.includes('cel') || v.includes('phone') || v.includes('movil')) return 'Smartphone';
+            if (v.includes('tablet') || v.includes('ipad')) return 'Tablet';
+            if (v.includes('lap') || v.includes('notebook') || v.includes('macbook') || v.includes('surface')) return 'Laptop';
+            if (v.includes('pc') || v.includes('comput') || v.includes('desktop')) return 'Computadora';
+            return 'Otro';
         }
 
         function validarPaso2() {
@@ -342,7 +421,8 @@
                     prende: document.getElementById('chk-prende').checked,
                     respaldo: document.getElementById('chk-respaldo').checked
                 },
-                fotoRecepcion: fotoRecepcionBase64 || ''
+                fotoRecepcion: fotoRecepcionBase64 || '',
+                folioSolicitudOrigen: folioSolicitudOrigen || String(document.getElementById('folio-cotizacion-input')?.value || '').trim().toUpperCase()
             };
 
             try {
@@ -513,6 +593,7 @@
             document.getElementById('cliente-nombre').value = '';
             document.getElementById('cliente-telefono').value = '';
             document.getElementById('cliente-email').value = '';
+            if (document.getElementById('folio-cotizacion-input')) document.getElementById('folio-cotizacion-input').value = '';
             document.getElementById('equipo-tipo').value = '';
             document.getElementById('equipo-modelo').value = '';
             document.getElementById('equipo-falla').value = '';
@@ -523,6 +604,8 @@
             document.getElementById('foto-preview-wrap').classList.add('hidden');
             fotoRecepcionBase64 = '';
             ultimaOrdenRegistrada = null;
+            folioSolicitudOrigen = '';
+            setMensajeFolio('');
 
             const f = new Date(); f.setDate(f.getDate() + 3);
             document.getElementById('fecha-promesa').valueAsDate = f;

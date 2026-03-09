@@ -359,7 +359,7 @@ function obtenerSiguienteFolio(key, prefix) {
 function maybePersistImage(dataUrl, nombreBase) {
   const raw = String(dataUrl || '').trim();
   if (!raw) return '';
-  if (!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(raw)) return raw;
+  if (!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(raw)) return normalizarUrlImagen(raw);
 
   const bytes = Utilities.base64Decode(raw.split(',')[1] || '');
   if (bytes.length > CONFIG.LIMITS.MAX_FOTO_SIZE_BYTES) {
@@ -382,7 +382,52 @@ function maybePersistImage(dataUrl, nombreBase) {
   const blob = Utilities.newBlob(bytes, contentType, nombre);
   const file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return file.getUrl();
+  return urlDriveImagen(file.getId());
+}
+
+function urlDriveImagen(fileId) {
+  const id = String(fileId || '').trim();
+  if (!id) return '';
+  return `https://drive.google.com/uc?export=view&id=${id}`;
+}
+
+function extraerDriveFileId(url) {
+  const s = String(url || '').trim();
+  if (!s) return '';
+  let m = s.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (m && m[1]) return m[1];
+  m = s.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m && m[1]) return m[1];
+  return '';
+}
+
+function normalizarUrlImagen(valor) {
+  const s = String(valor || '').trim();
+  if (!s) return '';
+  if (/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(s)) return s;
+  const id = extraerDriveFileId(s);
+  if (id) return urlDriveImagen(id);
+  return s;
+}
+
+function normalizarSeguimientoFotos(raw) {
+  if (!raw) return '[]';
+  let arr = [];
+  if (Array.isArray(raw)) {
+    arr = raw;
+  } else {
+    try {
+      const parsed = JSON.parse(String(raw));
+      arr = Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      const single = normalizarUrlImagen(raw);
+      arr = single ? [single] : [];
+    }
+  }
+  const clean = arr
+    .map(normalizarUrlImagen)
+    .filter(Boolean);
+  return JSON.stringify(clean);
 }
 
 // ==========================================
@@ -538,6 +583,8 @@ function normalizarEquipoForApi(eqRaw) {
     prende: eq.CHECK_PRENDE_BOOL,
     respaldo: eq.CHECK_RESPALDO_BOOL
   };
+  eq.FOTO_RECEPCION = normalizarUrlImagen(eq.FOTO_RECEPCION);
+  eq.SEGUIMIENTO_FOTOS = normalizarSeguimientoFotos(eq.SEGUIMIENTO_FOTOS);
 
   return eq;
 }
@@ -627,11 +674,14 @@ function actualizarEquipo(data) {
       if (k === 'FOTO_RECEPCION' && /^data:image\//.test(String(campos[k] || ''))) {
         campos[k] = maybePersistImage(campos[k], `${folio}_recepcion_upd`);
       }
+      if (k === 'FOTO_RECEPCION') {
+        campos[k] = normalizarUrlImagen(campos[k]);
+      }
       if (k === 'SEGUIMIENTO_FOTOS' && Array.isArray(campos[k])) {
         const fotos = campos[k].slice(0, CONFIG.LIMITS.MAX_SEGUIMIENTO_FOTOS)
           .map((img, idx) => maybePersistImage(img, `${folio}_segupd_${idx + 1}`))
           .filter(Boolean);
-        campos[k] = JSON.stringify(fotos);
+        campos[k] = normalizarSeguimientoFotos(fotos);
       }
       if (colIndex[k]) {
         withRetry(() => hoja.getRange(fila, colIndex[k]).setValue(campos[k]), `actualizarEquipo.set.${k}`);

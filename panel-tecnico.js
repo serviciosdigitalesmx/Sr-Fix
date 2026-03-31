@@ -29,8 +29,12 @@
 
         // Cargar preferencias guardadas
         (function() {
-            const savedPass = sessionStorage.getItem('srfix_pass_tecnico');
-            if (savedPass) document.getElementById('password-input').value = savedPass;
+            const savedPass = sessionStorage.getItem('srfix_pass_tecnico') || localStorage.getItem('srfix_pass_tecnico');
+            if (savedPass) {
+                document.getElementById('password-input').value = savedPass;
+                // Si hay pass guardado, intentamos login automático
+                setTimeout(login, 500);
+            }
             const savedFiltros = localStorage.getItem('srfix_filtros_tecnico');
             if (savedFiltros) {
                 try {
@@ -59,7 +63,14 @@
             const ok = await cargarDatos(true);
 
             if (ok) {
+                const remember = document.getElementById('remember-me').checked;
                 sessionStorage.setItem('srfix_pass_tecnico', PASSWORD);
+                if (remember) {
+                    localStorage.setItem('srfix_pass_tecnico', PASSWORD);
+                } else {
+                    localStorage.removeItem('srfix_pass_tecnico');
+                }
+                
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app').classList.remove('hidden');
                 document.getElementById('fecha-actual').textContent = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -75,6 +86,7 @@
         function logout() {
             if (intervalo) clearInterval(intervalo);
             sessionStorage.removeItem('srfix_pass_tecnico');
+            localStorage.removeItem('srfix_pass_tecnico');
             location.reload();
         }
 
@@ -263,6 +275,22 @@
         // ==========================================
         // RENDERIZADO DE TARJETAS
         // ==========================================
+        function formatDateWords(dateStr) {
+            if (!dateStr) return '---';
+            try {
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return dateStr;
+                const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                const d = date.getDate();
+                const m = meses[date.getMonth()];
+                let h = date.getHours();
+                const min = String(date.getMinutes()).padStart(2, '0');
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                h = h % 12 || 12;
+                return `${d} de ${m}, ${h}:${min} ${ampm}`;
+            } catch (e) { return dateStr; }
+        }
+
         function renderizar() {
             const grid = document.getElementById('equipos-grid');
             if (!equiposFiltrados.length) {
@@ -272,8 +300,13 @@
 
             grid.innerHTML = '';
             equiposFiltrados.forEach(eq => {
+                // Alerta de inactividad (48h)
+                const ultimaAct = new Date(eq.FECHA_ULTIMA_ACTUALIZACION || eq.FECHA_INGRESO);
+                const esInactivo = (Date.now() - ultimaAct.getTime()) > (48 * 60 * 60 * 1000);
+                const inactivoClase = esInactivo && eq.ESTADO !== 'Entregado' ? 'border-2 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border border-transparent';
+
                 const card = document.createElement('div');
-                card.className = `card-${eq.color} rounded-xl p-5 cursor-pointer hover:scale-[1.02] transition-all`;
+                card.className = `card-${eq.color} rounded-xl p-5 cursor-pointer hover:scale-[1.02] transition-all ${inactivoClase}`;
                 card.onclick = () => abrirModal(eq);
 
                 const dotClass = eq.color === 'rojo' ? 'bg-red-500 animate-pulse-red' : eq.color === 'amarillo' ? 'bg-yellow-500' : 'bg-green-500';
@@ -295,11 +328,13 @@
                         <div class="flex items-center gap-2">
                             <div class="w-3 h-3 rounded-full ${dotClass}"></div>
                             <span class="font-mono font-bold text-[#F2F2F2]">${escapeHtml(eq.FOLIO)}</span>
+                            ${esInactivo && eq.ESTADO !== 'Entregado' ? '<span class="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded animate-pulse">SIN AVANCE</span>' : ''}
                         </div>
                         <span class="text-xs ${diasClase} bg-[#1E1E1E] px-2 py-1 rounded-full">${eq.diasRestantes} días</span>
                     </div>
                     <h3 class="font-semibold text-[#F2F2F2] mb-1 truncate" title="${escapeHtml(eq.CLIENTE_NOMBRE)}">${escapeHtml(eq.CLIENTE_NOMBRE)}</h3>
-                    <p class="text-[#8A8F95] text-sm mb-2 truncate">${escapeHtml(eq.DISPOSITIVO)} ${escapeHtml(eq.MODELO || '')}</p>
+                    <p class="text-[#8A8F95] text-sm mb-1 truncate">${escapeHtml(eq.DISPOSITIVO)} ${escapeHtml(eq.MODELO || '')}</p>
+                    <p class="text-[10px] text-[#8A8F95] mb-2 uppercase tracking-wider">Recibido: ${formatDateWords(eq.FECHA_INGRESO)}</p>
                     <div class="flex flex-wrap gap-2 items-center justify-between mt-3">
                         <span class="badge-estado ${badgeClass} text-xs">${escapeHtml(eq.ESTADO)}</span>
                         <span class="text-xs text-[#1F7EDC] flex items-center gap-1"><i class="fa-regular fa-eye"></i> Ver detalles</span>
@@ -346,12 +381,19 @@
             document.getElementById('modal-yt').value = eq.YOUTUBE_ID || '';
             document.getElementById('modal-notas').value = eq.NOTAS_INTERNAS || '';
             document.getElementById('modal-seguimiento').value = eq.SEGUIMIENTO_CLIENTE || '';
+            document.getElementById('modal-resolucion').value = eq.CASO_RESOLUCION_TECNICA || '';
             seguimientoFotosBase64 = parseSeguimientoFotos(eq.SEGUIMIENTO_FOTOS);
             seguimientoOriginalSerializado = JSON.stringify(seguimientoFotosBase64);
             renderizarGaleriaSeguimiento();
 
             if (eq.FOTO_RECEPCION) {
-                document.getElementById('modal-foto').src = eq.FOTO_RECEPCION;
+                // Asegurar que la URL sea de visualización directa para Google Drive si es un ID
+                let src = eq.FOTO_RECEPCION;
+                if (src.includes('drive.google.com') && !src.includes('export=view')) {
+                    const idMatch = src.match(/id=([a-zA-Z0-9_-]+)/);
+                    if (idMatch) src = `https://drive.google.com/uc?export=view&id=${idMatch[1]}`;
+                }
+                document.getElementById('modal-foto').src = src;
                 document.getElementById('modal-foto-wrap').classList.remove('hidden');
             } else {
                 document.getElementById('modal-foto-wrap').classList.add('hidden');
@@ -417,6 +459,7 @@
             const yt = document.getElementById('modal-yt').value;
             const notas = document.getElementById('modal-notas').value;
             const seguimiento = document.getElementById('modal-seguimiento').value;
+            const resolucion = document.getElementById('modal-resolucion').value;
             const checkCargador = document.getElementById('check-cargador').checked ? 'SÍ' : 'NO';
             const checkPantalla = document.getElementById('check-pantalla').checked ? 'SÍ' : 'NO';
             const checkPrende = document.getElementById('check-prende').checked ? 'SÍ' : 'NO';
@@ -430,6 +473,7 @@
             if (yt !== (equipoActual.YOUTUBE_ID || '')) campos.YOUTUBE_ID = yt;
             if (notas !== (equipoActual.NOTAS_INTERNAS || '')) campos.NOTAS_INTERNAS = notas;
             if (seguimiento !== (equipoActual.SEGUIMIENTO_CLIENTE || '')) campos.SEGUIMIENTO_CLIENTE = seguimiento;
+            if (resolucion !== (equipoActual.CASO_RESOLUCION_TECNICA || '')) campos.CASO_RESOLUCION_TECNICA = resolucion;
             if (checkCargador !== (equipoActual.CHECK_CARGADOR || 'NO')) campos.CHECK_CARGADOR = checkCargador;
             if (checkPantalla !== (equipoActual.CHECK_PANTALLA || 'NO')) campos.CHECK_PANTALLA = checkPantalla;
             if (checkPrende !== (equipoActual.CHECK_PRENDE || 'NO')) campos.CHECK_PRENDE = checkPrende;
@@ -574,7 +618,10 @@
                 <body>
                     <div class="container">
                         <div class="header">
-                            <div><h1>SR<span>FIX</span></h1><p>Ficha Técnica (Semáforo)</p></div>
+                            <div style="display:flex;align-items:center;gap:15px">
+                                ${e.FOTO_RECEPCION ? `<img src="${e.FOTO_RECEPCION}" style="width:60px;height:60px;border-radius:12px;object-cover;border:2px solid rgba(255,255,255,0.3);background:#fff">` : ''}
+                                <div><h1>SR<span>FIX</span></h1><p>Ficha Técnica (Semáforo)</p></div>
+                            </div>
                             <div class="folio">${escapeHtml(e.FOLIO || '---')}</div>
                         </div>
                         <div class="content">
@@ -593,7 +640,31 @@
                                     <div class="row"><div class="k">Fecha promesa</div><div class="v">${escapeHtml(e.FECHA_PROMESA || '---')}</div></div>
                                 </div>
                             </div>
-                            <div class="notas"><strong>Falla reportada:</strong><div style="margin-top:6px;line-height:1.5">${escapeHtml(e.FALLA_REPORTADA || '---')}</div></div>
+                            
+                            <div style="margin-top:22px" class="grid">
+                                <div class="card">
+                                    <h3>Falla Reportada</h3>
+                                    <div style="font-size:13px;line-height:1.5;color:#475569">${escapeHtml(e.FALLA_REPORTADA || '---')}</div>
+                                </div>
+                                <div class="card">
+                                    <h3>Resolución del Caso</h3>
+                                    <div style="font-size:13px;line-height:1.5;color:#475569">${escapeHtml(document.getElementById('modal-resolucion').value || e.CASO_RESOLUCION_TECNICA || 'Pendiente de resolución')}</div>
+                                </div>
+                            </div>
+
+                            ${seguimientoFotosBase64 && seguimientoFotosBase64.length > 0 ? `
+                                <div style="margin-top:22px">
+                                    <h3 style="font-size:16px;color:#1F7EDC;margin-bottom:12px;border-bottom:2px solid #FF6A2A;padding-bottom:6px">Evidencia de Reparación</h3>
+                                    <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px">
+                                        ${seguimientoFotosBase64.map(src => `<img src="${src}" style="width:100%;height:120px;object-fit:cover;border-radius:10px;border:1px solid #e2e8f0">`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            <div class="notas" style="margin-top:22px">
+                                <strong>Notas Internas / Historial:</strong>
+                                <div style="margin-top:8px;font-size:12px;line-height:1.4;white-space:pre-wrap">${escapeHtml(document.getElementById('modal-notas').value || e.NOTAS_INTERNAS || 'Sin notas adicionales')}</div>
+                            </div>
                         </div>
                         <div class="footer">SrFix Oficial · Plaza Chapultepec · 81 1700 6536</div>
                     </div>

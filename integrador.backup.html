@@ -45,7 +45,7 @@
             object-fit: contain;
         }
         .title { font-weight: 700; letter-spacing: .3px; }
-        .tabs { display: flex; flex-direction: column; gap: 8px; }
+        .tabs { display: flex; gap: 8px; }
         .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .tab {
             border: 1px solid var(--blue);
@@ -142,13 +142,7 @@
             min-height: 18px;
             margin-top: 8px;
         }
-    
-.app-layout { display: flex; min-height: calc(100vh - 64px); }
-.sidebar { width: 220px; background: #0f172a; padding: 12px; border-right: 1px solid rgba(255,255,255,.08); }
-.wrap { flex: 1; }
-.tab { width: 100%; text-align: left; }
-
-</style>
+    </style>
 </head>
 <body>
     <div id="login-screen" class="login-screen">
@@ -170,13 +164,7 @@
         <select id="selector-sucursal" class="branch-select">
             <option value="GLOBAL">Todas las sucursales</option>
         </select>
-        
-        </div>
-    </header>
-    
-<div class="app-layout">
-  <aside class="sidebar">
-    <nav class="tabs">
+        <nav class="tabs">
             <button id="tab-operativo" class="tab" type="button">Operativo</button>
             <button id="tab-tecnico" class="tab" type="button">Técnico</button>
             <button id="tab-solicitudes" class="tab" type="button">Solicitudes</button>
@@ -191,8 +179,9 @@
             <button id="tab-reportes" class="tab" type="button">Reportes</button>
             <button id="tab-sucursales" class="tab" type="button">Sucursales</button>
         </nav>
-  </aside>
-  <div class="wrap">
+        </div>
+    </header>
+    <div class="wrap">
         <section id="panel-operativo" class="panel" aria-label="Módulo Operativo">
             <iframe id="frame-operativo" title="Modulo Operativo" src="about:blank"></iframe>
         </section>
@@ -233,7 +222,6 @@
             <iframe id="frame-sucursales" title="Modulo Sucursales" src="about:blank"></iframe>
         </section>
     </div>
-</div> <!-- app-layout -->
     <div class="fallback">
         Si algo falla: <a href="./panel-operativo.html" target="_blank">Operativo</a> |
         <a href="./panel-tecnico.html" target="_blank">Técnico</a> |

@@ -50,8 +50,9 @@ function inicializarSistema() {
     crearHojaSiNoExiste(ss, 'Equipos', [
       'ID', 'FOLIO', 'FECHA_INGRESO', 'CLIENTE_NOMBRE', 'CLIENTE_TELEFONO',
       'DISPOSITIVO', 'MODELO', 'FALLA_REPORTADA', 'ESTADO', 'TECNICO_ASIGNADO',
-      'FECHA_PROMESA', 'FECHA_ENTREGA', 'COSTO_ESTIMADO', 'NOTAS_INTERNAS',
-      'YOUTUBE_ID', 'CHECK_CARGADOR', 'CHECK_PANTALLA', 'CHECK_PRENDE', 'CHECK_RESPALDO', 'FOTO_RECEPCION', 'SEGUIMIENTO_CLIENTE', 'SEGUIMIENTO_FOTOS', 'FOLIO_COTIZACION_ORIGEN'
+      'YOUTUBE_ID', 'CHECK_CARGADOR', 'CHECK_PANTALLA', 'CHECK_PRENDE', 'CHECK_RESPALDO',
+      'FOTO_RECEPCION', 'SEGUIMIENTO_CLIENTE', 'SEGUIMIENTO_FOTOS', 'FOLIO_COTIZACION_ORIGEN',
+      'CASO_RESOLUCION_TECNICA', 'FECHA_ULTIMA_ACTUALIZACION'
     ]);
 
     crearHojaSiNoExiste(ss, 'Clientes', [
@@ -61,7 +62,7 @@ function inicializarSistema() {
     crearHojaSiNoExiste(ss, 'Solicitudes', [
       'ID', 'FOLIO_COTIZACION', 'FECHA_SOLICITUD', 'NOMBRE', 'TELEFONO',
       'EMAIL', 'DISPOSITIVO', 'MODELO', 'PROBLEMAS', 'DESCRIPCION',
-      'URGENCIA', 'ESTADO', 'FECHA_COTIZACION', 'COTIZACION_JSON', 'COTIZACION_TOTAL', 'FOLIO_COTIZACION_MANUAL'
+      'URGENCIA', 'ESTADO', 'FECHA_COTIZACION', 'COTIZACION_JSON', 'COTIZACION_TOTAL', 'FOLIO_COTIZACION_MANUAL', 'SOLICITUD_ORIGEN_IP'
     ]);
 
     crearHojaSiNoExiste(ss, 'Tareas', [
@@ -1060,7 +1061,8 @@ function crearEquipo(data) {
       payload.seguimientoCliente,
       JSON.stringify(seguimientoFotos),
       payload.folioSolicitudOrigen || '',
-      sucursalId
+      '', // CASO_RESOLUCION_TECNICA (vacio al inicio)
+      ahora // FECHA_ULTIMA_ACTUALIZACION
     ]), 'crearEquipo.appendRow');
 
     if (payload.clienteTelefono) {
@@ -1133,6 +1135,9 @@ function actualizarEquipo(data) {
     if (campos.ESTADO === 'Entregado' && colIndex.FECHA_ENTREGA) {
       withRetry(() => hoja.getRange(fila, colIndex.FECHA_ENTREGA).setValue(new Date().toISOString()), 'actualizarEquipo.fechaEntrega');
     }
+    if (colIndex.FECHA_ULTIMA_ACTUALIZACION) {
+      withRetry(() => hoja.getRange(fila, colIndex.FECHA_ULTIMA_ACTUALIZACION).setValue(new Date().toISOString()), 'actualizarEquipo.fechaSync');
+    }
 
     return jsonResponse({ success: true });
   }, 12000);
@@ -1167,7 +1172,8 @@ function crearSolicitud(data) {
       '',
       0,
       '',
-      sucursalId
+      sucursalId,
+      data.solicitud_origen_ip || '0.0.0.0'
     ]), 'crearSolicitud.appendRow');
 
     return jsonResponse({ success: true, folio: folioCotizacion });

@@ -34,13 +34,19 @@
             <div class="bg-[#2B2B2B] rounded-2xl p-6 border border-[#1F7EDC] shadow-xl">
                 <label class="block text-sm text-[#8A8F95] mb-2">Contraseña de acceso</label>
                 <input type="password" id="password-input" placeholder="••••••" 
-                       class="w-full bg-[#1E1E1E] border border-[#1F7EDC] rounded-xl p-4 text-white text-center text-lg tracking-widest focus:border-[#FF6A2A] focus:outline-none mb-4"
+                       class="w-full bg-[#1E1E1E] border border-[#1F7EDC] rounded-xl p-4 text-white text-center text-lg tracking-widest focus:border-[#FF6A2A] focus:outline-none mb-2"
                        onkeypress="if(event.key==='Enter') login()">
+                
+                <div class="flex items-center gap-2 mb-4 px-1">
+                    <input type="checkbox" id="remember-me" class="w-4 h-4 accent-[#FF6A2A]">
+                    <label for="remember-me" class="text-xs text-[#8A8F95] cursor-pointer">Recordarme en este equipo</label>
+                </div>
+
                 <button onclick="login()" id="btn-login" class="btn-naranja w-full font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2">
                     <span>INGRESAR</span>
                 </button>
                 <p id="login-error" class="text-red-500 text-sm text-center mt-3 hidden"></p>
-                <p class="text-xs text-[#8A8F95] text-center mt-4">Versión 3.0 · Profesional</p>
+                <p class="text-xs text-[#8A8F95] text-center mt-4">Versión 3.5 · Profesional</p>
             </div>
         </div>
     </div>
@@ -238,6 +244,9 @@
 
                     <label class="text-xs text-[#8A8F95] uppercase mt-4 block">Seguimiento visible al cliente</label>
                     <textarea id="modal-seguimiento" rows="4" class="w-full input-tech rounded-lg p-2 text-sm mt-1" placeholder="Ej: Diagnóstico completado, estamos esperando refacción..."></textarea>
+                    
+                    <label class="text-xs text-[#8A8F95] uppercase mt-4 block">Resolución del Caso (Interno/Técnico)</label>
+                    <textarea id="modal-resolucion" rows="4" class="w-full input-tech rounded-lg p-2 text-sm mt-1" placeholder="Describe cómo se resolvió el problema para referencia futura..."></textarea>
 
                     <label class="text-xs text-[#8A8F95] uppercase mt-4 block">Fotos de seguimiento (cliente)</label>
                     <input type="file" id="modal-seguimiento-fotos" accept="image/*" multiple class="w-full input-tech rounded-lg p-2 text-sm mt-1">

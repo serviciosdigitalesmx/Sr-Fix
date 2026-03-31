@@ -14,10 +14,10 @@
         let folioSolicitudOrigen = '';
 
         (function() {
-            const saved = sessionStorage.getItem('srfix_pass_master') || sessionStorage.getItem('srfix_pass_operativo');
+            const saved = sessionStorage.getItem('srfix_pass_operativo') || localStorage.getItem('srfix_pass_operativo');
             if (saved) {
                 document.getElementById('password-input').value = saved;
-                login();
+                setTimeout(login, 500);
             }
         })();
 
@@ -52,7 +52,14 @@
                 }
                 if (data.error) throw new Error(data.error);
 
+                const remember = document.getElementById('remember-me').checked;
                 sessionStorage.setItem('srfix_pass_operativo', PASSWORD);
+                if (remember) {
+                    localStorage.setItem('srfix_pass_operativo', PASSWORD);
+                } else {
+                    localStorage.removeItem('srfix_pass_operativo');
+                }
+                
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app').classList.remove('hidden');
                 
@@ -72,6 +79,7 @@
         function logout() {
             if (confirm('¿Cerrar sesión? Se perderán los datos no guardados.')) {
                 sessionStorage.removeItem('srfix_pass_operativo');
+                localStorage.removeItem('srfix_pass_operativo');
                 localStorage.removeItem('srfix_borrador_orden');
                 location.reload();
             }

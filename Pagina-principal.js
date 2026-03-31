@@ -99,6 +99,16 @@
                 else if (urgencia === 'media') urgenciaTexto = 'Media (en 2-3 días)';
                 else urgenciaTexto = 'Alta (urgente, 24h)';
 
+                // Capturar IP pública del cliente
+                let ipPublica = '0.0.0.0';
+                try {
+                    const ipRes = await fetch('https://api.ipify.org?format=json');
+                    const ipData = await ipRes.json();
+                    ipPublica = ipData.ip || '0.0.0.0';
+                } catch (err) {
+                    console.warn('No se pudo capturar la IP:', err);
+                }
+
                 const payload = {
                     action: 'crear_solicitud',
                     nombre: nombre,
@@ -108,7 +118,8 @@
                     modelo: modelo,
                     problemas: problemas,
                     descripcion: descripcion,
-                    urgencia: urgencia
+                    urgencia: urgencia,
+                    solicitud_origen_ip: ipPublica
                 };
 
                 const response = await fetch(CONFIG.BACKEND_URL, {
@@ -133,7 +144,8 @@
                         modelo: modelo,
                         problemas: problemas.join(', '),
                         descripcion: descripcion,
-                        urgencia: urgencia
+                        urgencia: urgencia,
+                        solicitud_origen_ip: ipPublica
                     });
                     const fallbackRes = await fetch(`${CONFIG.BACKEND_URL}?${qs.toString()}`);
                     if (!fallbackRes.ok) throw new Error('Error de conexión al backend');

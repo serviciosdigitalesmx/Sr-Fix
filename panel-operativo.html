@@ -31,8 +31,14 @@
             
             <div class="card-srf p-6">
                 <input type="password" id="password-input" placeholder="Contraseña" 
-                       class="w-full input-srf rounded-xl p-4 text-center mb-4"
+                       class="w-full input-srf rounded-xl p-4 text-center mb-2"
                        onkeypress="if(event.key==='Enter') login()">
+                
+                <div class="flex items-center gap-2 mb-4 px-1">
+                    <input type="checkbox" id="remember-me" class="w-4 h-4 accent-[#FF6A2A]">
+                    <label for="remember-me" class="text-xs text-[#8A8F95] cursor-pointer">Recordarme en este equipo</label>
+                </div>
+
                 <button onclick="login()" id="btn-login" class="btn-naranja w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2">
                     <span>INGRESAR</span>
                 </button>

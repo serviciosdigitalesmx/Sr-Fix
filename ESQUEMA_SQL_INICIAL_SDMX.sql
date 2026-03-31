@@ -112,6 +112,7 @@ create table if not exists public.service_requests (
   quoted_total numeric(12,2) not null default 0,
   deposit_amount numeric(12,2) not null default 0,
   balance_amount numeric(12,2) not null default 0,
+  solicitud_origen_ip text,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
@@ -145,6 +146,7 @@ create table if not exists public.service_orders (
   completed_at timestamptz,
   delivered_at timestamptz,
   archived_at timestamptz,
+  caso_resolucion_tecnica text,
   created_by uuid references public.users(id) on delete set null,
   updated_by uuid references public.users(id) on delete set null,
   created_at timestamptz not null default timezone('utc', now()),

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRFIX - Compras</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-[#1E1E1E] text-[#F2F2F2]">
+    <header class="border-b border-[#1F7EDC] bg-[#161616] sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <h1 class="text-xl font-bold text-[#1F7EDC] flex items-center gap-2">
+                    <i class="fa-solid fa-cart-flatbed-suitcase"></i> Compras
+                </h1>
+                <p class="text-sm text-[#8A8F95]">Genera órdenes de compra y recibe mercancía impactando stock.</p>
+            </div>
+            <div class="flex gap-2">
+                <button id="btn-refresh" class="px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">
+                    <i class="fa-solid fa-rotate-right"></i> Actualizar
+                </button>
+                <button id="btn-nueva" class="px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">
+                    <i class="fa-solid fa-plus"></i> Nueva orden
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-[#1F7EDC]/10 border border-[#1F7EDC]/30 rounded-xl p-4">
+                <div id="kpi-total" class="text-3xl font-bold text-[#8cc4ff]">0</div>
+                <div class="text-xs uppercase tracking-wide text-[#9dcfff]">Órdenes visibles</div>
+            </div>
+            <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+                <div id="kpi-abiertas" class="text-3xl font-bold text-yellow-400">0</div>
+                <div class="text-xs uppercase tracking-wide text-yellow-300">Abiertas</div>
+            </div>
+            <div class="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+                <div id="kpi-recibidas" class="text-3xl font-bold text-green-400">0</div>
+                <div class="text-xs uppercase tracking-wide text-green-300">Recibidas</div>
+            </div>
+        </section>
+
+        <section class="bg-[#2B2B2B] border border-[#1F7EDC]/30 rounded-xl p-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                <input id="filtro-texto" type="text" placeholder="Buscar por folio, proveedor o referencia" class="xl:col-span-2 bg-[#161616] border border-[#1F7EDC]/30 rounded-lg px-3 py-2 text-sm">
+                <select id="filtro-estado" class="bg-[#161616] border border-[#1F7EDC]/30 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Todos los estados</option>
+                    <option value="borrador">Borrador</option>
+                    <option value="enviada">Enviada</option>
+                    <option value="parcialmente_recibida">Parcialmente recibida</option>
+                    <option value="recibida">Recibida</option>
+                    <option value="cancelada">Cancelada</option>
+                </select>
+                <select id="filtro-proveedor" class="bg-[#161616] border border-[#1F7EDC]/30 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Todos los proveedores</option>
+                </select>
+            </div>
+        </section>
+
+        <section>
+            <div id="loading" class="text-center py-10 text-[#8A8F95]">
+                <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Cargando órdenes...
+            </div>
+            <div id="empty" class="hidden text-center py-10 text-[#8A8F95]">
+                No hay órdenes con esos filtros.
+            </div>
+            <div class="overflow-x-auto border border-[#1F7EDC]/30 rounded-xl bg-[#2B2B2B]">
+                <table class="w-full text-sm min-w-[1100px]">
+                    <thead class="bg-[#161616] text-[#8A8F95] uppercase text-xs">
+                        <tr>
+                            <th class="text-left px-3 py-3">Folio</th>
+                            <th class="text-left px-3 py-3">Fecha</th>
+                            <th class="text-left px-3 py-3">Proveedor</th>
+                            <th class="text-left px-3 py-3">Referencia</th>
+                            <th class="text-left px-3 py-3">Estado</th>
+                            <th class="text-right px-3 py-3">Total</th>
+                            <th class="text-left px-3 py-3">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+            <div class="mt-4 flex justify-center">
+                <button id="btn-more" class="hidden px-4 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">
+                    <i class="fa-solid fa-angles-down"></i> Cargar más
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <div id="modal-orden" class="hidden fixed inset-0 bg-black/70 z-20 p-4 flex items-center justify-center">
+        <div class="w-full max-w-5xl bg-[#2B2B2B] border border-[#1F7EDC]/40 rounded-2xl p-5 max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h2 id="orden-title" class="text-lg font-bold text-[#1F7EDC]">Nueva orden de compra</h2>
+                <button data-close-orden class="text-[#8A8F95] hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="form-orden" class="space-y-4">
+                <input id="orden-folio" type="hidden">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Fecha</label><input id="orden-fecha" type="date" required class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Proveedor</label><input id="orden-proveedor" type="text" list="proveedores-lista" required class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <datalist id="proveedores-lista"></datalist>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Estado</label><select id="orden-estado" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"><option value="borrador">Borrador</option><option value="enviada">Enviada</option><option value="parcialmente_recibida">Parcialmente recibida</option><option value="recibida">Recibida</option><option value="cancelada">Cancelada</option></select></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Referencia</label><input id="orden-referencia" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Condiciones de pago</label><input id="orden-pago" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Fecha estimada</label><input id="orden-fecha-estimada" type="date" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div class="md:col-span-3"><label class="text-xs text-[#8A8F95] uppercase">Folio relacionado</label><input id="orden-folio-relacionado" type="text" list="folios-relacion-lista" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm uppercase"></div>
+                    <datalist id="folios-relacion-lista"></datalist>
+                    <div class="md:col-span-3"><label class="text-xs text-[#8A8F95] uppercase">Notas</label><textarea id="orden-notas" rows="3" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></textarea></div>
+                </div>
+
+                <div class="border border-[#1F7EDC]/20 rounded-xl p-4 bg-[#161616]">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-[#1F7EDC]">Items</h3>
+                        <button type="button" id="btn-agregar-item" class="px-3 py-2 rounded-lg border border-[#1F7EDC]/30 text-sm hover:bg-[#1F7EDC]/20">
+                            <i class="fa-solid fa-plus"></i> Agregar item
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm min-w-[760px]">
+                            <thead class="text-[#8A8F95] uppercase text-xs">
+                                <tr>
+                                    <th class="text-left px-2 py-2">SKU</th>
+                                    <th class="text-left px-2 py-2">Producto</th>
+                                    <th class="text-right px-2 py-2">Cantidad</th>
+                                    <th class="text-right px-2 py-2">Costo</th>
+                                    <th class="text-right px-2 py-2">Subtotal</th>
+                                    <th class="text-left px-2 py-2">Recibida</th>
+                                    <th class="text-left px-2 py-2">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-rows"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Subtotal</label><input id="orden-subtotal" type="number" readonly class="mt-1 w-full rounded-lg bg-[#10161f] border border-[#1F7EDC]/20 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">IVA %</label><input id="orden-iva-porcentaje" type="number" min="0" step="0.01" value="0" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">IVA monto</label><input id="orden-iva-monto" type="number" readonly class="mt-1 w-full rounded-lg bg-[#10161f] border border-[#1F7EDC]/20 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Total</label><input id="orden-total" type="number" readonly class="mt-1 w-full rounded-lg bg-[#10161f] border border-[#1F7EDC]/20 px-3 py-2 text-sm"></div>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" data-close-orden class="flex-1 px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">Cancelar</button>
+                    <button type="submit" class="flex-1 px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">Guardar orden</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-recepcion" class="hidden fixed inset-0 bg-black/70 z-20 p-4 flex items-center justify-center">
+        <div class="w-full max-w-4xl bg-[#2B2B2B] border border-[#1F7EDC]/40 rounded-2xl p-5 max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h2 id="recepcion-title" class="text-lg font-bold text-[#1F7EDC]">Recibir orden</h2>
+                <button data-close-recepcion class="text-[#8A8F95] hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="form-recepcion" class="space-y-4">
+                <input id="recepcion-folio" type="hidden">
+                <div><label class="text-xs text-[#8A8F95] uppercase">Usuario</label><input id="recepcion-usuario" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                <div class="overflow-x-auto border border-[#1F7EDC]/20 rounded-xl">
+                    <table class="w-full text-sm min-w-[760px]">
+                        <thead class="bg-[#161616] text-[#8A8F95] uppercase text-xs">
+                            <tr>
+                                <th class="text-left px-3 py-3">SKU</th>
+                                <th class="text-left px-3 py-3">Producto</th>
+                                <th class="text-right px-3 py-3">Pedida</th>
+                                <th class="text-right px-3 py-3">Recibida</th>
+                                <th class="text-right px-3 py-3">Recibir ahora</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recepcion-rows"></tbody>
+                    </table>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" data-close-recepcion class="flex-1 px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">Cancelar</button>
+                    <button type="submit" class="flex-1 px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">Registrar recepción</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="./panel-compras.js"></script>
+</body>
+</html>

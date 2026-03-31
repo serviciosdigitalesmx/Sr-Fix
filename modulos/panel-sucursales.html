@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRFIX - Sucursales</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-[#1E1E1E] text-[#F2F2F2]">
+    <header class="border-b border-[#1F7EDC] bg-[#161616] sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <h1 class="text-xl font-bold text-[#1F7EDC] flex items-center gap-2">
+                    <i class="fa-solid fa-building"></i> Sucursales
+                </h1>
+                <p class="text-sm text-[#8A8F95]">Administra sucursales activas y transfiere stock entre ellas.</p>
+            </div>
+            <div class="flex gap-2">
+                <button id="btn-refresh" class="px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">
+                    <i class="fa-solid fa-rotate-right"></i> Actualizar
+                </button>
+                <button id="btn-nueva-sucursal" class="px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">
+                    <i class="fa-solid fa-plus"></i> Nueva sucursal
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-[#1F7EDC]/10 border border-[#1F7EDC]/30 rounded-xl p-4">
+                <div id="kpi-sucursales" class="text-3xl font-bold text-[#8cc4ff]">0</div>
+                <div class="text-xs uppercase tracking-wide text-[#9dcfff]">Sucursales activas</div>
+            </div>
+            <div class="bg-[#FF6A2A]/10 border border-[#FF6A2A]/30 rounded-xl p-4">
+                <div id="kpi-transferencias" class="text-3xl font-bold text-[#ffb08a]">0</div>
+                <div class="text-xs uppercase tracking-wide text-[#ffb08a]">Transferencias visibles</div>
+            </div>
+            <div class="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+                <div id="kpi-activa" class="text-2xl font-bold text-green-300">Global</div>
+                <div class="text-xs uppercase tracking-wide text-green-300">Contexto activo</div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-6">
+            <div class="bg-[#2B2B2B] border border-[#1F7EDC]/30 rounded-xl p-4">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <h2 class="text-sm uppercase tracking-wide text-[#8A8F95]">Sucursales</h2>
+                    <input id="filtro-sucursal" type="text" placeholder="Buscar sucursal" class="bg-[#161616] border border-[#1F7EDC]/30 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div class="overflow-x-auto border border-[#1F7EDC]/20 rounded-xl bg-[#161616]">
+                    <table class="w-full text-sm min-w-[760px]">
+                        <thead class="bg-[#10161f] text-[#8A8F95] uppercase text-xs">
+                            <tr>
+                                <th class="text-left px-3 py-3">ID</th>
+                                <th class="text-left px-3 py-3">Nombre</th>
+                                <th class="text-left px-3 py-3">Dirección</th>
+                                <th class="text-left px-3 py-3">Contacto</th>
+                                <th class="text-left px-3 py-3">Estado</th>
+                                <th class="text-left px-3 py-3">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rows-sucursales"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <section class="bg-[#2B2B2B] border border-[#1F7EDC]/30 rounded-xl p-4">
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <h2 class="text-sm uppercase tracking-wide text-[#8A8F95]">Transferir stock</h2>
+                        <span class="text-xs text-[#8A8F95]">Mueve inventario entre sucursales sin perder historial.</span>
+                    </div>
+                    <form id="form-transferencia" class="space-y-3">
+                        <div>
+                            <label class="text-xs text-[#8A8F95] uppercase">Producto</label>
+                            <select id="transfer-sku" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></select>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs text-[#8A8F95] uppercase">Origen</label>
+                                <select id="transfer-origen" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></select>
+                            </div>
+                            <div>
+                                <label class="text-xs text-[#8A8F95] uppercase">Destino</label>
+                                <select id="transfer-destino" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs text-[#8A8F95] uppercase">Cantidad</label>
+                                <input id="transfer-cantidad" type="number" min="0.01" step="0.01" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs text-[#8A8F95] uppercase">Usuario</label>
+                                <input id="transfer-usuario" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs text-[#8A8F95] uppercase">Motivo</label>
+                            <input id="transfer-motivo" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="text-xs text-[#8A8F95] uppercase">Notas</label>
+                            <textarea id="transfer-notas" rows="3" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></textarea>
+                        </div>
+                        <button type="submit" class="w-full px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">
+                            <i class="fa-solid fa-right-left"></i> Registrar transferencia
+                        </button>
+                    </form>
+                </section>
+
+                <section class="bg-[#2B2B2B] border border-[#1F7EDC]/30 rounded-xl p-4">
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <h2 class="text-sm uppercase tracking-wide text-[#8A8F95]">Historial de transferencias</h2>
+                        <input id="filtro-transferencias" type="text" placeholder="Buscar transferencia" class="bg-[#161616] border border-[#1F7EDC]/30 rounded-lg px-3 py-2 text-sm">
+                    </div>
+                    <div id="rows-transferencias" class="space-y-3"></div>
+                </section>
+            </div>
+        </section>
+    </main>
+
+    <div id="modal-sucursal" class="hidden fixed inset-0 bg-black/70 z-20 p-4 flex items-center justify-center">
+        <div class="w-full max-w-xl bg-[#2B2B2B] border border-[#1F7EDC]/40 rounded-2xl p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h2 id="sucursal-title" class="text-lg font-bold text-[#1F7EDC]">Nueva sucursal</h2>
+                <button data-close-sucursal class="text-[#8A8F95] hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="form-sucursal" class="space-y-4">
+                <input id="sucursal-id" type="hidden">
+                <div><label class="text-xs text-[#8A8F95] uppercase">Nombre</label><input id="sucursal-nombre" type="text" required class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                <div><label class="text-xs text-[#8A8F95] uppercase">Dirección</label><input id="sucursal-direccion" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Teléfono</label><input id="sucursal-telefono" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Email</label><input id="sucursal-email" type="email" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                </div>
+                <div><label class="text-xs text-[#8A8F95] uppercase">Estatus</label><select id="sucursal-estatus" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" data-close-sucursal class="flex-1 px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">Cancelar</button>
+                    <button type="submit" class="flex-1 px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="./panel-sucursales.js"></script>
+</body>
+</html>

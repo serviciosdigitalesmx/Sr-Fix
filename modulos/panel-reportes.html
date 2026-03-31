@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRFIX - Reportes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-[#1E1E1E] text-[#F2F2F2]">
+    <header class="border-b border-[#1F7EDC] bg-[#161616] sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <h1 class="text-xl font-bold text-[#1F7EDC] flex items-center gap-2">
+                    <i class="fa-solid fa-file-chart-column"></i> Reportes
+                </h1>
+                <p class="text-sm text-[#8A8F95]">Operación diaria, semanal y mensual usando los datos reales del sistema.</p>
+            </div>
+            <button id="btn-refresh" class="px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">
+                <i class="fa-solid fa-rotate-right"></i> Actualizar
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <section class="bg-[#2B2B2B] border border-[#1F7EDC]/30 rounded-xl p-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+                <select id="filtro-tipo" class="bg-[#161616] border border-[#1F7EDC]/30 rounded-lg px-3 py-2 text-sm">
+                    <option value="diario">Reporte diario</option>
+                    <option value="semanal">Reporte semanal</option>
+                    <option value="mensual">Reporte mensual</option>
+                </select>
+                <input id="filtro-desde" type="date" class="bg-[#161616] border border-[#1F7EDC]/30 rounded-lg px-3 py-2 text-sm">
+                <input id="filtro-hasta" type="date" class="bg-[#161616] border border-[#1F7EDC]/30 rounded-lg px-3 py-2 text-sm">
+                <div class="xl:col-span-2 text-sm text-[#8A8F95] flex items-center">Los reportes se calculan con Equipos, Solicitudes, Stock, Compras y Gastos.</div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+            <div class="bg-[#1F7EDC]/10 border border-[#1F7EDC]/30 rounded-xl p-4">
+                <div id="kpi-1" class="text-3xl font-bold text-[#8cc4ff]">0</div>
+                <div id="kpi-1-label" class="text-xs uppercase tracking-wide text-[#9dcfff]">KPI 1</div>
+            </div>
+            <div class="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+                <div id="kpi-2" class="text-3xl font-bold text-green-300">0</div>
+                <div id="kpi-2-label" class="text-xs uppercase tracking-wide text-green-300">KPI 2</div>
+            </div>
+            <div class="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
+                <div id="kpi-3" class="text-3xl font-bold text-orange-300">0</div>
+                <div id="kpi-3-label" class="text-xs uppercase tracking-wide text-orange-300">KPI 3</div>
+            </div>
+            <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+                <div id="kpi-4" class="text-3xl font-bold text-yellow-300">0</div>
+                <div id="kpi-4-label" class="text-xs uppercase tracking-wide text-yellow-300">KPI 4</div>
+            </div>
+            <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+                <div id="kpi-5" class="text-3xl font-bold text-red-300">0</div>
+                <div id="kpi-5-label" class="text-xs uppercase tracking-wide text-red-300">KPI 5</div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div class="bg-[#2B2B2B] border border-[#1F7EDC]/20 rounded-xl p-4">
+                <h2 class="text-sm uppercase tracking-wide text-[#8A8F95] mb-3">Resumen principal</h2>
+                <div id="tabla-principal" class="space-y-3 text-sm"></div>
+            </div>
+            <div class="bg-[#2B2B2B] border border-[#1F7EDC]/20 rounded-xl p-4">
+                <h2 class="text-sm uppercase tracking-wide text-[#8A8F95] mb-3">Detalle complementario</h2>
+                <div id="tabla-secundaria" class="space-y-3 text-sm"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="./panel-reportes.js"></script>
+</body>
+</html>

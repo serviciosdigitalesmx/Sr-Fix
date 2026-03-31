@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRFIX - Stock</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-[#1E1E1E] text-[#F2F2F2]">
+    <header class="border-b border-[#1F7EDC] bg-[#161616] sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <h1 class="text-xl font-bold text-[#1F7EDC] flex items-center gap-2">
+                    <i class="fa-solid fa-boxes-stacked"></i> Stock
+                </h1>
+                <p class="text-sm text-[#8A8F95]">Controla productos, movimientos y alertas de refacciones.</p>
+            </div>
+            <div class="flex gap-2">
+                <button id="btn-refresh" class="px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">
+                    <i class="fa-solid fa-rotate-right"></i> Actualizar
+                </button>
+                <button id="btn-nuevo-producto" class="px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">
+                    <i class="fa-solid fa-plus"></i> Nuevo producto
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-[#1F7EDC]/10 border border-[#1F7EDC]/30 rounded-xl p-4">
+                <div id="kpi-total" class="text-3xl font-bold text-[#8cc4ff]">0</div>
+                <div class="text-xs uppercase tracking-wide text-[#9dcfff]">Productos visibles</div>
+            </div>
+            <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+                <div id="kpi-alertas" class="text-3xl font-bold text-yellow-400">0</div>
+                <div class="text-xs uppercase tracking-wide text-yellow-300">Con stock bajo</div>
+            </div>
+            <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+                <div id="kpi-agotados" class="text-3xl font-bold text-red-400">0</div>
+                <div class="text-xs uppercase tracking-wide text-red-300">Agotados</div>
+            </div>
+        </section>
+
+        <section class="bg-[#2B2B2B] border border-[#1F7EDC]/30 rounded-xl p-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3">
+                <input id="filtro-texto" type="text" placeholder="Buscar por SKU, nombre, marca o proveedor" class="xl:col-span-2 bg-[#161616] border border-[#1F7EDC]/30 rounded-lg px-3 py-2 text-sm">
+                <select id="filtro-categoria" class="bg-[#161616] border border-[#1F7EDC]/30 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Todas las categorías</option>
+                </select>
+                <select id="filtro-marca" class="bg-[#161616] border border-[#1F7EDC]/30 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Todas las marcas</option>
+                </select>
+                <select id="filtro-proveedor" class="bg-[#161616] border border-[#1F7EDC]/30 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Todos los proveedores</option>
+                </select>
+                <select id="filtro-estatus" class="bg-[#161616] border border-[#1F7EDC]/30 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Todos los estatus</option>
+                    <option value="activo">Activos</option>
+                    <option value="inactivo">Inactivos</option>
+                </select>
+                <label class="flex items-center gap-2 px-3 py-2 rounded-lg border border-[#1F7EDC]/30 text-sm">
+                    <input id="filtro-alertas" type="checkbox" class="accent-[#FF6A2A]">
+                    Solo alertas
+                </label>
+            </div>
+        </section>
+
+        <section class="mb-6">
+            <div id="alert-box" class="hidden rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200"></div>
+        </section>
+
+        <section class="mb-6 grid grid-cols-1 xl:grid-cols-[1.3fr_.7fr] gap-4">
+            <div class="bg-[#2B2B2B] border border-[#1F7EDC]/30 rounded-xl p-4">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <div>
+                        <h2 class="text-sm uppercase tracking-wide text-[#8A8F95]">Alertas activas</h2>
+                        <p class="text-xs text-[#8A8F95]">Productos con existencia bajo el mínimo y acceso rápido a compras.</p>
+                    </div>
+                    <button id="btn-refresh-alertas" class="px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-xs">
+                        <i class="fa-solid fa-bell"></i> Recargar alertas
+                    </button>
+                </div>
+                <div id="alertas-loading" class="hidden text-center py-6 text-[#8A8F95]">
+                    <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Cargando alertas...
+                </div>
+                <div id="alertas-empty" class="hidden text-center py-6 text-[#8A8F95]">
+                    No hay alertas activas con los filtros actuales.
+                </div>
+                <div id="alertas-list" class="space-y-3"></div>
+            </div>
+            <div class="bg-[#2B2B2B] border border-[#1F7EDC]/30 rounded-xl p-4">
+                <h2 class="text-sm uppercase tracking-wide text-[#8A8F95] mb-3">Severidad</h2>
+                <div class="space-y-3">
+                    <button data-alerta-nivel="" class="alerta-chip w-full text-left px-3 py-3 rounded-xl border border-[#1F7EDC]/20 hover:bg-[#1F7EDC]/10">
+                        <div class="text-white font-semibold">Todas las alertas</div>
+                        <div class="text-xs text-[#8A8F95]">Muestra bajo, crítico y agotado.</div>
+                    </button>
+                    <button data-alerta-nivel="bajo" class="alerta-chip w-full text-left px-3 py-3 rounded-xl border border-yellow-500/20 hover:bg-yellow-500/10">
+                        <div class="text-yellow-300 font-semibold">Bajo</div>
+                        <div class="text-xs text-[#8A8F95]">Aún tiene existencias, pero ya toca reabastecer.</div>
+                    </button>
+                    <button data-alerta-nivel="critico" class="alerta-chip w-full text-left px-3 py-3 rounded-xl border border-orange-500/20 hover:bg-orange-500/10">
+                        <div class="text-orange-300 font-semibold">Crítico</div>
+                        <div class="text-xs text-[#8A8F95]">El stock está a la mitad o menos del mínimo.</div>
+                    </button>
+                    <button data-alerta-nivel="agotado" class="alerta-chip w-full text-left px-3 py-3 rounded-xl border border-red-500/20 hover:bg-red-500/10">
+                        <div class="text-red-300 font-semibold">Agotado</div>
+                        <div class="text-xs text-[#8A8F95]">Ya no hay piezas disponibles.</div>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <div id="loading" class="text-center py-10 text-[#8A8F95]">
+                <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Cargando productos...
+            </div>
+            <div id="empty" class="hidden text-center py-10 text-[#8A8F95]">
+                No hay productos con esos filtros.
+            </div>
+            <div class="overflow-x-auto border border-[#1F7EDC]/30 rounded-xl bg-[#2B2B2B]">
+                <table class="w-full text-sm min-w-[1100px]">
+                    <thead class="bg-[#161616] text-[#8A8F95] uppercase text-xs">
+                        <tr>
+                            <th class="text-left px-3 py-3">SKU</th>
+                            <th class="text-left px-3 py-3">Producto</th>
+                            <th class="text-left px-3 py-3">Categoría</th>
+                            <th class="text-left px-3 py-3">Marca</th>
+                            <th class="text-right px-3 py-3">Stock</th>
+                            <th class="text-right px-3 py-3">Mínimo</th>
+                            <th class="text-right px-3 py-3">Costo</th>
+                            <th class="text-right px-3 py-3">Precio</th>
+                            <th class="text-left px-3 py-3">Estado</th>
+                            <th class="text-left px-3 py-3">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+            <div class="mt-4 flex justify-center">
+                <button id="btn-more" class="hidden px-4 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">
+                    <i class="fa-solid fa-angles-down"></i> Cargar más
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <div id="modal-producto" class="hidden fixed inset-0 bg-black/70 z-20 p-4 flex items-center justify-center">
+        <div class="w-full max-w-3xl bg-[#2B2B2B] border border-[#1F7EDC]/40 rounded-2xl p-5 max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h2 id="producto-title" class="text-lg font-bold text-[#1F7EDC]">Nuevo producto</h2>
+                <button data-close-producto class="text-[#8A8F95] hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="form-producto" class="space-y-4">
+                <input id="producto-sku-original" type="hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div><label class="text-xs text-[#8A8F95] uppercase">SKU</label><input id="producto-sku" type="text" required class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm uppercase"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Nombre</label><input id="producto-nombre" type="text" required class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Categoría</label><input id="producto-categoria" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Marca</label><input id="producto-marca" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Modelo compatible</label><input id="producto-modelo" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Proveedor</label><input id="producto-proveedor" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Costo</label><input id="producto-costo" type="number" step="0.01" min="0" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Precio</label><input id="producto-precio" type="number" step="0.01" min="0" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Stock actual</label><input id="producto-stock" type="number" step="0.01" min="0" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Stock mínimo</label><input id="producto-stock-minimo" type="number" step="0.01" min="0" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Unidad</label><input id="producto-unidad" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm" placeholder="pieza"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Ubicación</label><input id="producto-ubicacion" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div class="md:col-span-2"><label class="text-xs text-[#8A8F95] uppercase">Notas</label><textarea id="producto-notas" rows="3" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></textarea></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Estatus</label><select id="producto-estatus" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" data-close-producto class="flex-1 px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">Cancelar</button>
+                    <button type="submit" class="flex-1 px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-movimiento" class="hidden fixed inset-0 bg-black/70 z-20 p-4 flex items-center justify-center">
+        <div class="w-full max-w-xl bg-[#2B2B2B] border border-[#1F7EDC]/40 rounded-2xl p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h2 id="movimiento-title" class="text-lg font-bold text-[#1F7EDC]">Registrar movimiento</h2>
+                <button data-close-mov class="text-[#8A8F95] hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="form-movimiento" class="space-y-4">
+                <input id="movimiento-sku" type="hidden">
+                <div><label class="text-xs text-[#8A8F95] uppercase">Producto</label><div id="movimiento-producto" class="mt-1 text-sm text-white"></div></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Tipo</label><select id="movimiento-tipo" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"><option value="entrada">Entrada</option><option value="salida">Salida</option><option value="ajuste">Ajuste</option><option value="consumo">Consumo</option></select></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Cantidad</label><input id="movimiento-cantidad" type="number" step="0.01" min="0.01" required class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Costo unitario</label><input id="movimiento-costo" type="number" step="0.01" min="0" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Folio relacionado</label><input id="movimiento-folio" type="text" list="folios-relacion-lista" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm uppercase"></div>
+                    <datalist id="folios-relacion-lista"></datalist>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Referencia</label><input id="movimiento-referencia" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs text-[#8A8F95] uppercase">Usuario</label><input id="movimiento-usuario" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></div>
+                </div>
+                <div><label class="text-xs text-[#8A8F95] uppercase">Notas</label><textarea id="movimiento-notas" rows="3" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></textarea></div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" data-close-mov class="flex-1 px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">Cancelar</button>
+                    <button type="submit" class="flex-1 px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">Registrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-historial" class="hidden fixed inset-0 bg-black/70 z-20 p-4 flex items-center justify-center">
+        <div class="w-full max-w-4xl bg-[#2B2B2B] border border-[#1F7EDC]/40 rounded-2xl p-5 max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h2 id="historial-title" class="text-lg font-bold text-[#1F7EDC]">Historial de movimientos</h2>
+                <button data-close-hist class="text-[#8A8F95] hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div id="historial-loading" class="text-center py-8 text-[#8A8F95] hidden"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Cargando...</div>
+            <div class="overflow-x-auto border border-[#1F7EDC]/30 rounded-xl bg-[#161616]">
+                <table class="w-full text-sm min-w-[820px]">
+                    <thead class="bg-[#10161f] text-[#8A8F95] uppercase text-xs">
+                        <tr>
+                            <th class="text-left px-3 py-3">Fecha</th>
+                            <th class="text-left px-3 py-3">Tipo</th>
+                            <th class="text-right px-3 py-3">Cantidad</th>
+                            <th class="text-right px-3 py-3">Costo</th>
+                            <th class="text-left px-3 py-3">Folio</th>
+                            <th class="text-left px-3 py-3">Referencia</th>
+                            <th class="text-left px-3 py-3">Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historial-rows"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="./panel-stock.js"></script>
+</body>
+</html>

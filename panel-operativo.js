@@ -406,6 +406,7 @@
 
             const data = {
                 action: 'crear_equipo',
+                sucursalId: localStorage.getItem('srfix_sucursal_activa') || 'GLOBAL',
                 clienteNombre: document.getElementById('cliente-nombre').value.trim(),
                 clienteTelefono: telefono10,
                 clienteEmail: document.getElementById('cliente-email').value.trim() || '',

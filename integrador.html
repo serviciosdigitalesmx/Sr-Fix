@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1F7EDC">
     <title>SRFIX - Integrador Interno</title>
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="stylesheet" href="./pwa-mobile.css">
     <style>
         :root {
             --bg: #1e1e1e;
@@ -43,6 +46,7 @@
         }
         .title { font-weight: 700; letter-spacing: .3px; }
         .tabs { display: flex; gap: 8px; }
+        .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .tab {
             border: 1px solid var(--blue);
             background: var(--panel);
@@ -76,6 +80,14 @@
             font-size: 12px;
         }
         .fallback a { color: var(--blue); }
+        .branch-select {
+            background: #1a1a1a;
+            border: 1px solid var(--blue);
+            color: var(--text);
+            border-radius: 10px;
+            padding: 8px 12px;
+            min-width: 180px;
+        }
         .login-screen {
             position: fixed;
             inset: 0;
@@ -148,12 +160,26 @@
             <img src="./logo.webp" alt="SRFIX" class="logo" onerror="this.src='./logo.png'">
             <div class="title">SRFIX Integrador Interno</div>
         </div>
+        <div class="controls">
+        <select id="selector-sucursal" class="branch-select">
+            <option value="GLOBAL">Todas las sucursales</option>
+        </select>
         <nav class="tabs">
             <button id="tab-operativo" class="tab" type="button">Operativo</button>
             <button id="tab-tecnico" class="tab" type="button">Técnico</button>
             <button id="tab-solicitudes" class="tab" type="button">Solicitudes</button>
             <button id="tab-archivo" class="tab" type="button">Archivo</button>
+            <button id="tab-clientes" class="tab" type="button">Clientes</button>
+            <button id="tab-tareas" class="tab" type="button">Tareas</button>
+            <button id="tab-stock" class="tab" type="button">Stock</button>
+            <button id="tab-proveedores" class="tab" type="button">Proveedores</button>
+            <button id="tab-compras" class="tab" type="button">Compras</button>
+            <button id="tab-gastos" class="tab" type="button">Gastos</button>
+            <button id="tab-finanzas" class="tab" type="button">Finanzas</button>
+            <button id="tab-reportes" class="tab" type="button">Reportes</button>
+            <button id="tab-sucursales" class="tab" type="button">Sucursales</button>
         </nav>
+        </div>
     </header>
     <div class="wrap">
         <section id="panel-operativo" class="panel" aria-label="Módulo Operativo">
@@ -168,12 +194,48 @@
         <section id="panel-archivo" class="panel" aria-label="Módulo Archivo">
             <iframe id="frame-archivo" title="Modulo Archivo" src="about:blank"></iframe>
         </section>
+        <section id="panel-clientes" class="panel" aria-label="Módulo Clientes">
+            <iframe id="frame-clientes" title="Modulo Clientes" src="about:blank"></iframe>
+        </section>
+        <section id="panel-tareas" class="panel" aria-label="Módulo Tareas">
+            <iframe id="frame-tareas" title="Modulo Tareas" src="about:blank"></iframe>
+        </section>
+        <section id="panel-stock" class="panel" aria-label="Módulo Stock">
+            <iframe id="frame-stock" title="Modulo Stock" src="about:blank"></iframe>
+        </section>
+        <section id="panel-proveedores" class="panel" aria-label="Módulo Proveedores">
+            <iframe id="frame-proveedores" title="Modulo Proveedores" src="about:blank"></iframe>
+        </section>
+        <section id="panel-compras" class="panel" aria-label="Módulo Compras">
+            <iframe id="frame-compras" title="Modulo Compras" src="about:blank"></iframe>
+        </section>
+        <section id="panel-gastos" class="panel" aria-label="Módulo Gastos">
+            <iframe id="frame-gastos" title="Modulo Gastos" src="about:blank"></iframe>
+        </section>
+        <section id="panel-finanzas" class="panel" aria-label="Módulo Finanzas">
+            <iframe id="frame-finanzas" title="Modulo Finanzas" src="about:blank"></iframe>
+        </section>
+        <section id="panel-reportes" class="panel" aria-label="Módulo Reportes">
+            <iframe id="frame-reportes" title="Modulo Reportes" src="about:blank"></iframe>
+        </section>
+        <section id="panel-sucursales" class="panel" aria-label="Módulo Sucursales">
+            <iframe id="frame-sucursales" title="Modulo Sucursales" src="about:blank"></iframe>
+        </section>
     </div>
     <div class="fallback">
         Si algo falla: <a href="./panel-operativo.html" target="_blank">Operativo</a> |
         <a href="./panel-tecnico.html" target="_blank">Técnico</a> |
         <a href="./panel-solicitudes.html" target="_blank">Solicitudes</a> |
-        <a href="./panel-archivo.html" target="_blank">Archivo</a>
+        <a href="./panel-archivo.html" target="_blank">Archivo</a> |
+        <a href="./panel-clientes.html" target="_blank">Clientes</a> |
+        <a href="./panel-tareas.html" target="_blank">Tareas</a> |
+        <a href="./panel-stock.html" target="_blank">Stock</a> |
+        <a href="./panel-proveedores.html" target="_blank">Proveedores</a> |
+        <a href="./panel-compras.html" target="_blank">Compras</a> |
+        <a href="./panel-gastos.html" target="_blank">Gastos</a> |
+        <a href="./panel-finanzas.html" target="_blank">Finanzas</a> |
+        <a href="./panel-reportes.html" target="_blank">Reportes</a> |
+        <a href="./panel-sucursales.html" target="_blank">Sucursales</a>
     </div>
 
     <script>
@@ -181,24 +243,62 @@
         const PANEL_TE = document.getElementById('panel-tecnico');
         const PANEL_SO = document.getElementById('panel-solicitudes');
         const PANEL_AR = document.getElementById('panel-archivo');
+        const PANEL_CL = document.getElementById('panel-clientes');
+        const PANEL_TA = document.getElementById('panel-tareas');
+        const PANEL_ST = document.getElementById('panel-stock');
+        const PANEL_PR = document.getElementById('panel-proveedores');
+        const PANEL_CO = document.getElementById('panel-compras');
+        const PANEL_GA = document.getElementById('panel-gastos');
+        const PANEL_FI = document.getElementById('panel-finanzas');
+        const PANEL_RE = document.getElementById('panel-reportes');
+        const PANEL_SU = document.getElementById('panel-sucursales');
         const BTN_OP = document.getElementById('tab-operativo');
         const BTN_TE = document.getElementById('tab-tecnico');
         const BTN_SO = document.getElementById('tab-solicitudes');
         const BTN_AR = document.getElementById('tab-archivo');
+        const BTN_CL = document.getElementById('tab-clientes');
+        const BTN_TA = document.getElementById('tab-tareas');
+        const BTN_ST = document.getElementById('tab-stock');
+        const BTN_PR = document.getElementById('tab-proveedores');
+        const BTN_CO = document.getElementById('tab-compras');
+        const BTN_GA = document.getElementById('tab-gastos');
+        const BTN_FI = document.getElementById('tab-finanzas');
+        const BTN_RE = document.getElementById('tab-reportes');
+        const BTN_SU = document.getElementById('tab-sucursales');
         const FRAME_OP = document.getElementById('frame-operativo');
         const FRAME_TE = document.getElementById('frame-tecnico');
         const FRAME_SO = document.getElementById('frame-solicitudes');
         const FRAME_AR = document.getElementById('frame-archivo');
+        const FRAME_CL = document.getElementById('frame-clientes');
+        const FRAME_TA = document.getElementById('frame-tareas');
+        const FRAME_ST = document.getElementById('frame-stock');
+        const FRAME_PR = document.getElementById('frame-proveedores');
+        const FRAME_CO = document.getElementById('frame-compras');
+        const FRAME_GA = document.getElementById('frame-gastos');
+        const FRAME_FI = document.getElementById('frame-finanzas');
+        const FRAME_RE = document.getElementById('frame-reportes');
+        const FRAME_SU = document.getElementById('frame-sucursales');
+        const SELECTOR_SUCURSAL = document.getElementById('selector-sucursal');
         const LOGIN_SCREEN = document.getElementById('login-screen');
         const MASTER_INPUT = document.getElementById('master-password');
         const MASTER_BTN = document.getElementById('master-login-btn');
         const MASTER_ERROR = document.getElementById('master-error');
         const MASTER_PASS = 'Admin1';
+        const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxH1zD8_14TvCajstFhtEpLNODwG9GZXkLoCXOb1IBNm0JIRmpCwS6SRsuGhZETK88z/exec';
         const FRAME_SRC = {
             operativo: './panel-operativo.html',
             tecnico: './panel-tecnico.html',
             solicitudes: './panel-solicitudes.html',
-            archivo: './panel-archivo.html'
+            archivo: './panel-archivo.html',
+            clientes: './panel-clientes.html',
+            tareas: './panel-tareas.html',
+            stock: './panel-stock.html',
+            proveedores: './panel-proveedores.html',
+            compras: './panel-compras.html',
+            gastos: './panel-gastos.html',
+            finanzas: './panel-finanzas.html',
+            reportes: './panel-reportes.html',
+            sucursales: './panel-sucursales.html'
         };
 
         function asegurarCargaIframe(modulo) {
@@ -214,19 +314,64 @@
             if (modulo === 'archivo' && FRAME_AR.src === 'about:blank') {
                 FRAME_AR.src = FRAME_SRC.archivo;
             }
+            if (modulo === 'clientes' && FRAME_CL.src === 'about:blank') {
+                FRAME_CL.src = FRAME_SRC.clientes;
+            }
+            if (modulo === 'tareas' && FRAME_TA.src === 'about:blank') {
+                FRAME_TA.src = FRAME_SRC.tareas;
+            }
+            if (modulo === 'stock' && FRAME_ST.src === 'about:blank') {
+                FRAME_ST.src = FRAME_SRC.stock;
+            }
+            if (modulo === 'proveedores' && FRAME_PR.src === 'about:blank') {
+                FRAME_PR.src = FRAME_SRC.proveedores;
+            }
+            if (modulo === 'compras' && FRAME_CO.src === 'about:blank') {
+                FRAME_CO.src = FRAME_SRC.compras;
+            }
+            if (modulo === 'gastos' && FRAME_GA.src === 'about:blank') {
+                FRAME_GA.src = FRAME_SRC.gastos;
+            }
+            if (modulo === 'finanzas' && FRAME_FI.src === 'about:blank') {
+                FRAME_FI.src = FRAME_SRC.finanzas;
+            }
+            if (modulo === 'reportes' && FRAME_RE.src === 'about:blank') {
+                FRAME_RE.src = FRAME_SRC.reportes;
+            }
+            if (modulo === 'sucursales' && FRAME_SU.src === 'about:blank') {
+                FRAME_SU.src = FRAME_SRC.sucursales;
+            }
         }
 
         function mostrarModulo(modulo) {
-            const actual = ['operativo', 'tecnico', 'solicitudes', 'archivo'].includes(modulo) ? modulo : 'operativo';
+            const actual = ['operativo', 'tecnico', 'solicitudes', 'archivo', 'tareas', 'stock', 'proveedores', 'compras', 'gastos', 'finanzas'].includes(modulo) ? modulo : 'operativo';
             asegurarCargaIframe(actual);
             PANEL_OP.classList.toggle('active', actual === 'operativo');
             PANEL_TE.classList.toggle('active', actual === 'tecnico');
             PANEL_SO.classList.toggle('active', actual === 'solicitudes');
             PANEL_AR.classList.toggle('active', actual === 'archivo');
+            PANEL_CL.classList.toggle('active', actual === 'clientes');
+            PANEL_TA.classList.toggle('active', actual === 'tareas');
+            PANEL_ST.classList.toggle('active', actual === 'stock');
+            PANEL_PR.classList.toggle('active', actual === 'proveedores');
+            PANEL_CO.classList.toggle('active', actual === 'compras');
+            PANEL_GA.classList.toggle('active', actual === 'gastos');
+            PANEL_FI.classList.toggle('active', actual === 'finanzas');
+            PANEL_RE.classList.toggle('active', actual === 'reportes');
+            PANEL_SU.classList.toggle('active', actual === 'sucursales');
             BTN_OP.classList.toggle('active', actual === 'operativo');
             BTN_TE.classList.toggle('active', actual === 'tecnico');
             BTN_SO.classList.toggle('active', actual === 'solicitudes');
             BTN_AR.classList.toggle('active', actual === 'archivo');
+            BTN_CL.classList.toggle('active', actual === 'clientes');
+            BTN_TA.classList.toggle('active', actual === 'tareas');
+            BTN_ST.classList.toggle('active', actual === 'stock');
+            BTN_PR.classList.toggle('active', actual === 'proveedores');
+            BTN_CO.classList.toggle('active', actual === 'compras');
+            BTN_GA.classList.toggle('active', actual === 'gastos');
+            BTN_FI.classList.toggle('active', actual === 'finanzas');
+            BTN_RE.classList.toggle('active', actual === 'reportes');
+            BTN_SU.classList.toggle('active', actual === 'sucursales');
 
             const url = new URL(window.location.href);
             url.searchParams.set('modulo', actual);
@@ -237,12 +382,50 @@
         BTN_TE.addEventListener('click', () => mostrarModulo('tecnico'));
         BTN_SO.addEventListener('click', () => mostrarModulo('solicitudes'));
         BTN_AR.addEventListener('click', () => mostrarModulo('archivo'));
+        BTN_CL.addEventListener('click', () => mostrarModulo('clientes'));
+        BTN_TA.addEventListener('click', () => mostrarModulo('tareas'));
+        BTN_ST.addEventListener('click', () => mostrarModulo('stock'));
+        BTN_PR.addEventListener('click', () => mostrarModulo('proveedores'));
+        BTN_CO.addEventListener('click', () => mostrarModulo('compras'));
+        BTN_GA.addEventListener('click', () => mostrarModulo('gastos'));
+        BTN_FI.addEventListener('click', () => mostrarModulo('finanzas'));
+        BTN_RE.addEventListener('click', () => mostrarModulo('reportes'));
+        BTN_SU.addEventListener('click', () => mostrarModulo('sucursales'));
+
+        async function cargarSucursales() {
+            try {
+                const res = await fetch(BACKEND_URL, { method: 'POST', body: JSON.stringify({ action: 'listar_sucursales', soloActivas: '1', page: 1, pageSize: 100 }) });
+                const data = await res.json();
+                const actual = localStorage.getItem('srfix_sucursal_activa') || 'GLOBAL';
+                SELECTOR_SUCURSAL.innerHTML = '<option value="GLOBAL">Todas las sucursales</option>';
+                (data.sucursales || []).forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.ID;
+                    opt.textContent = item.NOMBRE;
+                    SELECTOR_SUCURSAL.appendChild(opt);
+                });
+                SELECTOR_SUCURSAL.value = Array.from(SELECTOR_SUCURSAL.options).some(x => x.value === actual) ? actual : 'GLOBAL';
+            } catch (e) {}
+        }
+
+        SELECTOR_SUCURSAL.addEventListener('change', () => {
+            localStorage.setItem('srfix_sucursal_activa', SELECTOR_SUCURSAL.value || 'GLOBAL');
+            [FRAME_OP, FRAME_TE, FRAME_SO, FRAME_AR, FRAME_CL, FRAME_TA, FRAME_ST, FRAME_PR, FRAME_CO, FRAME_GA, FRAME_FI, FRAME_RE, FRAME_SU].forEach(frame => {
+                if (frame && frame.src && frame.src !== 'about:blank') {
+                    frame.src = frame.src;
+                }
+            });
+        });
 
         function entrarIntegrador() {
             sessionStorage.setItem('srfix_pass_master', MASTER_PASS);
             sessionStorage.setItem('srfix_pass_operativo', MASTER_PASS);
             sessionStorage.setItem('srfix_pass_tecnico', MASTER_PASS);
+            if (!localStorage.getItem('srfix_sucursal_activa')) {
+                localStorage.setItem('srfix_sucursal_activa', 'GLOBAL');
+            }
             LOGIN_SCREEN.style.display = 'none';
+            cargarSucursales();
             const modulo = new URLSearchParams(window.location.search).get('modulo');
             mostrarModulo(modulo || 'operativo');
         }
@@ -266,5 +449,6 @@
             entrarIntegrador();
         }
     </script>
+    <script src="./pwa-init.js"></script>
 </body>
 </html>

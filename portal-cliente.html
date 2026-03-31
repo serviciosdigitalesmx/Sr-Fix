@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1F7EDC">
     <title>SRFIX - Seguimiento de Reparaciones</title>
+    <link rel="manifest" href="./manifest.webmanifest">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="./srfix-shared.css">
     <link rel="stylesheet" href="./portal-cliente.css">
+    <link rel="stylesheet" href="./pwa-mobile.css">
 
 </head>
 <body class="min-h-screen flex flex-col">
@@ -195,6 +198,7 @@
         <img id="lightbox-img" class="lightbox-img" alt="Foto de seguimiento">
         <div id="lightbox-caption" class="lightbox-caption"></div>
     </div>
+    <script src="./pwa-init.js"></script>
     <script src="./portal-cliente.js"></script>
 </body>
 </html>

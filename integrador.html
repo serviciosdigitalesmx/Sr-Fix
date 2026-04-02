@@ -9,12 +9,18 @@
     <link rel="stylesheet" href="./pwa-mobile.css">
     <style>
         :root {
-            --bg: #1e1e1e;
-            --panel: #2b2b2b;
+            --bg: #0b1220;
+            --bg-alt: #11192b;
+            --panel: #151f35;
+            --panel-soft: rgba(21, 31, 53, 0.8);
+            --panel-2: #1b2742;
             --text: #f2f2f2;
-            --muted: #8a8f95;
+            --muted: #94a3b8;
             --blue: #1f7edc;
+            --blue-soft: rgba(31, 126, 220, 0.18);
             --orange: #ff6a2a;
+            --orange-soft: rgba(255, 106, 42, 0.18);
+            --border: rgba(148, 163, 184, 0.18);
         }
         * { box-sizing: border-box; }
         body {
@@ -23,6 +29,10 @@
             background: var(--bg);
             color: var(--text);
             min-height: 100dvh;
+            background-image:
+                radial-gradient(circle at top left, rgba(31, 126, 220, 0.18) 0%, transparent 28%),
+                radial-gradient(circle at 88% 12%, rgba(255, 106, 42, 0.14) 0%, transparent 22%),
+                linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
         }
         body[data-device="mobile"] {
             --app-shell-offset: 188px;
@@ -35,37 +45,59 @@
             gap: 10px;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--blue);
-            background: #161616;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(7, 12, 22, 0.72);
+            backdrop-filter: blur(16px);
             position: sticky;
             top: 0;
-            z-index: 5;
+            z-index: 10;
         }
-        .left { display: flex; align-items: center; gap: 8px; }
+        .left { display: flex; align-items: center; gap: 12px; }
         .logo {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
             background: #fff;
-            padding: 4px;
+            padding: 5px;
             object-fit: contain;
+            box-shadow: 0 10px 24px rgba(31, 126, 220, 0.25);
         }
-        .title { font-weight: 700; letter-spacing: .3px; }
+        .title { font-weight: 800; letter-spacing: .3px; }
+        .title-wrap { display: flex; flex-direction: column; gap: 2px; }
+        .eyebrow {
+            color: #7dd3fc;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .subtitle {
+            color: var(--muted);
+            font-size: 12px;
+        }
         .tabs { display: flex; flex-direction: column; gap: 8px; }
         .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .tab {
-            border: 1px solid var(--blue);
-            background: var(--panel);
+            border: 1px solid transparent;
+            background: rgba(20, 31, 54, 0.78);
             color: var(--text);
-            padding: 8px 12px;
-            border-radius: 10px;
+            padding: 10px 14px;
+            border-radius: 14px;
             cursor: pointer;
-            font-weight: 600;
+            font-weight: 700;
+            transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+            box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.04);
+        }
+        .tab:hover {
+            transform: translateY(-1px);
+            border-color: rgba(31, 126, 220, 0.35);
+            background: rgba(26, 39, 66, 0.96);
         }
         .tab.active {
-            background: var(--orange);
-            border-color: var(--orange);
+            background: linear-gradient(135deg, #ff6a2a 0%, #ff854d 100%);
+            border-color: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 14px 30px rgba(255, 106, 42, 0.22);
         }
         .wrap { height: calc(100vh - 62px); }
         .panel {
@@ -88,17 +120,21 @@
         }
         .fallback a { color: var(--blue); }
         .branch-select {
-            background: #1a1a1a;
-            border: 1px solid var(--blue);
+            background: rgba(15, 23, 42, 0.88);
+            border: 1px solid var(--border);
             color: var(--text);
-            border-radius: 10px;
-            padding: 8px 12px;
-            min-width: 180px;
+            border-radius: 14px;
+            padding: 10px 14px;
+            min-width: 220px;
+            font-weight: 600;
         }
         .login-screen {
             position: fixed;
             inset: 0;
-            background: rgba(10, 10, 10, 0.9);
+            background:
+                radial-gradient(circle at top left, rgba(31, 126, 220, 0.2) 0%, transparent 30%),
+                radial-gradient(circle at 80% 20%, rgba(255, 106, 42, 0.12) 0%, transparent 24%),
+                rgba(4, 8, 15, 0.94);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -107,31 +143,38 @@
         }
         .login-card {
             width: 100%;
-            max-width: 360px;
-            background: var(--panel);
-            border: 1px solid var(--blue);
-            border-radius: 14px;
-            padding: 22px;
+            max-width: 390px;
+            background: rgba(15, 23, 42, 0.88);
+            border: 1px solid rgba(31, 126, 220, 0.35);
+            border-radius: 24px;
+            padding: 26px;
+            box-shadow: 0 26px 70px rgba(0, 0, 0, 0.34);
+            backdrop-filter: blur(16px);
         }
         .login-card h2 {
             margin: 0 0 6px 0;
             color: var(--blue);
-            font-size: 22px;
+            font-size: 26px;
         }
         .login-card p {
             margin: 0 0 14px 0;
             color: var(--muted);
-            font-size: 13px;
+            font-size: 14px;
+            line-height: 1.5;
         }
         .login-input {
             width: 100%;
-            background: #1a1a1a;
-            border: 1px solid var(--blue);
+            background: rgba(8, 15, 30, 0.82);
+            border: 1px solid rgba(31, 126, 220, 0.35);
             color: var(--text);
-            border-radius: 10px;
-            padding: 12px;
+            border-radius: 14px;
+            padding: 14px 16px;
             outline: none;
             margin-bottom: 10px;
+        }
+        .login-input:focus {
+            border-color: rgba(255, 106, 42, 0.8);
+            box-shadow: 0 0 0 4px rgba(255, 106, 42, 0.08);
         }
         .login-check {
             display: flex;
@@ -144,17 +187,17 @@
         .login-btn {
             width: 100%;
             border: 1px solid var(--orange);
-            background: var(--orange);
+            background: linear-gradient(135deg, #ff6a2a 0%, #ff854d 100%);
             color: #fff;
             font-weight: 700;
-            border-radius: 10px;
-            padding: 12px;
+            border-radius: 14px;
+            padding: 14px;
             cursor: pointer;
             transition: transform .18s ease, opacity .18s ease, box-shadow .18s ease;
         }
         .login-btn:hover {
             transform: translateY(-1px);
-            box-shadow: 0 10px 24px rgba(255,106,42,.2);
+            box-shadow: 0 14px 30px rgba(255,106,42,.22);
         }
         .login-btn:disabled {
             opacity: .85;
@@ -191,13 +234,141 @@
         }
     
 .app-layout { display: flex; min-height: calc(var(--app-vh, 1dvh) * 100 - var(--app-shell-offset, 64px)); }
-.sidebar { width: 220px; background: #0f172a; padding: 12px; border-right: 1px solid rgba(255,255,255,.08); }
-.wrap { flex: 1; }
+.sidebar {
+    width: 248px;
+    background: rgba(11, 18, 32, 0.82);
+    padding: 18px 14px;
+    border-right: 1px solid var(--border);
+    backdrop-filter: blur(14px);
+}
+.sidebar-head {
+    background: linear-gradient(180deg, rgba(31, 126, 220, 0.16) 0%, rgba(15, 23, 42, 0.1) 100%);
+    border: 1px solid rgba(31, 126, 220, 0.22);
+    border-radius: 18px;
+    padding: 14px 14px 12px;
+    margin-bottom: 14px;
+}
+.sidebar-head-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+.sidebar-head-title strong {
+    font-size: 15px;
+}
+.sidebar-note {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+.shell-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: rgba(31, 126, 220, 0.14);
+    color: #9bd0ff;
+    border: 1px solid rgba(31, 126, 220, 0.2);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+.wrap {
+    flex: 1;
+    padding: 20px;
+}
+.workspace-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    height: 100%;
+}
+.workspace-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: rgba(15, 23, 42, 0.7);
+    box-shadow: 0 22px 55px rgba(0, 0, 0, 0.16);
+    backdrop-filter: blur(12px);
+}
+.workspace-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.workspace-meta h3 {
+    margin: 0;
+    font-size: 24px;
+    line-height: 1.1;
+}
+.workspace-meta p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+}
+.workspace-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.role-pill,
+.module-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid var(--border);
+    background: rgba(148, 163, 184, 0.08);
+    color: #d8e7ff;
+}
+.module-pill {
+    background: rgba(255, 106, 42, 0.12);
+    color: #ffc4aa;
+    border-color: rgba(255, 106, 42, 0.18);
+}
+.ghost-btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: rgba(15, 23, 42, 0.66);
+    color: var(--text);
+    border-radius: 14px;
+    padding: 11px 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+.ghost-btn:hover {
+    background: rgba(27, 39, 66, 0.92);
+    border-color: rgba(31, 126, 220, 0.35);
+    transform: translateY(-1px);
+}
+.frame-shell {
+    flex: 1;
+    min-height: 0;
+    padding: 12px;
+    border-radius: 26px;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    background:
+        linear-gradient(180deg, rgba(31, 126, 220, 0.1) 0%, rgba(11, 18, 32, 0.25) 18%, rgba(11, 18, 32, 0.72) 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 28px 70px rgba(0, 0, 0, 0.22);
+}
 .tab { width: 100%; text-align: left; }
 
 @media (max-width: 900px) {
     .bar {
-        padding: 10px 12px;
+        padding: 12px 14px;
         gap: 12px;
     }
 
@@ -228,21 +399,25 @@
     .sidebar {
         width: 100%;
         position: sticky;
-        top: 76px;
+        top: 84px;
         z-index: 4;
-        padding: 10px 10px 8px;
+        padding: 10px 10px 10px;
         border-right: 0;
         border-bottom: 1px solid rgba(255,255,255,.08);
         overflow-x: auto;
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
-        background: rgba(15, 23, 42, 0.95);
+        background: rgba(11, 18, 32, 0.92);
         backdrop-filter: blur(10px);
+    }
+
+    .sidebar-head {
+        display: none;
     }
 
     .tabs {
         flex-direction: row;
-        gap: 10px;
+        gap: 8px;
         width: max-content;
         min-width: 100%;
         padding-bottom: 4px;
@@ -260,6 +435,7 @@
     .wrap {
         height: auto;
         min-height: calc(var(--app-vh, 1dvh) * 100 - 188px);
+        padding: 12px;
     }
 
     .panel {
@@ -268,6 +444,30 @@
 
     iframe {
         min-height: calc(var(--app-vh, 1dvh) * 100 - 188px);
+    }
+
+    .workspace-shell {
+        gap: 10px;
+    }
+
+    .workspace-header {
+        padding: 14px;
+        border-radius: 18px;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .workspace-meta h3 {
+        font-size: 20px;
+    }
+
+    .workspace-actions {
+        justify-content: space-between;
+    }
+
+    .frame-shell {
+        border-radius: 18px;
+        padding: 8px;
     }
 
     .fallback {
@@ -290,7 +490,7 @@
         max-width: none;
         width: 100%;
         border-radius: 18px;
-        padding: 20px 16px;
+        padding: 22px 16px;
     }
 
     .login-card h2 {
@@ -311,7 +511,7 @@
     }
 
     .sidebar {
-        top: 90px;
+        top: 98px;
         padding-left: 8px;
         padding-right: 8px;
     }
@@ -334,6 +534,29 @@
     .panel,
     iframe {
         min-height: calc(var(--app-vh, 1dvh) * 100 - 205px);
+    }
+
+    .workspace-header {
+        padding: 12px;
+    }
+
+    .workspace-meta h3 {
+        font-size: 18px;
+    }
+
+    .workspace-meta p {
+        font-size: 12px;
+    }
+
+    .workspace-actions {
+        gap: 8px;
+    }
+
+    .role-pill,
+    .module-pill,
+    .ghost-btn {
+        width: 100%;
+        justify-content: center;
     }
 }
 
@@ -358,7 +581,11 @@
     <header id="main-bar" class="bar">
         <div class="left">
             <img src="./logo.webp" alt="SRFIX" class="logo" onerror="this.src='./logo.png'">
-            <div class="title">SRFIX Integrador Interno</div>
+            <div class="title-wrap">
+                <div class="eyebrow">SrFix Internal Suite</div>
+                <div class="title">SRFIX Integrador Interno</div>
+                <div class="subtitle">Operación centralizada para recepción, taller y control interno</div>
+            </div>
         </div>
         <div class="controls">
         <select id="selector-sucursal" class="branch-select">
@@ -370,6 +597,13 @@
     
 <div id="app-layout" class="app-layout">
   <aside class="sidebar">
+    <div class="sidebar-head">
+        <div class="sidebar-head-title">
+            <strong>Centro de control</strong>
+            <span class="shell-badge">Live</span>
+        </div>
+        <div class="sidebar-note">Accede a los módulos activos del negocio desde un solo punto con control por rol y sucursal.</div>
+    </div>
     <nav class="tabs">
             <button id="tab-operativo" class="tab" type="button">Operativo</button>
             <button id="tab-tecnico" class="tab" type="button">Técnico</button>
@@ -388,6 +622,19 @@
         </nav>
   </aside>
   <div class="wrap">
+    <div class="workspace-shell">
+        <div class="workspace-header">
+            <div class="workspace-meta">
+                <h3 id="workspace-title">Operativo</h3>
+                <p id="workspace-subtitle">Recepción, captura y seguimiento de ingreso de equipos.</p>
+            </div>
+            <div class="workspace-actions">
+                <span id="workspace-role" class="role-pill">Sin sesión</span>
+                <span id="workspace-current-module" class="module-pill">Módulo activo</span>
+                <button id="btn-shell-logout" type="button" class="ghost-btn">Cerrar sesión</button>
+            </div>
+        </div>
+        <div class="frame-shell">
         <section id="panel-operativo" class="panel" aria-label="Módulo Operativo">
             <iframe id="frame-operativo" title="Modulo Operativo" src="about:blank"></iframe>
         </section>
@@ -430,6 +677,8 @@
         <section id="panel-seguridad" class="panel" aria-label="Módulo Seguridad">
             <iframe id="frame-seguridad" title="Modulo Seguridad" src="about:blank"></iframe>
         </section>
+        </div>
+    </div>
     </div>
 </div> <!-- app-layout -->
     <div id="fallback-links" class="fallback">
@@ -503,8 +752,29 @@
         const MASTER_BTN = document.getElementById('master-login-btn');
         const MASTER_ERROR = document.getElementById('master-error');
         const LOGIN_CARD = document.querySelector('.login-card');
+        const WORKSPACE_TITLE = document.getElementById('workspace-title');
+        const WORKSPACE_SUBTITLE = document.getElementById('workspace-subtitle');
+        const WORKSPACE_ROLE = document.getElementById('workspace-role');
+        const WORKSPACE_MODULE = document.getElementById('workspace-current-module');
+        const BTN_SHELL_LOGOUT = document.getElementById('btn-shell-logout');
         const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxH1zD8_14TvCajstFhtEpLNODwG9GZXkLoCXOb1IBNm0JIRmpCwS6SRsuGhZETK88z/exec';
         const APP_BUILD = '20260402a';
+        const MODULE_META = {
+            operativo: { title: 'Operativo', subtitle: 'Recepción, captura y seguimiento de ingreso de equipos.' },
+            tecnico: { title: 'Técnico', subtitle: 'Semáforo, diagnóstico, avances y cierre técnico del taller.' },
+            solicitudes: { title: 'Solicitudes', subtitle: 'Entrada de cotizaciones y trazabilidad inicial del cliente.' },
+            archivo: { title: 'Archivo', subtitle: 'Historial operativo y consulta de órdenes cerradas.' },
+            clientes: { title: 'Clientes', subtitle: 'Consulta y gestión de clientes ligados al servicio.' },
+            tareas: { title: 'Tareas', subtitle: 'Pendientes y seguimiento interno del equipo de trabajo.' },
+            stock: { title: 'Stock', subtitle: 'Inventario, códigos, categorías y control de existencias.' },
+            proveedores: { title: 'Proveedores', subtitle: 'Relación de abastecimiento y datos de compra.' },
+            compras: { title: 'Compras', subtitle: 'Control de adquisiciones, entradas y trazabilidad de gasto.' },
+            gastos: { title: 'Gastos', subtitle: 'Registro de egresos y control operativo del negocio.' },
+            finanzas: { title: 'Finanzas', subtitle: 'Vista financiera consolidada para monitoreo administrativo.' },
+            reportes: { title: 'Reportes', subtitle: 'Lectura global del negocio con indicadores y resúmenes.' },
+            sucursales: { title: 'Sucursales', subtitle: 'Administración de vistas operativas por sede.' },
+            seguridad: { title: 'Seguridad', subtitle: 'Permisos, usuarios internos y reglas de autorización crítica.' }
+        };
         const FRAME_SRC = {
             operativo: './panel-operativo.html',
             tecnico: './panel-tecnico.html',
@@ -609,6 +879,10 @@
             BTN_RE.classList.toggle('active', actual === 'reportes');
             BTN_SU.classList.toggle('active', actual === 'sucursales');
             BTN_SG.classList.toggle('active', actual === 'seguridad');
+            const meta = MODULE_META[actual] || MODULE_META.operativo;
+            WORKSPACE_TITLE.textContent = meta.title;
+            WORKSPACE_SUBTITLE.textContent = meta.subtitle;
+            WORKSPACE_MODULE.textContent = `Modulo activo: ${meta.title}`;
 
             const url = new URL(window.location.href);
             url.searchParams.set('modulo', actual);
@@ -709,6 +983,7 @@
         function cerrarSesionGlobal() {
             limpiarSesionGlobal();
             MASTER_INPUT.value = '';
+            MASTER_USER.value = '';
             MASTER_ERROR.textContent = '';
             resetFrames();
             aplicarRolUI(null);
@@ -729,6 +1004,7 @@
 
         function aplicarRolUI(user) {
             const allowed = getAllowedModules(user);
+            const role = String(user && user.ROL || '').toLowerCase();
             const tabs = {
                 operativo: BTN_OP,
                 tecnico: BTN_TE,
@@ -749,6 +1025,7 @@
                 if (!tabs[key]) return;
                 tabs[key].style.display = allowed.includes(key) ? '' : 'none';
             });
+            WORKSPACE_ROLE.textContent = user ? `Rol: ${role || 'usuario'}` : 'Sin sesión';
             PANEL_SG.classList.toggle('active', false);
         }
 
@@ -812,6 +1089,7 @@
         MASTER_INPUT.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') validarMaster();
         });
+        BTN_SHELL_LOGOUT.addEventListener('click', cerrarSesionGlobal);
 
         function aplicarPerfilDispositivo() {
             const isMobile = window.matchMedia('(max-width: 900px)').matches

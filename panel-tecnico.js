@@ -27,6 +27,22 @@
             orden: 'dias_asc'
         };
 
+        function readInternalUser() {
+            try {
+                const raw = sessionStorage.getItem('srfix_auth_user') || localStorage.getItem('srfix_auth_user');
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function hasTecnicoAccess() {
+            const user = readInternalUser();
+            if (!user) return false;
+            const rol = String(user.ROL || '').toLowerCase();
+            return ['admin', 'tecnico', 'supervisor'].includes(rol);
+        }
+
         // Cargar preferencias guardadas
         (function() {
             const savedPass = sessionStorage.getItem('srfix_pass_tecnico') || localStorage.getItem('srfix_pass_tecnico');
@@ -73,8 +89,11 @@
         // ==========================================
         async function login() {
             PASSWORD = document.getElementById('password-input').value.trim();
-            if (!PASSWORD) return mostrarErrorLogin('Ingresa la contraseña');
-            if (PASSWORD !== CONFIG.FRONT_PASSWORD) return mostrarErrorLogin('Contraseña incorrecta');
+            const trustedInternalAccess = hasTecnicoAccess();
+            if (!trustedInternalAccess) {
+                if (!PASSWORD) return mostrarErrorLogin('Ingresa la contraseña');
+                if (PASSWORD !== CONFIG.FRONT_PASSWORD) return mostrarErrorLogin('Contraseña incorrecta');
+            }
 
             const btn = document.getElementById('btn-login');
             btn.disabled = true;
@@ -85,11 +104,13 @@
 
             if (ok) {
                 const remember = document.getElementById('remember-me').checked;
-                sessionStorage.setItem('srfix_pass_tecnico', PASSWORD);
-                if (remember) {
-                    localStorage.setItem('srfix_pass_tecnico', PASSWORD);
-                } else {
-                    localStorage.removeItem('srfix_pass_tecnico');
+                if (!trustedInternalAccess) {
+                    sessionStorage.setItem('srfix_pass_tecnico', PASSWORD);
+                    if (remember) {
+                        localStorage.setItem('srfix_pass_tecnico', PASSWORD);
+                    } else {
+                        localStorage.removeItem('srfix_pass_tecnico');
+                    }
                 }
                 
                 document.getElementById('login-screen').classList.add('hidden');

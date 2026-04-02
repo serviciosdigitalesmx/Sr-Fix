@@ -13,6 +13,22 @@
         let ultimaOrdenRegistrada = null;
         let folioSolicitudOrigen = '';
 
+        function readInternalUser() {
+            try {
+                const raw = sessionStorage.getItem('srfix_auth_user') || localStorage.getItem('srfix_auth_user');
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function hasOperativoAccess() {
+            const user = readInternalUser();
+            if (!user) return false;
+            const rol = String(user.ROL || '').toLowerCase();
+            return ['admin', 'operativo', 'supervisor'].includes(rol);
+        }
+
         (function() {
             const saved = sessionStorage.getItem('srfix_pass_operativo') || localStorage.getItem('srfix_pass_operativo');
             if (saved) {
@@ -47,8 +63,11 @@
         // ==========================================
         async function login() {
             PASSWORD = document.getElementById('password-input').value.trim();
-            if (!PASSWORD) return mostrarErrorLogin('Ingresa la contraseña');
-            if (PASSWORD !== CONFIG.FRONT_PASSWORD) return mostrarErrorLogin('Contraseña incorrecta');
+            const trustedInternalAccess = hasOperativoAccess();
+            if (!trustedInternalAccess) {
+                if (!PASSWORD) return mostrarErrorLogin('Ingresa la contraseña');
+                if (PASSWORD !== CONFIG.FRONT_PASSWORD) return mostrarErrorLogin('Contraseña incorrecta');
+            }
 
             const btn = document.getElementById('btn-login');
             btn.disabled = true;
@@ -74,11 +93,13 @@
                 if (data.error) throw new Error(data.error);
 
                 const remember = document.getElementById('remember-me').checked;
-                sessionStorage.setItem('srfix_pass_operativo', PASSWORD);
-                if (remember) {
-                    localStorage.setItem('srfix_pass_operativo', PASSWORD);
-                } else {
-                    localStorage.removeItem('srfix_pass_operativo');
+                if (!trustedInternalAccess) {
+                    sessionStorage.setItem('srfix_pass_operativo', PASSWORD);
+                    if (remember) {
+                        localStorage.setItem('srfix_pass_operativo', PASSWORD);
+                    } else {
+                        localStorage.removeItem('srfix_pass_operativo');
+                    }
                 }
                 
                 document.getElementById('login-screen').classList.add('hidden');

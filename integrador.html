@@ -188,6 +188,113 @@
 .wrap { flex: 1; }
 .tab { width: 100%; text-align: left; }
 
+@media (max-width: 900px) {
+    .bar {
+        padding: 10px 12px;
+        gap: 12px;
+    }
+
+    .left {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .title {
+        font-size: 15px;
+        text-align: center;
+    }
+
+    .controls {
+        width: 100%;
+    }
+
+    .branch-select {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .app-layout {
+        flex-direction: column;
+        min-height: calc(100vh - 112px);
+    }
+
+    .sidebar {
+        width: 100%;
+        padding: 10px 10px 8px;
+        border-right: 0;
+        border-bottom: 1px solid rgba(255,255,255,.08);
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tabs {
+        flex-direction: row;
+        gap: 10px;
+        width: max-content;
+        min-width: 100%;
+        padding-bottom: 4px;
+    }
+
+    .tab {
+        width: auto;
+        min-width: max-content;
+        white-space: nowrap;
+        padding: 10px 14px;
+        border-radius: 12px;
+    }
+
+    .wrap {
+        height: auto;
+        min-height: calc(100vh - 196px);
+    }
+
+    .panel {
+        min-height: calc(100vh - 196px);
+    }
+
+    iframe {
+        min-height: calc(100vh - 196px);
+    }
+
+    .fallback {
+        display: none;
+    }
+}
+
+@media (max-width: 560px) {
+    .login-screen {
+        padding: 14px;
+        align-items: flex-start;
+        padding-top: 8vh;
+    }
+
+    .login-card {
+        max-width: none;
+        width: 100%;
+        border-radius: 18px;
+        padding: 20px 16px;
+    }
+
+    .login-card h2 {
+        font-size: 20px;
+    }
+
+    .logo {
+        width: 32px;
+        height: 32px;
+    }
+
+    .title {
+        font-size: 14px;
+    }
+
+    .tab {
+        font-size: 14px;
+        padding: 10px 12px;
+    }
+}
+
 </style>
 </head>
 <body>

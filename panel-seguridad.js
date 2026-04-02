@@ -94,7 +94,7 @@ function ensureAdminAccess() {
 function renderAcciones() {
     const wrap = document.getElementById('acciones-list');
     wrap.innerHTML = accionesCache.map(item => `
-        <label class="flex items-start gap-3 rounded-xl border border-[#1F7EDC]/20 bg-[#161616] p-4">
+        <label class="flex items-start gap-3 rounded-xl border border-[#1F7EDC]/20 bg-[#161616] p-4 security-action-card">
             <input type="checkbox" class="mt-1 accent-[#FF6A2A]" data-clave="${escapeHtml(item.clave)}" ${item.requiereAdmin ? 'checked' : ''}>
             <div>
                 <div class="font-semibold text-white">${escapeHtml(item.titulo)}</div>
@@ -108,7 +108,7 @@ function renderAcciones() {
 function renderUsuarios() {
     const wrap = document.getElementById('usuarios-list');
     wrap.innerHTML = usuariosCache.map(item => `
-        <button type="button" data-edit-user="${escapeHtml(item.USUARIO)}" class="w-full text-left rounded-xl border border-[#1F7EDC]/20 bg-[#161616] p-4 hover:bg-[#1F7EDC]/10">
+        <button type="button" data-edit-user="${escapeHtml(item.USUARIO)}" class="w-full text-left rounded-xl border border-[#1F7EDC]/20 bg-[#161616] p-4 hover:bg-[#1F7EDC]/10 security-user-card">
             <div class="flex items-center justify-between gap-3">
                 <div>
                     <div class="font-semibold text-white">${escapeHtml(item.NOMBRE || item.USUARIO)}</div>

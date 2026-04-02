@@ -40,7 +40,7 @@
             const user = readInternalUser();
             if (!user) return false;
             const rol = String(user.ROL || '').toLowerCase();
-            return ['admin', 'tecnico', 'supervisor'].includes(rol);
+            return ['admin', 'operativo', 'tecnico', 'supervisor'].includes(rol);
         }
 
         // Cargar preferencias guardadas
@@ -854,9 +854,17 @@
         });
 
         window.addEventListener('load', () => {
-            const pass = sessionStorage.getItem('srfix_pass_master') || sessionStorage.getItem('srfix_pass_tecnico');
+            if (hasTecnicoAccess()) {
+                login();
+                return;
+            }
+
+            const pass = sessionStorage.getItem('srfix_pass_tecnico') || localStorage.getItem('srfix_pass_tecnico');
             if (pass) {
                 document.getElementById('password-input').value = pass;
+                if (localStorage.getItem('srfix_pass_tecnico')) {
+                    document.getElementById('remember-me').checked = true;
+                }
                 login();
             }
         });

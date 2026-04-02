@@ -128,15 +128,24 @@
     border-radius: 1.35rem;
   }
 
+  .operativo-main {
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+
   .operativo-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.85rem;
+    padding: 0.9rem !important;
   }
 
   .operativo-steps {
     transform: scale(0.94);
     transform-origin: center;
+    gap: 0.35rem !important;
+    padding: 0.3rem 0.45rem;
   }
 
   .operativo-card {
@@ -151,5 +160,43 @@
     border-radius: 1.15rem;
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+
+  #step-2 .grid.grid-cols-2,
+  #step-3 .flex.justify-between {
+    grid-template-columns: 1fr !important;
+  }
+
+  #step-2 .grid.grid-cols-2 {
+    gap: 0.85rem !important;
+  }
+
+  #step-2 .flex.gap-3,
+  #step-3 .flex.gap-3 {
+    flex-direction: column;
+  }
+
+  #step-2 .flex.gap-3 > *,
+  #step-3 .flex.gap-3 > * {
+    width: 100%;
+  }
+
+  #step-3 .space-y-3 > div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  #step-3 .space-y-3 > div span:last-child {
+    max-width: 100% !important;
+    text-align: left !important;
+  }
+
+  #exito .flex.flex-col.sm\\:flex-row {
+    gap: 0.75rem !important;
+  }
+
+  #exito .flex.flex-col.sm\\:flex-row > * {
+    width: 100%;
   }
 }

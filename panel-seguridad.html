@@ -134,8 +134,44 @@
             }
         }
         @media (max-width: 560px) {
+            main {
+                padding-left: 0.85rem !important;
+                padding-right: 0.85rem !important;
+                padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)) !important;
+            }
+            .security-topbar .max-w-6xl {
+                padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+            }
+            .security-topbar .flex.gap-2 {
+                width: 100%;
+            }
+            .security-topbar button,
+            #btn-nuevo-usuario {
+                width: 100%;
+                justify-content: center;
+            }
+            #usuarios-wrap > .flex.items-center.justify-between,
+            #form-seguridad .flex.items-center.justify-between {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            #form-seguridad .flex.gap-3.pt-2,
+            #form-usuario .flex.gap-3.pt-2 {
+                flex-direction: column;
+            }
+            #form-seguridad .flex.gap-3.pt-2 > *,
+            #form-usuario .flex.gap-3.pt-2 > * {
+                width: 100%;
+            }
+            #usuarios-wrap .flex.items-center.justify-between.gap-3.mb-4 {
+                align-items: stretch;
+            }
             .security-modal-panel {
                 border-radius: 1.1rem;
+                padding: 1rem !important;
+            }
+            #form-usuario .grid.md\\:grid-cols-2 {
+                grid-template-columns: 1fr !important;
             }
         }
     </style>

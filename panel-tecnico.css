@@ -197,6 +197,12 @@
     border-radius: 1.35rem;
   }
 
+  .tecnico-main {
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+
   .tecnico-topbar {
     padding-top: calc(1rem + env(safe-area-inset-top, 0px)) !important;
   }
@@ -205,8 +211,28 @@
     padding: 0.85rem !important;
   }
 
+  .tecnico-kpi-card {
+    padding: 0.95rem !important;
+  }
+
+  .tecnico-kpi-card .text-3xl {
+    font-size: 1.55rem !important;
+    line-height: 1.1;
+  }
+
+  .tecnico-toolbar .flex.flex-col.md\\:flex-row {
+    gap: 0.85rem !important;
+  }
+
+  .tecnico-toolbar select,
+  .tecnico-toolbar input,
+  .tecnico-toolbar button {
+    width: 100%;
+  }
+
   .tecnico-modal-panel {
     border-radius: 1.1rem;
+    max-height: 94vh !important;
   }
 
   .tecnico-modal-header,
@@ -222,5 +248,19 @@
 
   .tecnico-modal-actions > * {
     width: 100%;
+  }
+
+  .tecnico-modal-tabs {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .tecnico-modal-body .grid.md\\:grid-cols-2 {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+  }
+
+  #modal-seguimiento-galeria {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }

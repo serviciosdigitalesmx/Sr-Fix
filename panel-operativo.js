@@ -17,9 +17,30 @@
             const saved = sessionStorage.getItem('srfix_pass_operativo') || localStorage.getItem('srfix_pass_operativo');
             if (saved) {
                 document.getElementById('password-input').value = saved;
+                if (localStorage.getItem('srfix_pass_operativo')) {
+                    document.getElementById('remember-me').checked = true;
+                }
                 setTimeout(login, 500);
             }
         })();
+
+        function formatearFechaHoraLarga(date = new Date()) {
+            return date.toLocaleString('es-MX', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function actualizarFechaActual() {
+            const el = document.getElementById('fecha-actual');
+            if (!el) return;
+            const texto = formatearFechaHoraLarga();
+            el.textContent = texto.charAt(0).toUpperCase() + texto.slice(1);
+        }
 
         // ==========================================
         // LOGIN / LOGOUT
@@ -66,6 +87,8 @@
                 const f = new Date();
                 f.setDate(f.getDate() + 3);
                 document.getElementById('fecha-promesa').valueAsDate = f;
+                actualizarFechaActual();
+                setInterval(actualizarFechaActual, 60000);
                 cargarBorradorLocal();
                 mostrarToast('Sesión iniciada', 'success');
 
@@ -504,6 +527,7 @@
                     fechaPromesa: document.getElementById('res-fecha').textContent || '---',
                     costo: (document.getElementById('res-costo').textContent || '$0').replace('$', ''),
                     notas: document.getElementById('notas-extra').value || '---',
+                    fotoRecepcion: fotoRecepcionBase64 || '',
                     checks: {
                         cargador: document.getElementById('chk-cargador').checked,
                         pantalla: document.getElementById('chk-pantalla').checked,
@@ -578,6 +602,14 @@
                                 </div>
                             </div>
                             <div class="checks"><h3>Checklist recepción</h3><div class="check-list">${checksHTML}</div></div>
+                            ${datos.fotoRecepcion ? `
+                                <div style="margin-top:22px" class="card">
+                                    <h3>Foto de ingreso del equipo</h3>
+                                    <div style="display:flex;justify-content:center;padding-top:8px">
+                                        <img src="${datos.fotoRecepcion}" alt="Foto de recepción del equipo" style="max-width:100%;max-height:320px;object-fit:contain;border-radius:14px;border:1px solid #cbd5e1;background:#fff">
+                                    </div>
+                                </div>
+                            ` : ''}
                             <div class="notas"><strong>Notas:</strong><div style="margin-top:6px;line-height:1.5">${datos.notas || '---'}</div></div>
                             <div class="total">Costo estimado: $${Number(datos.costo || 0).toFixed(2)}</div>
                         </div>

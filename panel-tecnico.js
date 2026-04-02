@@ -32,6 +32,9 @@
             const savedPass = sessionStorage.getItem('srfix_pass_tecnico') || localStorage.getItem('srfix_pass_tecnico');
             if (savedPass) {
                 document.getElementById('password-input').value = savedPass;
+                if (localStorage.getItem('srfix_pass_tecnico')) {
+                    document.getElementById('remember-me').checked = true;
+                }
                 // Si hay pass guardado, intentamos login automático
                 setTimeout(login, 500);
             }
@@ -46,6 +49,24 @@
                 } catch (e) {}
             }
         })();
+
+        function formatearFechaHoraLarga(date = new Date()) {
+            return date.toLocaleString('es-MX', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function actualizarFechaActual() {
+            const el = document.getElementById('fecha-actual');
+            if (!el) return;
+            const texto = formatearFechaHoraLarga();
+            el.textContent = texto.charAt(0).toUpperCase() + texto.slice(1);
+        }
 
         // ==========================================
         // LOGIN / LOGOUT
@@ -73,7 +94,8 @@
                 
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app').classList.remove('hidden');
-                document.getElementById('fecha-actual').textContent = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                actualizarFechaActual();
+                setInterval(actualizarFechaActual, 60000);
                 if (intervalo) clearInterval(intervalo);
                 intervalo = setInterval(cargarDatos, 30000);
             } else {
@@ -247,7 +269,10 @@
 
             resultado.sort((a, b) => {
                 switch (filtros.orden) {
-                    case 'dias_asc': return a.diasRestantes - b.diasRestantes;
+                    case 'dias_asc':
+                        return (a.diasRestantes - b.diasRestantes)
+                            || String(a.FECHA_PROMESA || '').localeCompare(String(b.FECHA_PROMESA || ''))
+                            || String(a.FOLIO || '').localeCompare(String(b.FOLIO || ''));
                     case 'dias_desc': return b.diasRestantes - a.diasRestantes;
                     case 'folio_asc': return (a.FOLIO || '').localeCompare(b.FOLIO || '');
                     case 'folio_desc': return (b.FOLIO || '').localeCompare(a.FOLIO || '');

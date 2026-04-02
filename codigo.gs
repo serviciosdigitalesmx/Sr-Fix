@@ -1526,20 +1526,24 @@ function crearEquipo(data) {
       ahora // FECHA_ULTIMA_ACTUALIZACION
     ]), 'crearEquipo.appendRow');
 
-    if (payload.clienteTelefono) {
-      const hojaClientes = ss.getSheetByName('Clientes');
-      if (hojaClientes) {
-        const datosClientes = withRetry(() => hojaClientes.getDataRange().getValues(), 'crearEquipo.getClientes');
-        const existeCliente = datosClientes.some(row => String(row[2] || '') === payload.clienteTelefono);
-        if (!existeCliente) {
-          withRetry(() => hojaClientes.appendRow([
-            Utilities.getUuid(),
-            payload.clienteNombre,
-            payload.clienteTelefono,
-            payload.clienteEmail || '',
-            ahora
-          ]), 'crearEquipo.appendCliente');
-        }
+    if (payload.clienteNombre || payload.clienteTelefono || payload.clienteEmail) {
+      const hojaClientes = obtenerHojaClientes(ss);
+      const datosClientes = withRetry(() => hojaClientes.getDataRange().getValues(), 'crearEquipo.getClientes');
+      const headersClientes = datosClientes && datosClientes.length
+        ? datosClientes[0]
+        : ['ID', 'NOMBRE', 'TELEFONO', 'EMAIL', 'FECHA_REGISTRO', 'ETIQUETA', 'NOTAS', 'FECHA_ACTUALIZACION'];
+      const rowsClientes = (datosClientes && datosClientes.length > 1 ? datosClientes.slice(1) : [])
+        .map(row => asegurarLongitudFila(row, headersClientes.length));
+      const maps = crearMapsClientes(headersClientes, rowsClientes);
+      const changed = aplicarUpsertCliente(headersClientes, rowsClientes, maps, {
+        nombre: payload.clienteNombre,
+        telefono: payload.clienteTelefono,
+        email: payload.clienteEmail || '',
+        fechaRegistro: ahora,
+        fechaActualizacion: ahora
+      }, ahora);
+      if (changed && rowsClientes.length) {
+        withRetry(() => hojaClientes.getRange(2, 1, rowsClientes.length, headersClientes.length).setValues(rowsClientes), 'crearEquipo.setClientes');
       }
     }
 
@@ -2032,6 +2036,130 @@ function obtenerHojaClientes(ss) {
   ]);
 }
 
+function asegurarLongitudFila(row, length) {
+  const out = Array.isArray(row) ? row.slice(0, length) : [];
+  while (out.length < length) out.push('');
+  return out;
+}
+
+function crearMapsClientes(headers, rows) {
+  const idxTelefono = headers.indexOf('TELEFONO');
+  const idxEmail = headers.indexOf('EMAIL');
+  const maps = { telefono: {}, email: {} };
+  rows.forEach((row, index) => {
+    const telefono = normalizarTelefono(row[idxTelefono] || '');
+    const email = String(row[idxEmail] || '').trim().toLowerCase();
+    if (telefono) maps.telefono[telefono] = index;
+    if (email) maps.email[email] = index;
+  });
+  return maps;
+}
+
+function aplicarUpsertCliente(headers, rows, maps, input, fallbackFecha) {
+  const nombre = String(input && input.nombre || '').trim();
+  const telefono = normalizarTelefono(input && input.telefono || '');
+  const email = String(input && input.email || '').trim();
+  const emailKey = email.toLowerCase();
+  const fechaRegistro = String(input && input.fechaRegistro || '').trim() || fallbackFecha;
+  const fechaActualizacion = String(input && input.fechaActualizacion || '').trim() || fallbackFecha;
+
+  if (!nombre && !telefono && !email) return false;
+
+  const idxId = headers.indexOf('ID');
+  const idxNombre = headers.indexOf('NOMBRE');
+  const idxTelefono = headers.indexOf('TELEFONO');
+  const idxEmail = headers.indexOf('EMAIL');
+  const idxFechaRegistro = headers.indexOf('FECHA_REGISTRO');
+  const idxEtiqueta = headers.indexOf('ETIQUETA');
+  const idxNotas = headers.indexOf('NOTAS');
+  const idxFechaActualizacion = headers.indexOf('FECHA_ACTUALIZACION');
+
+  let rowIndex = -1;
+  if (telefono && Object.prototype.hasOwnProperty.call(maps.telefono, telefono)) rowIndex = maps.telefono[telefono];
+  else if (emailKey && Object.prototype.hasOwnProperty.call(maps.email, emailKey)) rowIndex = maps.email[emailKey];
+
+  if (rowIndex < 0) {
+    const row = new Array(headers.length).fill('');
+    row[idxId] = Utilities.getUuid();
+    row[idxNombre] = nombre;
+    row[idxTelefono] = telefono;
+    row[idxEmail] = email;
+    row[idxFechaRegistro] = fechaRegistro;
+    if (idxEtiqueta >= 0) row[idxEtiqueta] = '';
+    if (idxNotas >= 0) row[idxNotas] = '';
+    row[idxFechaActualizacion] = fechaActualizacion;
+    rows.push(row);
+    const newIndex = rows.length - 1;
+    if (telefono) maps.telefono[telefono] = newIndex;
+    if (emailKey) maps.email[emailKey] = newIndex;
+    return true;
+  }
+
+  const row = asegurarLongitudFila(rows[rowIndex], headers.length);
+  let changed = false;
+
+  if (nombre && String(row[idxNombre] || '').trim() !== nombre) {
+    row[idxNombre] = nombre;
+    changed = true;
+  }
+  if (telefono && String(row[idxTelefono] || '').trim() !== telefono) {
+    row[idxTelefono] = telefono;
+    maps.telefono[telefono] = rowIndex;
+    changed = true;
+  }
+  if (email && String(row[idxEmail] || '').trim() !== email) {
+    row[idxEmail] = email;
+    maps.email[emailKey] = rowIndex;
+    changed = true;
+  }
+  if (!String(row[idxFechaRegistro] || '').trim()) {
+    row[idxFechaRegistro] = fechaRegistro;
+    changed = true;
+  }
+  if (changed || !String(row[idxFechaActualizacion] || '').trim()) {
+    row[idxFechaActualizacion] = fechaActualizacion;
+    changed = true;
+  }
+
+  rows[rowIndex] = row;
+  return changed;
+}
+
+function sincronizarClientesDesdeEquipos(ss) {
+  const hojaClientes = obtenerHojaClientes(ss);
+  const hojaEquipos = ss.getSheetByName('Equipos');
+  if (!hojaEquipos) return;
+
+  const datosClientes = withRetry(() => hojaClientes.getDataRange().getValues(), 'sincronizarClientesDesdeEquipos.getClientes');
+  const headersClientes = datosClientes && datosClientes.length
+    ? datosClientes[0]
+    : ['ID', 'NOMBRE', 'TELEFONO', 'EMAIL', 'FECHA_REGISTRO', 'ETIQUETA', 'NOTAS', 'FECHA_ACTUALIZACION'];
+  const rowsClientes = (datosClientes && datosClientes.length > 1 ? datosClientes.slice(1) : [])
+    .map(row => asegurarLongitudFila(row, headersClientes.length));
+  const maps = crearMapsClientes(headersClientes, rowsClientes);
+
+  const datosEquipos = withRetry(() => hojaEquipos.getDataRange().getValues(), 'sincronizarClientesDesdeEquipos.getEquipos');
+  if (!datosEquipos || datosEquipos.length < 2) return;
+
+  const headersEquipos = datosEquipos[0];
+  let changed = false;
+  datosEquipos.slice(1).forEach(row => {
+    const item = mapearFila(headersEquipos, row);
+    changed = aplicarUpsertCliente(headersClientes, rowsClientes, maps, {
+      nombre: item.CLIENTE_NOMBRE || '',
+      telefono: item.CLIENTE_TELEFONO || '',
+      email: item.CLIENTE_EMAIL || '',
+      fechaRegistro: item.FECHA_INGRESO || '',
+      fechaActualizacion: item.FECHA_ULTIMA_ACTUALIZACION || item.FECHA_INGRESO || ''
+    }, new Date().toISOString()) || changed;
+  });
+
+  if (!changed) return;
+  if (rowsClientes.length) {
+    withRetry(() => hojaClientes.getRange(2, 1, rowsClientes.length, headersClientes.length).setValues(rowsClientes), 'sincronizarClientesDesdeEquipos.setClientes');
+  }
+}
+
 function normalizarClienteForApi(obj) {
   const out = { ...obj };
   out.ID = String(out.ID || '').trim();
@@ -2097,6 +2225,7 @@ function construirEstadisticasCliente(ss, cliente) {
 function listarClientes(input) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    sincronizarClientesDesdeEquipos(ss);
     const hoja = obtenerHojaClientes(ss);
     const datos = withRetry(() => hoja.getDataRange().getValues(), 'listarClientes.getValues');
     const p = parsePaginacion(input || {});

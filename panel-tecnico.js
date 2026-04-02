@@ -45,6 +45,12 @@
 
         // Cargar preferencias guardadas
         (function() {
+            if (hasTecnicoAccess()) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                setTimeout(login, 200);
+                return;
+            }
             const savedPass = sessionStorage.getItem('srfix_pass_tecnico') || localStorage.getItem('srfix_pass_tecnico');
             if (savedPass) {
                 document.getElementById('password-input').value = savedPass;

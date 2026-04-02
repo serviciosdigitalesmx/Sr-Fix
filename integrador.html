@@ -605,7 +605,7 @@
         <div class="sidebar-note">Accede a los módulos activos del negocio desde un solo punto con control por rol y sucursal.</div>
     </div>
     <nav class="tabs">
-            <button id="tab-operativo" class="tab" type="button">Operativo</button>
+            <button id="tab-operativo" class="tab" type="button">Recepción</button>
             <button id="tab-tecnico" class="tab" type="button">Técnico</button>
             <button id="tab-solicitudes" class="tab" type="button">Solicitudes</button>
             <button id="tab-archivo" class="tab" type="button">Archivo</button>
@@ -625,7 +625,7 @@
     <div class="workspace-shell">
         <div class="workspace-header">
             <div class="workspace-meta">
-                <h3 id="workspace-title">Operativo</h3>
+                <h3 id="workspace-title">Recepción</h3>
                 <p id="workspace-subtitle">Recepción, captura y seguimiento de ingreso de equipos.</p>
             </div>
             <div class="workspace-actions">
@@ -635,8 +635,8 @@
             </div>
         </div>
         <div class="frame-shell">
-        <section id="panel-operativo" class="panel" aria-label="Módulo Operativo">
-            <iframe id="frame-operativo" title="Modulo Operativo" src="about:blank"></iframe>
+        <section id="panel-operativo" class="panel" aria-label="Módulo Recepción">
+            <iframe id="frame-operativo" title="Modulo Recepción" src="about:blank"></iframe>
         </section>
         <section id="panel-tecnico" class="panel" aria-label="Módulo Técnico">
             <iframe id="frame-tecnico" title="Modulo Técnico" src="about:blank"></iframe>
@@ -682,7 +682,7 @@
     </div>
 </div> <!-- app-layout -->
     <div id="fallback-links" class="fallback">
-        Si algo falla: <a href="./panel-operativo.html" target="_blank">Operativo</a> |
+        Si algo falla: <a href="./panel-operativo.html" target="_blank">Recepción</a> |
         <a href="./panel-tecnico.html" target="_blank">Técnico</a> |
         <a href="./panel-solicitudes.html" target="_blank">Solicitudes</a> |
         <a href="./panel-archivo.html" target="_blank">Archivo</a> |
@@ -760,7 +760,7 @@
         const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxH1zD8_14TvCajstFhtEpLNODwG9GZXkLoCXOb1IBNm0JIRmpCwS6SRsuGhZETK88z/exec';
         const APP_BUILD = '20260402a';
         const MODULE_META = {
-            operativo: { title: 'Operativo', subtitle: 'Recepción, captura y seguimiento de ingreso de equipos.' },
+            operativo: { title: 'Recepción', subtitle: 'Recepción, captura y seguimiento de ingreso de equipos.' },
             tecnico: { title: 'Técnico', subtitle: 'Semáforo, diagnóstico, avances y cierre técnico del taller.' },
             solicitudes: { title: 'Solicitudes', subtitle: 'Entrada de cotizaciones y trazabilidad inicial del cliente.' },
             archivo: { title: 'Archivo', subtitle: 'Historial operativo y consulta de órdenes cerradas.' },

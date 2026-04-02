@@ -31,6 +31,8 @@
 
         (function() {
             if (hasOperativoAccess()) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
                 setTimeout(login, 200);
                 return;
             }

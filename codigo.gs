@@ -107,6 +107,9 @@ function inicializarSistema() {
       'COMPROBANTE_URL', 'NOTAS', 'FECHA_CREACION', 'FECHA_ACTUALIZACION'
     ]);
 
+    asegurarUsuariosInternos(ss);
+    obtenerHojaBitacoraSeguridad(ss);
+
     asegurarConfiguracionSeguridad(ss);
 
     asegurarEstructuraMultisucursal(ss);
@@ -153,6 +156,226 @@ function inicializarPasswordsPorDefecto() {
   if (Object.keys(updates).length > 0) {
     props.setProperties(updates, false);
   }
+}
+
+function hashPasswordSeguro(value) {
+  const bytes = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    String(value || ''),
+    Utilities.Charset.UTF_8
+  );
+  return bytes.map(function(b) {
+    const v = (b < 0 ? b + 256 : b).toString(16);
+    return v.length === 1 ? '0' + v : v;
+  }).join('');
+}
+
+function obtenerHojaUsuariosInternos(ss) {
+  return crearHojaSiNoExiste(ss || SpreadsheetApp.getActiveSpreadsheet(), 'UsuariosInternos', [
+    'ID', 'USUARIO', 'NOMBRE', 'ROL', 'PASSWORD_HASH', 'ACTIVO', 'NOTAS', 'FECHA_CREACION', 'FECHA_ACTUALIZACION'
+  ]);
+}
+
+function obtenerHojaBitacoraSeguridad(ss) {
+  return crearHojaSiNoExiste(ss || SpreadsheetApp.getActiveSpreadsheet(), 'BitacoraSeguridad', [
+    'ID', 'FECHA', 'USUARIO', 'NOMBRE', 'ROL', 'ACCION', 'DETALLE', 'ORIGEN'
+  ]);
+}
+
+function asegurarUsuariosInternos(ss) {
+  const hoja = obtenerHojaUsuariosInternos(ss);
+  const datos = withRetry(() => hoja.getDataRange().getValues(), 'asegurarUsuariosInternos.getValues');
+  const existeAdmin = datos.slice(1).some(row => String(row[1] || '').trim().toLowerCase() === 'admin');
+  if (!existeAdmin) {
+    const ahora = new Date().toISOString();
+    withRetry(() => hoja.appendRow([
+      Utilities.getUuid(),
+      'admin',
+      'Administrador',
+      'admin',
+      hashPasswordSeguro('Admin1'),
+      'SI',
+      'Usuario inicial del sistema',
+      ahora,
+      ahora
+    ]), 'asegurarUsuariosInternos.appendAdmin');
+  }
+  return hoja;
+}
+
+function registrarBitacoraSeguridad(entry) {
+  try {
+    const cfg = buildConfiguracionSeguridadPayload();
+    if (!cfg.config || !cfg.config.bitacoraActiva) return;
+    const hoja = obtenerHojaBitacoraSeguridad();
+    withRetry(() => hoja.appendRow([
+      Utilities.getUuid(),
+      new Date().toISOString(),
+      String(entry && entry.usuario || '').trim(),
+      String(entry && entry.nombre || '').trim(),
+      String(entry && entry.rol || '').trim(),
+      String(entry && entry.accion || '').trim(),
+      String(entry && entry.detalle || '').trim(),
+      String(entry && entry.origen || '').trim()
+    ]), 'registrarBitacoraSeguridad.append');
+  } catch (e) {}
+}
+
+function normalizarUsuarioInternoForApi(rowObj) {
+  return {
+    ID: String(rowObj.ID || '').trim(),
+    USUARIO: String(rowObj.USUARIO || '').trim(),
+    NOMBRE: String(rowObj.NOMBRE || '').trim(),
+    ROL: String(rowObj.ROL || 'operativo').trim().toLowerCase(),
+    ACTIVO: String(rowObj.ACTIVO || 'NO').trim().toUpperCase() === 'SI',
+    NOTAS: String(rowObj.NOTAS || '').trim(),
+    FECHA_CREACION: String(rowObj.FECHA_CREACION || '').trim(),
+    FECHA_ACTUALIZACION: String(rowObj.FECHA_ACTUALIZACION || '').trim()
+  };
+}
+
+function listarUsuariosInternos() {
+  const hoja = asegurarUsuariosInternos();
+  const datos = withRetry(() => hoja.getDataRange().getValues(), 'listarUsuariosInternos.getValues');
+  if (!datos || datos.length < 2) return jsonResponse({ usuarios: [] });
+  const headers = datos[0];
+  const usuarios = datos.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = row[i]);
+    return normalizarUsuarioInternoForApi(obj);
+  }).sort((a, b) => {
+    if (a.ROL !== b.ROL) return a.ROL.localeCompare(b.ROL);
+    return a.USUARIO.localeCompare(b.USUARIO);
+  });
+  return jsonResponse({ usuarios: usuarios });
+}
+
+function loginInterno(data) {
+  const usuario = String(data && data.usuario || '').trim().toLowerCase();
+  const password = String(data && data.password || '').trim();
+  if (!usuario || !password) return jsonResponse({ error: 'Usuario y contraseña requeridos' });
+
+  const hoja = asegurarUsuariosInternos();
+  const datos = withRetry(() => hoja.getDataRange().getValues(), 'loginInterno.getValues');
+  const headers = datos[0];
+  const idxUsuario = headers.indexOf('USUARIO');
+  const idxHash = headers.indexOf('PASSWORD_HASH');
+  const idxActivo = headers.indexOf('ACTIVO');
+  const fila = datos.find((row, i) =>
+    i > 0 &&
+    String(row[idxUsuario] || '').trim().toLowerCase() === usuario
+  );
+  if (!fila) return jsonResponse({ error: 'Credenciales inválidas' });
+  if (String(fila[idxActivo] || '').trim().toUpperCase() !== 'SI') return jsonResponse({ error: 'Usuario inactivo' });
+  if (String(fila[idxHash] || '').trim() !== hashPasswordSeguro(password)) return jsonResponse({ error: 'Credenciales inválidas' });
+
+  const obj = {};
+  headers.forEach((h, i) => obj[h] = fila[i]);
+  const user = normalizarUsuarioInternoForApi(obj);
+  registrarBitacoraSeguridad({
+    usuario: user.USUARIO,
+    nombre: user.NOMBRE,
+    rol: user.ROL,
+    accion: 'LOGIN_INTERNO',
+    detalle: 'Inicio de sesión exitoso',
+    origen: 'integrador'
+  });
+  return jsonResponse({
+    success: true,
+    user: user,
+    passwords: obtenerPasswords()
+  });
+}
+
+function guardarUsuarioInterno(data) {
+  return withDocumentLock(function() {
+    const adminPasswordActual = String(data && data.adminPasswordActual || '').trim();
+    const cfg = leerConfiguracionSeguridad();
+    const adminConfig = String(cfg.map.ADMIN_PASSWORD && cfg.map.ADMIN_PASSWORD.valor || '').trim();
+    if (!adminPasswordActual || adminPasswordActual !== adminConfig) {
+      throw new Error('Autorización administrativa inválida');
+    }
+
+    const usuario = String(data && data.usuario || '').trim().toLowerCase();
+    const nombre = String(data && data.nombre || '').trim();
+    const rol = String(data && data.rol || 'operativo').trim().toLowerCase();
+    const activo = data && data.activo ? 'SI' : 'NO';
+    const notas = String(data && data.notas || '').trim();
+    const password = String(data && data.password || '').trim();
+    const actor = data && data.actor || {};
+
+    if (!usuario) throw new Error('Usuario requerido');
+    if (!/^[a-z0-9._-]{3,30}$/.test(usuario)) throw new Error('Usuario inválido');
+    if (!nombre) throw new Error('Nombre requerido');
+    if (['admin', 'operativo', 'tecnico', 'supervisor'].indexOf(rol) === -1) throw new Error('Rol inválido');
+
+    const hoja = asegurarUsuariosInternos();
+    const datos = withRetry(() => hoja.getDataRange().getValues(), 'guardarUsuarioInterno.getValues');
+    const headers = datos[0];
+    const idxUsuario = headers.indexOf('USUARIO');
+    const idxNombre = headers.indexOf('NOMBRE');
+    const idxRol = headers.indexOf('ROL');
+    const idxHash = headers.indexOf('PASSWORD_HASH');
+    const idxActivo = headers.indexOf('ACTIVO');
+    const idxNotas = headers.indexOf('NOTAS');
+    const idxFechaActualizacion = headers.indexOf('FECHA_ACTUALIZACION');
+    const idxFechaCreacion = headers.indexOf('FECHA_CREACION');
+    const ahora = new Date().toISOString();
+
+    let rowIdx = -1;
+    for (let i = 1; i < datos.length; i++) {
+      if (String(datos[i][idxUsuario] || '').trim().toLowerCase() === usuario) {
+        rowIdx = i + 1;
+        break;
+      }
+    }
+
+    if (rowIdx === -1) {
+      if (!password || password.length < 4) throw new Error('La contraseña del usuario debe tener al menos 4 caracteres');
+      withRetry(() => hoja.appendRow([
+        Utilities.getUuid(),
+        usuario,
+        nombre,
+        rol,
+        hashPasswordSeguro(password),
+        activo,
+        notas,
+        ahora,
+        ahora
+      ]), 'guardarUsuarioInterno.append');
+      registrarBitacoraSeguridad({
+        usuario: String(actor.usuario || '').trim(),
+        nombre: String(actor.nombre || '').trim(),
+        rol: String(actor.rol || '').trim(),
+        accion: 'CREAR_USUARIO_INTERNO',
+        detalle: `Usuario ${usuario} (${rol}) creado`,
+        origen: 'panel-seguridad'
+      });
+    } else {
+      const row = datos[rowIdx - 1].slice();
+      row[idxNombre] = nombre;
+      row[idxRol] = rol;
+      row[idxActivo] = activo;
+      row[idxNotas] = notas;
+      row[idxFechaActualizacion] = ahora;
+      if (password) {
+        if (password.length < 4) throw new Error('La contraseña del usuario debe tener al menos 4 caracteres');
+        row[idxHash] = hashPasswordSeguro(password);
+      }
+      if (!row[idxFechaCreacion]) row[idxFechaCreacion] = ahora;
+      withRetry(() => hoja.getRange(rowIdx, 1, 1, row.length).setValues([row]), 'guardarUsuarioInterno.update');
+      registrarBitacoraSeguridad({
+        usuario: String(actor.usuario || '').trim(),
+        nombre: String(actor.nombre || '').trim(),
+        rol: String(actor.rol || '').trim(),
+        accion: 'ACTUALIZAR_USUARIO_INTERNO',
+        detalle: `Usuario ${usuario} actualizado`,
+        origen: 'panel-seguridad'
+      });
+    }
+
+    return listarUsuariosInternos();
+  }, 12000);
 }
 
 function obtenerHojaConfiguracionSeguridad(ss) {
@@ -283,6 +506,13 @@ function guardarConfiguracionSeguridad(data) {
     const idxDesc = headers.indexOf('DESCRIPCION');
     const idxFecha = headers.indexOf('FECHA_ACTUALIZACION');
     const ahora = new Date().toISOString();
+    const adminPasswordActual = String(data && data.adminPasswordActual || '').trim();
+    const adminConfig = String(cfg.map.ADMIN_PASSWORD && cfg.map.ADMIN_PASSWORD.valor || '').trim();
+    const actor = data && data.actor || {};
+
+    if (!adminPasswordActual || adminPasswordActual !== adminConfig) {
+      throw new Error('Autorización administrativa inválida');
+    }
 
     const updates = {};
     if (data.adminPassword !== undefined && String(data.adminPassword || '').trim()) {
@@ -328,6 +558,15 @@ function guardarConfiguracionSeguridad(data) {
       } else {
         withRetry(() => hoja.getRange(rowIdx, idxValor + 1, 1, 3).setValues([[updates[clave].valor, updates[clave].descripcion, ahora]]), `guardarConfiguracionSeguridad.update.${clave}`);
       }
+    });
+
+    registrarBitacoraSeguridad({
+      usuario: String(actor.usuario || '').trim(),
+      nombre: String(actor.nombre || '').trim(),
+      rol: String(actor.rol || '').trim(),
+      accion: 'ACTUALIZAR_CONFIG_SEGURIDAD',
+      detalle: `Configuración actualizada (${Object.keys(updates).join(', ')})`,
+      origen: 'panel-seguridad'
     });
 
     return jsonResponse(buildConfiguracionSeguridadPayload());
@@ -682,6 +921,8 @@ function doGet(e) {
         return listarNombresProveedores();
       case 'listar_sucursales':
         return listarSucursales({ texto: e.parameter.texto || '', soloActivas: e.parameter.soloActivas || '', page: pag.page, pageSize: pag.pageSize });
+      case 'listar_usuarios_internos':
+        return listarUsuariosInternos();
       case 'obtener_config_seguridad':
         return obtenerConfiguracionSeguridad();
       case 'politica_accion_critica':
@@ -774,6 +1015,8 @@ function doPost(e) {
         return getSemaforoData(pag);
       case 'crear_solicitud':
         return crearSolicitud(data);
+      case 'login_interno':
+        return loginInterno(data);
       case 'listar_solicitudes':
         return listarSolicitudes({ page: pag.page, pageSize: pag.pageSize });
       case 'solicitud':
@@ -821,6 +1064,10 @@ function doPost(e) {
         return listarNombresProveedores();
       case 'listar_sucursales':
         return listarSucursales({ ...data, page: pag.page, pageSize: pag.pageSize });
+      case 'listar_usuarios_internos':
+        return listarUsuariosInternos();
+      case 'guardar_usuario_interno':
+        return guardarUsuarioInterno(data);
       case 'obtener_config_seguridad':
         return obtenerConfiguracionSeguridad();
       case 'guardar_config_seguridad':

@@ -25,6 +25,10 @@
     </header>
 
     <main class="max-w-6xl mx-auto px-4 py-6">
+        <section id="access-denied" class="hidden mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-red-100">
+            Este módulo está reservado para administradores autenticados.
+        </section>
+
         <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div class="bg-[#1F7EDC]/10 border border-[#1F7EDC]/30 rounded-xl p-4">
                 <div id="kpi-acciones" class="text-3xl font-bold text-[#8cc4ff]">0</div>
@@ -45,6 +49,12 @@
                 <div>
                     <h2 class="text-sm uppercase tracking-wide text-[#8A8F95] mb-2">Contraseña administrativa</h2>
                     <p class="text-sm text-[#8A8F95] mb-4">Esta clave servirá para autorizar cambios delicados sin tener que tocar el código.</p>
+                    <div class="grid md:grid-cols-1 gap-3 mb-3">
+                        <div>
+                            <label class="text-xs text-[#8A8F95] uppercase">Clave admin actual</label>
+                            <input id="admin-password-actual" type="password" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm" placeholder="Obligatoria para guardar cambios">
+                        </div>
+                    </div>
                     <div class="grid md:grid-cols-2 gap-3">
                         <div>
                             <label class="text-xs text-[#8A8F95] uppercase">Nueva clave admin</label>
@@ -102,7 +112,69 @@
                 </div>
             </section>
         </section>
+
+        <section id="usuarios-wrap" class="mt-6 bg-[#2B2B2B] border border-[#1F7EDC]/30 rounded-xl p-5">
+            <div class="flex items-center justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-sm uppercase tracking-wide text-[#8A8F95]">Usuarios internos</h2>
+                    <p class="text-sm text-[#8A8F95]">Administra accesos individuales para el integrador interno.</p>
+                </div>
+                <button id="btn-nuevo-usuario" class="px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">
+                    <i class="fa-solid fa-user-plus"></i> Nuevo usuario
+                </button>
+            </div>
+            <div id="usuarios-list" class="space-y-3"></div>
+        </section>
     </main>
+
+    <div id="modal-usuario" class="hidden fixed inset-0 bg-black/70 z-20 p-4 flex items-center justify-center">
+        <div class="w-full max-w-2xl bg-[#2B2B2B] border border-[#1F7EDC]/40 rounded-2xl p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h2 id="usuario-title" class="text-lg font-bold text-[#1F7EDC]">Nuevo usuario</h2>
+                <button data-close-usuario class="text-[#8A8F95] hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="form-usuario" class="space-y-4">
+                <div class="grid md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs text-[#8A8F95] uppercase">Usuario</label>
+                        <input id="usuario-user" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm" placeholder="ej. jesusvilla">
+                    </div>
+                    <div>
+                        <label class="text-xs text-[#8A8F95] uppercase">Nombre</label>
+                        <input id="usuario-nombre" type="text" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm" placeholder="Nombre visible">
+                    </div>
+                    <div>
+                        <label class="text-xs text-[#8A8F95] uppercase">Rol</label>
+                        <select id="usuario-rol" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm">
+                            <option value="admin">Admin</option>
+                            <option value="operativo">Operativo</option>
+                            <option value="tecnico">Técnico</option>
+                            <option value="supervisor">Supervisor</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-[#8A8F95] uppercase">Activo</label>
+                        <select id="usuario-activo" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm">
+                            <option value="SI">Sí</option>
+                            <option value="NO">No</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-[#8A8F95] uppercase">Contraseña</label>
+                        <input id="usuario-password" type="password" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm" placeholder="Obligatoria al crear, opcional al editar">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-[#8A8F95] uppercase">Notas</label>
+                        <textarea id="usuario-notas" rows="3" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></textarea>
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" data-close-usuario class="flex-1 px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">Cancelar</button>
+                    <button type="submit" class="flex-1 px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">Guardar usuario</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script src="./panel-seguridad.js"></script>
 </body>

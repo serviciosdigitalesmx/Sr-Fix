@@ -3,6 +3,8 @@ const CONFIG = {
 };
 
 let accionesCache = [];
+let usuariosCache = [];
+let currentUser = null;
 
 function escapeHtml(v) {
     return String(v || '')
@@ -11,6 +13,15 @@ function escapeHtml(v) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+function readCurrentUser() {
+    try {
+        const raw = sessionStorage.getItem('srfix_auth_user') || localStorage.getItem('srfix_auth_user');
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+        return null;
+    }
 }
 
 async function fetchJson(payload) {
@@ -38,6 +49,15 @@ function setStatus(msg, type = 'muted') {
     el.textContent = msg || '';
 }
 
+function ensureAdminAccess() {
+    currentUser = readCurrentUser();
+    const isAdmin = currentUser && String(currentUser.ROL || '').toLowerCase() === 'admin';
+    document.getElementById('access-denied').classList.toggle('hidden', !!isAdmin);
+    document.getElementById('form-seguridad').classList.toggle('hidden', !isAdmin);
+    document.getElementById('usuarios-wrap').classList.toggle('hidden', !isAdmin);
+    return !!isAdmin;
+}
+
 function renderAcciones() {
     const wrap = document.getElementById('acciones-list');
     wrap.innerHTML = accionesCache.map(item => `
@@ -52,6 +72,24 @@ function renderAcciones() {
     `).join('');
 }
 
+function renderUsuarios() {
+    const wrap = document.getElementById('usuarios-list');
+    wrap.innerHTML = usuariosCache.map(item => `
+        <button type="button" data-edit-user="${escapeHtml(item.USUARIO)}" class="w-full text-left rounded-xl border border-[#1F7EDC]/20 bg-[#161616] p-4 hover:bg-[#1F7EDC]/10">
+            <div class="flex items-center justify-between gap-3">
+                <div>
+                    <div class="font-semibold text-white">${escapeHtml(item.NOMBRE || item.USUARIO)}</div>
+                    <div class="text-sm text-[#8A8F95] mt-1">${escapeHtml(item.USUARIO)} · ${escapeHtml(item.ROL)}</div>
+                </div>
+                <div class="text-xs ${item.ACTIVO ? 'text-green-300' : 'text-red-300'}">
+                    ${item.ACTIVO ? 'Activo' : 'Inactivo'}
+                </div>
+            </div>
+            ${item.NOTAS ? `<div class="text-xs text-[#8A8F95] mt-2">${escapeHtml(item.NOTAS)}</div>` : ''}
+        </button>
+    `).join('') || '<div class="text-sm text-[#8A8F95]">Sin usuarios cargados.</div>';
+}
+
 function actualizarKpis(config) {
     document.getElementById('kpi-acciones').textContent = String(accionesCache.filter(x => x.requiereAdmin).length);
     document.getElementById('kpi-admin').textContent = config.adminPasswordConfigured ? 'Sí' : 'No';
@@ -59,29 +97,56 @@ function actualizarKpis(config) {
 }
 
 async function cargarConfiguracion() {
-    setStatus('Cargando configuración...');
-    const data = await fetchJson({ action: 'obtener_config_seguridad' });
-    accionesCache = Array.isArray(data.acciones) ? data.acciones : [];
+    const [seguridad, usuarios] = await Promise.all([
+        fetchJson({ action: 'obtener_config_seguridad' }),
+        fetchJson({ action: 'listar_usuarios_internos' })
+    ]);
+    accionesCache = Array.isArray(seguridad.acciones) ? seguridad.acciones : [];
+    usuariosCache = Array.isArray(usuarios.usuarios) ? usuarios.usuarios : [];
     renderAcciones();
-    document.getElementById('mensaje-autorizacion').value = data.config?.mensajeAutorizacion || '';
-    document.getElementById('bitacora-activa').checked = !!data.config?.bitacoraActiva;
+    renderUsuarios();
+    document.getElementById('mensaje-autorizacion').value = seguridad.config?.mensajeAutorizacion || '';
+    document.getElementById('bitacora-activa').checked = !!seguridad.config?.bitacoraActiva;
     document.getElementById('admin-password').value = '';
     document.getElementById('admin-password-confirm').value = '';
-    actualizarKpis(data.config || {});
+    document.getElementById('admin-password-actual').value = '';
+    actualizarKpis(seguridad.config || {});
     setStatus('Configuración cargada.');
+}
+
+function abrirModalUsuario(item = null) {
+    document.getElementById('usuario-title').textContent = item ? `Editar ${item.NOMBRE || item.USUARIO}` : 'Nuevo usuario';
+    document.getElementById('usuario-user').value = item?.USUARIO || '';
+    document.getElementById('usuario-user').readOnly = !!item;
+    document.getElementById('usuario-user').classList.toggle('opacity-70', !!item);
+    document.getElementById('usuario-nombre').value = item?.NOMBRE || '';
+    document.getElementById('usuario-rol').value = item?.ROL || 'operativo';
+    document.getElementById('usuario-activo').value = item?.ACTIVO ? 'SI' : 'NO';
+    document.getElementById('usuario-password').value = '';
+    document.getElementById('usuario-notas').value = item?.NOTAS || '';
+    document.getElementById('modal-usuario').classList.remove('hidden');
+}
+
+function cerrarModalUsuario() {
+    document.getElementById('modal-usuario').classList.add('hidden');
 }
 
 async function guardarConfiguracion(ev) {
     ev.preventDefault();
+    const passActual = document.getElementById('admin-password-actual').value;
     const pass = document.getElementById('admin-password').value;
     const confirmPass = document.getElementById('admin-password-confirm').value;
+    if (!passActual) {
+        setStatus('Necesitas ingresar la clave admin actual para guardar.', 'error');
+        return;
+    }
     if (pass || confirmPass) {
         if (pass.length < 4) {
-            setStatus('La clave admin debe tener al menos 4 caracteres.', 'error');
+            setStatus('La nueva clave admin debe tener al menos 4 caracteres.', 'error');
             return;
         }
         if (pass !== confirmPass) {
-            setStatus('La confirmación de la clave admin no coincide.', 'error');
+            setStatus('La confirmación de la nueva clave admin no coincide.', 'error');
             return;
         }
     }
@@ -94,10 +159,16 @@ async function guardarConfiguracion(ev) {
     setStatus('Guardando configuración...');
     const data = await fetchJson({
         action: 'guardar_config_seguridad',
+        adminPasswordActual: passActual,
         adminPassword: pass,
         mensajeAutorizacion: document.getElementById('mensaje-autorizacion').value.trim(),
         bitacoraActiva: document.getElementById('bitacora-activa').checked,
-        acciones: acciones
+        acciones: acciones,
+        actor: {
+            usuario: currentUser?.USUARIO || '',
+            nombre: currentUser?.NOMBRE || '',
+            rol: currentUser?.ROL || ''
+        }
     });
 
     accionesCache = Array.isArray(data.acciones) ? data.acciones : [];
@@ -105,17 +176,71 @@ async function guardarConfiguracion(ev) {
     actualizarKpis(data.config || {});
     document.getElementById('admin-password').value = '';
     document.getElementById('admin-password-confirm').value = '';
+    document.getElementById('admin-password-actual').value = '';
     setStatus('Configuración guardada correctamente.', 'ok');
 }
 
-document.getElementById('btn-refresh').addEventListener('click', () => {
-    cargarConfiguracion().catch(e => setStatus(e.message, 'error'));
-});
-document.getElementById('btn-reload').addEventListener('click', () => {
-    cargarConfiguracion().catch(e => setStatus(e.message, 'error'));
-});
-document.getElementById('form-seguridad').addEventListener('submit', (ev) => {
-    guardarConfiguracion(ev).catch(e => setStatus(e.message, 'error'));
-});
+async function guardarUsuario(ev) {
+    ev.preventDefault();
+    const adminPasswordActual = document.getElementById('admin-password-actual').value;
+    if (!adminPasswordActual) {
+        setStatus('Necesitas la clave admin actual para guardar usuarios.', 'error');
+        return;
+    }
+    const payload = {
+        action: 'guardar_usuario_interno',
+        adminPasswordActual: adminPasswordActual,
+        usuario: document.getElementById('usuario-user').value.trim(),
+        nombre: document.getElementById('usuario-nombre').value.trim(),
+        rol: document.getElementById('usuario-rol').value,
+        activo: document.getElementById('usuario-activo').value === 'SI',
+        password: document.getElementById('usuario-password').value,
+        notas: document.getElementById('usuario-notas').value.trim(),
+        actor: {
+            usuario: currentUser?.USUARIO || '',
+            nombre: currentUser?.NOMBRE || '',
+            rol: currentUser?.ROL || ''
+        }
+    };
 
-cargarConfiguracion().catch(e => setStatus(e.message, 'error'));
+    setStatus('Guardando usuario...');
+    const data = await fetchJson(payload);
+    usuariosCache = Array.isArray(data.usuarios) ? data.usuarios : [];
+    renderUsuarios();
+    cerrarModalUsuario();
+    setStatus('Usuario guardado correctamente.', 'ok');
+}
+
+function bindEvents() {
+    document.getElementById('btn-refresh').addEventListener('click', () => {
+        cargarConfiguracion().catch(e => setStatus(e.message, 'error'));
+    });
+    document.getElementById('btn-reload').addEventListener('click', () => {
+        cargarConfiguracion().catch(e => setStatus(e.message, 'error'));
+    });
+    document.getElementById('form-seguridad').addEventListener('submit', (ev) => {
+        guardarConfiguracion(ev).catch(e => setStatus(e.message, 'error'));
+    });
+    document.getElementById('btn-nuevo-usuario').addEventListener('click', () => abrirModalUsuario());
+    document.getElementById('usuarios-list').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-edit-user]');
+        if (!btn) return;
+        const item = usuariosCache.find(x => x.USUARIO === btn.getAttribute('data-edit-user'));
+        if (item) abrirModalUsuario(item);
+    });
+    document.querySelectorAll('[data-close-usuario]').forEach(btn => btn.addEventListener('click', cerrarModalUsuario));
+    document.getElementById('modal-usuario').addEventListener('click', (e) => {
+        if (e.target.id === 'modal-usuario') cerrarModalUsuario();
+    });
+    document.getElementById('form-usuario').addEventListener('submit', (ev) => {
+        guardarUsuario(ev).catch(e => setStatus(e.message, 'error'));
+    });
+}
+
+bindEvents();
+
+if (ensureAdminAccess()) {
+    cargarConfiguracion().catch(e => setStatus(e.message, 'error'));
+} else {
+    setStatus('Acceso restringido.', 'error');
+}

@@ -126,6 +126,14 @@
             outline: none;
             margin-bottom: 10px;
         }
+        .login-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
         .login-btn {
             width: 100%;
             border: 1px solid var(--orange);
@@ -154,8 +162,13 @@
     <div id="login-screen" class="login-screen">
         <div class="login-card">
             <h2>Acceso interno</h2>
-            <p>Ingresa una sola vez para Operativo, Técnico y Solicitudes</p>
+            <p>Ingresa con tu usuario interno para acceder al integrador.</p>
+            <input id="master-username" class="login-input" type="text" placeholder="Usuario" autocomplete="username">
             <input id="master-password" class="login-input" type="password" placeholder="Contraseña" autocomplete="current-password">
+            <label class="login-check">
+                <input id="master-remember" type="checkbox">
+                Recordarme en este equipo
+            </label>
             <button id="master-login-btn" class="login-btn" type="button">Entrar</button>
             <div id="master-error" class="login-error"></div>
         </div>
@@ -301,9 +314,10 @@
         const SELECTOR_SUCURSAL = document.getElementById('selector-sucursal');
         const LOGIN_SCREEN = document.getElementById('login-screen');
         const MASTER_INPUT = document.getElementById('master-password');
+        const MASTER_USER = document.getElementById('master-username');
+        const MASTER_REMEMBER = document.getElementById('master-remember');
         const MASTER_BTN = document.getElementById('master-login-btn');
         const MASTER_ERROR = document.getElementById('master-error');
-        const MASTER_PASS = 'Admin1';
         const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxH1zD8_14TvCajstFhtEpLNODwG9GZXkLoCXOb1IBNm0JIRmpCwS6SRsuGhZETK88z/exec';
         const FRAME_SRC = {
             operativo: './panel-operativo.html',
@@ -444,37 +458,106 @@
             });
         });
 
-        function entrarIntegrador() {
-            sessionStorage.setItem('srfix_pass_master', MASTER_PASS);
-            sessionStorage.setItem('srfix_pass_operativo', MASTER_PASS);
-            sessionStorage.setItem('srfix_pass_tecnico', MASTER_PASS);
+        function persistAuth(user, passwords, remember) {
+            const authPayload = JSON.stringify(user || {});
+            sessionStorage.setItem('srfix_auth_user', authPayload);
+            sessionStorage.setItem('srfix_pass_master', 'OK');
+            sessionStorage.setItem('srfix_pass_operativo', passwords.operativo);
+            sessionStorage.setItem('srfix_pass_tecnico', passwords.tecnico);
+            if (remember) {
+                localStorage.setItem('srfix_auth_user', authPayload);
+                localStorage.setItem('srfix_pass_operativo', passwords.operativo);
+                localStorage.setItem('srfix_pass_tecnico', passwords.tecnico);
+            } else {
+                localStorage.removeItem('srfix_auth_user');
+                localStorage.removeItem('srfix_pass_operativo');
+                localStorage.removeItem('srfix_pass_tecnico');
+            }
+        }
+
+        function aplicarRolUI(user) {
+            const role = String(user && user.ROL || '').toLowerCase();
+            const isAdmin = role === 'admin';
+            BTN_SG.style.display = isAdmin ? '' : 'none';
+            PANEL_SG.classList.toggle('active', false);
+        }
+
+        function entrarIntegrador(user, passwords) {
+            aplicarRolUI(user);
             if (!localStorage.getItem('srfix_sucursal_activa')) {
                 localStorage.setItem('srfix_sucursal_activa', 'GLOBAL');
             }
             LOGIN_SCREEN.style.display = 'none';
             cargarSucursales();
             const modulo = new URLSearchParams(window.location.search).get('modulo');
-            mostrarModulo(modulo || 'operativo');
+            const permitido = modulo === 'seguridad' && String(user && user.ROL || '').toLowerCase() !== 'admin'
+                ? 'operativo'
+                : (modulo || 'operativo');
+            mostrarModulo(permitido);
         }
 
-        function validarMaster() {
+        async function validarMaster() {
             MASTER_ERROR.textContent = '';
+            const usuario = (MASTER_USER.value || '').trim();
             const pass = (MASTER_INPUT.value || '').trim();
-            if (pass !== MASTER_PASS) {
-                MASTER_ERROR.textContent = 'Contraseña incorrecta';
+            if (!usuario || !pass) {
+                MASTER_ERROR.textContent = 'Ingresa usuario y contraseña';
                 return;
             }
-            entrarIntegrador();
+            try {
+                const res = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'login_interno',
+                        usuario: usuario,
+                        password: pass
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    MASTER_ERROR.textContent = (data && data.error) || 'Credenciales inválidas';
+                    return;
+                }
+                persistAuth(data.user, data.passwords || { tecnico: pass, operativo: pass }, MASTER_REMEMBER.checked);
+                entrarIntegrador(data.user, data.passwords || { tecnico: pass, operativo: pass });
+            } catch (e) {
+                MASTER_ERROR.textContent = 'No se pudo validar el acceso';
+            }
         }
 
         MASTER_BTN.addEventListener('click', validarMaster);
+        MASTER_USER.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') validarMaster();
+        });
         MASTER_INPUT.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') validarMaster();
         });
 
-        if (sessionStorage.getItem('srfix_pass_master') === MASTER_PASS) {
-            entrarIntegrador();
+        try {
+            const raw = sessionStorage.getItem('srfix_auth_user') || localStorage.getItem('srfix_auth_user');
+            const passOperativo = sessionStorage.getItem('srfix_pass_operativo') || localStorage.getItem('srfix_pass_operativo');
+            const passTecnico = sessionStorage.getItem('srfix_pass_tecnico') || localStorage.getItem('srfix_pass_tecnico');
+            if (raw && passOperativo && passTecnico) {
+                sessionStorage.setItem('srfix_auth_user', raw);
+                sessionStorage.setItem('srfix_pass_operativo', passOperativo);
+                sessionStorage.setItem('srfix_pass_tecnico', passTecnico);
+                MASTER_REMEMBER.checked = !!localStorage.getItem('srfix_auth_user');
+                entrarIntegrador(JSON.parse(raw), {
+                    operativo: passOperativo,
+                    tecnico: passTecnico
+                });
+            }
+        } catch (e) {}
+
+        try {
+            const remembered = localStorage.getItem('srfix_auth_user');
+            if (remembered) {
+                const user = JSON.parse(remembered);
+                MASTER_USER.value = user.USUARIO || '';
+                MASTER_REMEMBER.checked = true;
+            }
         }
+        catch (e) {}
     </script>
     <script src="./pwa-init.js"></script>
 </body>

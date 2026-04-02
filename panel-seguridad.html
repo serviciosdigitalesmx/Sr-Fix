@@ -224,10 +224,15 @@
                         <input id="usuario-password" type="password" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm" placeholder="Obligatoria al crear, opcional al editar">
                     </div>
                     <div class="md:col-span-2">
+                        <label class="text-xs text-[#8A8F95] uppercase">Clave admin actual</label>
+                        <input id="usuario-admin-password-actual" type="password" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm" placeholder="Necesaria para autorizar este cambio">
+                    </div>
+                    <div class="md:col-span-2">
                         <label class="text-xs text-[#8A8F95] uppercase">Notas</label>
                         <textarea id="usuario-notas" rows="3" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm"></textarea>
                     </div>
                 </div>
+                <div id="usuario-status" class="text-sm min-h-[20px] text-[#8A8F95]"></div>
                 <div class="flex gap-3 pt-2">
                     <button type="button" data-close-usuario class="flex-1 px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">Cancelar</button>
                     <button id="btn-save-user" type="submit" class="flex-1 px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">Guardar usuario</button>

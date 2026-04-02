@@ -71,6 +71,17 @@ function setStatus(msg, type = 'muted') {
     el.textContent = msg || '';
 }
 
+function setUserStatus(msg, type = 'muted') {
+    const el = document.getElementById('usuario-status');
+    if (!el) return;
+    el.className = 'text-sm min-h-[20px]';
+    if (type === 'ok') el.classList.add('text-green-300');
+    else if (type === 'error') el.classList.add('text-red-300');
+    else if (type === 'working') el.classList.add('status-working');
+    else el.classList.add('text-[#8A8F95]');
+    el.textContent = msg || '';
+}
+
 function ensureAdminAccess() {
     currentUser = readCurrentUser();
     const isAdmin = currentUser && String(currentUser.ROL || '').toLowerCase() === 'admin';
@@ -152,7 +163,9 @@ function abrirModalUsuario(item = null) {
     document.getElementById('usuario-rol').value = item?.ROL || 'operativo';
     document.getElementById('usuario-activo').value = item?.ACTIVO ? 'SI' : 'NO';
     document.getElementById('usuario-password').value = '';
+    document.getElementById('usuario-admin-password-actual').value = '';
     document.getElementById('usuario-notas').value = item?.NOTAS || '';
+    setUserStatus('');
     setUserModalBusy(false);
     document.getElementById('modal-usuario').classList.remove('hidden');
 }
@@ -220,9 +233,9 @@ async function guardarConfiguracion(ev) {
 
 async function guardarUsuario(ev) {
     ev.preventDefault();
-    const adminPasswordActual = document.getElementById('admin-password-actual').value;
+    const adminPasswordActual = document.getElementById('usuario-admin-password-actual').value;
     if (!adminPasswordActual) {
-        setStatus('Necesitas la clave admin actual para guardar usuarios.', 'error');
+        setUserStatus('Necesitas la clave admin actual para guardar usuarios.', 'error');
         return;
     }
     const payload = {
@@ -243,6 +256,7 @@ async function guardarUsuario(ev) {
 
     setButtonBusy('btn-save-user', true, 'Guardar usuario', 'Guardando...');
     setUserModalBusy(true);
+    setUserStatus('Guardando usuario...', 'working');
     setStatus('Guardando usuario...', 'working');
     try {
         const data = await fetchJson(payload);

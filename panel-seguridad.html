@@ -28,6 +28,31 @@
             color: #93c5fd;
             animation: pulse-status 1.2s ease-in-out infinite;
         }
+        .modal-card-busy {
+            position: relative;
+            overflow: hidden;
+        }
+        .modal-busy-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 12px;
+            background: rgba(16, 22, 31, 0.82);
+            backdrop-filter: blur(2px);
+            z-index: 5;
+        }
+        .spinner-ui-lg {
+            width: 44px;
+            height: 44px;
+            border-radius: 999px;
+            border: 3px solid rgba(255,255,255,.18);
+            border-top-color: #ff6a2a;
+            animation: spin-ui .85s linear infinite;
+            box-shadow: 0 0 28px rgba(255,106,42,.18);
+        }
         @keyframes spin-ui {
             to { transform: rotate(360deg); }
         }
@@ -158,7 +183,12 @@
     </main>
 
     <div id="modal-usuario" class="hidden fixed inset-0 bg-black/70 z-20 p-4 flex items-center justify-center">
-        <div class="w-full max-w-2xl bg-[#2B2B2B] border border-[#1F7EDC]/40 rounded-2xl p-5">
+        <div id="modal-usuario-card" class="w-full max-w-2xl bg-[#2B2B2B] border border-[#1F7EDC]/40 rounded-2xl p-5 modal-card-busy">
+            <div id="modal-usuario-busy" class="hidden modal-busy-overlay">
+                <div class="spinner-ui-lg"></div>
+                <div class="text-white font-semibold">Guardando usuario...</div>
+                <div class="text-sm text-[#8A8F95]">Espera un momento, estamos registrando la información.</div>
+            </div>
             <div class="flex items-center justify-between mb-4">
                 <h2 id="usuario-title" class="text-lg font-bold text-[#1F7EDC]">Nuevo usuario</h2>
                 <button data-close-usuario class="text-[#8A8F95] hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>

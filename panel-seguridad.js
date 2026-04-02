@@ -17,6 +17,16 @@ function setButtonBusy(buttonId, isBusy, idleLabel, busyLabel) {
         : idleLabel;
 }
 
+function setUserModalBusy(isBusy) {
+    const overlay = document.getElementById('modal-usuario-busy');
+    const form = document.getElementById('form-usuario');
+    if (!overlay || !form) return;
+    overlay.classList.toggle('hidden', !isBusy);
+    Array.from(form.elements || []).forEach(el => {
+        el.disabled = isBusy;
+    });
+}
+
 function escapeHtml(v) {
     return String(v || '')
         .replace(/&/g, '&amp;')
@@ -143,10 +153,12 @@ function abrirModalUsuario(item = null) {
     document.getElementById('usuario-activo').value = item?.ACTIVO ? 'SI' : 'NO';
     document.getElementById('usuario-password').value = '';
     document.getElementById('usuario-notas').value = item?.NOTAS || '';
+    setUserModalBusy(false);
     document.getElementById('modal-usuario').classList.remove('hidden');
 }
 
 function cerrarModalUsuario() {
+    setUserModalBusy(false);
     document.getElementById('modal-usuario').classList.add('hidden');
 }
 
@@ -230,6 +242,7 @@ async function guardarUsuario(ev) {
     };
 
     setButtonBusy('btn-save-user', true, 'Guardar usuario', 'Guardando...');
+    setUserModalBusy(true);
     setStatus('Guardando usuario...', 'working');
     try {
         const data = await fetchJson(payload);
@@ -239,6 +252,7 @@ async function guardarUsuario(ev) {
         setStatus('Usuario guardado correctamente.', 'ok');
     } finally {
         setButtonBusy('btn-save-user', false, 'Guardar usuario', 'Guardando...');
+        setUserModalBusy(false);
     }
 }
 

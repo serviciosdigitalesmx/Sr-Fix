@@ -473,7 +473,15 @@
                         modelo: data.modelo,
                         falla: data.falla,
                         fechaPromesa: data.fechaPromesa,
-                        costo: data.costo || 0
+                        costo: data.costo || 0,
+                        notas: data.notas || '',
+                        fotoRecepcion: fotoRecepcionBase64 || '',
+                        checks: {
+                            cargador: !!data.checks?.cargador,
+                            pantalla: !!data.checks?.pantalla,
+                            prende: !!data.checks?.prende,
+                            respaldo: !!data.checks?.respaldo
+                        }
                     };
                     localStorage.removeItem('srfix_borrador_orden');
                     document.getElementById('step-3').classList.add('hidden');

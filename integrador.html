@@ -22,6 +22,13 @@
             font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
             background: var(--bg);
             color: var(--text);
+            min-height: 100dvh;
+        }
+        body[data-device="mobile"] {
+            --app-shell-offset: 188px;
+        }
+        body[data-device="desktop"] {
+            --app-shell-offset: 64px;
         }
         .bar {
             display: flex;
@@ -183,7 +190,7 @@
             margin-top: 8px;
         }
     
-.app-layout { display: flex; min-height: calc(100vh - 64px); }
+.app-layout { display: flex; min-height: calc(var(--app-vh, 1dvh) * 100 - var(--app-shell-offset, 64px)); }
 .sidebar { width: 220px; background: #0f172a; padding: 12px; border-right: 1px solid rgba(255,255,255,.08); }
 .wrap { flex: 1; }
 .tab { width: 100%; text-align: left; }
@@ -215,17 +222,22 @@
 
     .app-layout {
         flex-direction: column;
-        min-height: calc(100vh - 112px);
+        min-height: calc(var(--app-vh, 1dvh) * 100 - 112px);
     }
 
     .sidebar {
         width: 100%;
+        position: sticky;
+        top: 76px;
+        z-index: 4;
         padding: 10px 10px 8px;
         border-right: 0;
         border-bottom: 1px solid rgba(255,255,255,.08);
         overflow-x: auto;
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(10px);
     }
 
     .tabs {
@@ -242,19 +254,20 @@
         white-space: nowrap;
         padding: 10px 14px;
         border-radius: 12px;
+        font-size: 14px;
     }
 
     .wrap {
         height: auto;
-        min-height: calc(100vh - 196px);
+        min-height: calc(var(--app-vh, 1dvh) * 100 - 188px);
     }
 
     .panel {
-        min-height: calc(100vh - 196px);
+        min-height: calc(var(--app-vh, 1dvh) * 100 - 188px);
     }
 
     iframe {
-        min-height: calc(100vh - 196px);
+        min-height: calc(var(--app-vh, 1dvh) * 100 - 188px);
     }
 
     .fallback {
@@ -263,6 +276,10 @@
 }
 
 @media (max-width: 560px) {
+    body {
+        min-height: 100dvh;
+    }
+
     .login-screen {
         padding: 14px;
         align-items: flex-start;
@@ -285,13 +302,38 @@
         height: 32px;
     }
 
+    .bar {
+        padding: 10px 10px calc(10px + env(safe-area-inset-top, 0px));
+    }
+
     .title {
         font-size: 14px;
     }
 
+    .sidebar {
+        top: 90px;
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
     .tab {
-        font-size: 14px;
+        font-size: 13px;
+        padding: 9px 12px;
+    }
+
+    .controls {
+        gap: 8px;
+    }
+
+    .branch-select {
         padding: 10px 12px;
+        font-size: 14px;
+    }
+
+    .wrap,
+    .panel,
+    iframe {
+        min-height: calc(var(--app-vh, 1dvh) * 100 - 205px);
     }
 }
 
@@ -771,6 +813,14 @@
             if (e.key === 'Enter') validarMaster();
         });
 
+        function aplicarPerfilDispositivo() {
+            const isMobile = window.matchMedia('(max-width: 900px)').matches
+                || window.matchMedia('(pointer: coarse)').matches;
+            document.body.setAttribute('data-device', isMobile ? 'mobile' : 'desktop');
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--app-vh', `${vh}px`);
+        }
+
         window.addEventListener('message', (event) => {
             const data = event && event.data;
             if (!data || typeof data !== 'object') return;
@@ -779,6 +829,9 @@
             }
         });
 
+        aplicarPerfilDispositivo();
+        window.addEventListener('resize', aplicarPerfilDispositivo);
+        window.addEventListener('orientationchange', aplicarPerfilDispositivo);
         mostrarPantallaLogin();
 
         try {

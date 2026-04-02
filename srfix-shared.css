@@ -8,6 +8,7 @@ body {
   background-color: #1E1E1E;
   color: #F2F2F2;
   background-image: radial-gradient(circle at 10% 20%, rgba(31, 126, 220, 0.05) 0%, transparent 30%);
+  min-height: 100dvh;
 }
 
 .card-srf,
@@ -95,4 +96,52 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #FF6A2A;
+}
+
+@media (max-width: 900px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-image: radial-gradient(circle at 50% 0%, rgba(31, 126, 220, 0.08) 0%, transparent 42%);
+  }
+
+  .card-srf,
+  .tech-card {
+    border-radius: 1.1rem;
+    box-shadow: 0 8px 28px rgba(31, 126, 220, 0.16);
+  }
+
+  .btn-naranja,
+  .btn-azul,
+  .btn-wa {
+    min-height: 46px;
+  }
+}
+
+@media (max-width: 560px) {
+  .card-srf,
+  .tech-card {
+    border-radius: 0.95rem;
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+  }
+
+  .btn-naranja,
+  .btn-azul,
+  .btn-wa {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.95rem;
+  }
+
+  .input-tech,
+  .input-srf,
+  input,
+  select,
+  textarea,
+  button {
+    font-size: 16px;
+  }
 }

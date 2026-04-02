@@ -422,7 +422,12 @@
         }
 
         function mostrarModulo(modulo) {
-            const actual = ['operativo', 'tecnico', 'solicitudes', 'archivo', 'clientes', 'tareas', 'stock', 'proveedores', 'compras', 'gastos', 'finanzas', 'reportes', 'sucursales', 'seguridad'].includes(modulo) ? modulo : 'operativo';
+            const userRaw = sessionStorage.getItem('srfix_auth_user') || localStorage.getItem('srfix_auth_user');
+            let current = null;
+            try { current = userRaw ? JSON.parse(userRaw) : null; } catch (e) {}
+            const allowed = getAllowedModules(current);
+            const requested = ['operativo', 'tecnico', 'solicitudes', 'archivo', 'clientes', 'tareas', 'stock', 'proveedores', 'compras', 'gastos', 'finanzas', 'reportes', 'sucursales', 'seguridad'].includes(modulo) ? modulo : 'operativo';
+            const actual = allowed.includes(requested) ? requested : 'operativo';
             asegurarCargaIframe(actual);
             PANEL_OP.classList.toggle('active', actual === 'operativo');
             PANEL_TE.classList.toggle('active', actual === 'tecnico');
@@ -516,14 +521,41 @@
             }
         }
 
-        function aplicarRolUI(user) {
+        function getAllowedModules(user) {
             const role = String(user && user.ROL || '').toLowerCase();
-            const isAdmin = role === 'admin';
-            BTN_SG.style.display = isAdmin ? '' : 'none';
+            if (role === 'admin') {
+                return ['operativo', 'tecnico', 'solicitudes', 'archivo', 'clientes', 'tareas', 'stock', 'proveedores', 'compras', 'gastos', 'finanzas', 'reportes', 'sucursales', 'seguridad'];
+            }
+            return ['operativo', 'tecnico', 'solicitudes', 'archivo', 'tareas', 'stock'];
+        }
+
+        function aplicarRolUI(user) {
+            const allowed = getAllowedModules(user);
+            const tabs = {
+                operativo: BTN_OP,
+                tecnico: BTN_TE,
+                solicitudes: BTN_SO,
+                archivo: BTN_AR,
+                clientes: BTN_CL,
+                tareas: BTN_TA,
+                stock: BTN_ST,
+                proveedores: BTN_PR,
+                compras: BTN_CO,
+                gastos: BTN_GA,
+                finanzas: BTN_FI,
+                reportes: BTN_RE,
+                sucursales: BTN_SU,
+                seguridad: BTN_SG
+            };
+            Object.keys(tabs).forEach(key => {
+                if (!tabs[key]) return;
+                tabs[key].style.display = allowed.includes(key) ? '' : 'none';
+            });
             PANEL_SG.classList.toggle('active', false);
         }
 
         function entrarIntegrador(user, passwords) {
+            const allowed = getAllowedModules(user);
             aplicarRolUI(user);
             if (!localStorage.getItem('srfix_sucursal_activa')) {
                 localStorage.setItem('srfix_sucursal_activa', 'GLOBAL');
@@ -531,10 +563,8 @@
             LOGIN_SCREEN.style.display = 'none';
             cargarSucursales();
             const modulo = new URLSearchParams(window.location.search).get('modulo');
-            const permitido = modulo === 'seguridad' && String(user && user.ROL || '').toLowerCase() !== 'admin'
-                ? 'operativo'
-                : (modulo || 'operativo');
-            mostrarModulo(permitido);
+            const solicitado = modulo || 'operativo';
+            mostrarModulo(allowed.includes(solicitado) ? solicitado : 'operativo');
         }
 
         function setLoginLoading(isLoading, label = 'Entrar') {

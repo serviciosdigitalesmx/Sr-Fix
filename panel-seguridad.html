@@ -6,6 +6,36 @@
     <title>SRFIX - Seguridad</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .btn-busy {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .spinner-ui {
+            width: 16px;
+            height: 16px;
+            border-radius: 999px;
+            border: 2px solid rgba(255,255,255,.28);
+            border-top-color: #fff;
+            animation: spin-ui .8s linear infinite;
+        }
+        .section-busy {
+            box-shadow: 0 0 0 1px rgba(31,126,220,.18), 0 20px 44px rgba(31,126,220,.08);
+        }
+        .status-working {
+            color: #93c5fd;
+            animation: pulse-status 1.2s ease-in-out infinite;
+        }
+        @keyframes spin-ui {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes pulse-status {
+            0%, 100% { opacity: .65; }
+            50% { opacity: 1; }
+        }
+    </style>
 </head>
 <body class="min-h-screen bg-[#1E1E1E] text-[#F2F2F2]">
     <header class="border-b border-[#1F7EDC] bg-[#161616] sticky top-0 z-10">
@@ -88,7 +118,7 @@
 
                 <div class="flex gap-3 pt-2">
                     <button type="button" id="btn-reload" class="flex-1 px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">Recargar</button>
-                    <button type="submit" class="flex-1 px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">Guardar configuración</button>
+                    <button id="btn-save-config" type="submit" class="flex-1 px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">Guardar configuración</button>
                 </div>
                 <div id="save-status" class="text-sm text-[#8A8F95] min-h-[20px]"></div>
             </form>
@@ -170,7 +200,7 @@
                 </div>
                 <div class="flex gap-3 pt-2">
                     <button type="button" data-close-usuario class="flex-1 px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">Cancelar</button>
-                    <button type="submit" class="flex-1 px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">Guardar usuario</button>
+                    <button id="btn-save-user" type="submit" class="flex-1 px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">Guardar usuario</button>
                 </div>
             </form>
         </div>

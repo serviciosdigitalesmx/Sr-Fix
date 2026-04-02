@@ -143,6 +143,38 @@
             border-radius: 10px;
             padding: 12px;
             cursor: pointer;
+            transition: transform .18s ease, opacity .18s ease, box-shadow .18s ease;
+        }
+        .login-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(255,106,42,.2);
+        }
+        .login-btn:disabled {
+            opacity: .85;
+            cursor: wait;
+        }
+        .btn-busy {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border-radius: 999px;
+            border: 2px solid rgba(255,255,255,.35);
+            border-top-color: #fff;
+            animation: spin .8s linear infinite;
+        }
+        .login-card.loading {
+            box-shadow: 0 0 0 1px rgba(31,126,220,.18), 0 18px 50px rgba(31,126,220,.12);
+        }
+        .login-card.loading .login-input {
+            border-color: rgba(31,126,220,.55);
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         .login-error {
             color: #ef4444;
@@ -318,6 +350,7 @@
         const MASTER_REMEMBER = document.getElementById('master-remember');
         const MASTER_BTN = document.getElementById('master-login-btn');
         const MASTER_ERROR = document.getElementById('master-error');
+        const LOGIN_CARD = document.querySelector('.login-card');
         const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxH1zD8_14TvCajstFhtEpLNODwG9GZXkLoCXOb1IBNm0JIRmpCwS6SRsuGhZETK88z/exec';
         const APP_BUILD = '20260402a';
         const FRAME_SRC = {
@@ -504,6 +537,14 @@
             mostrarModulo(permitido);
         }
 
+        function setLoginLoading(isLoading, label = 'Entrar') {
+            MASTER_BTN.disabled = isLoading;
+            LOGIN_CARD.classList.toggle('loading', isLoading);
+            MASTER_BTN.innerHTML = isLoading
+                ? `<span class="btn-busy"><span class="spinner"></span><span>${label}</span></span>`
+                : label;
+        }
+
         async function validarMaster() {
             MASTER_ERROR.textContent = '';
             const usuario = (MASTER_USER.value || '').trim();
@@ -512,6 +553,7 @@
                 MASTER_ERROR.textContent = 'Ingresa usuario y contraseña';
                 return;
             }
+            setLoginLoading(true, 'Ingresando...');
             try {
                 const res = await fetch(BACKEND_URL, {
                     method: 'POST',
@@ -530,6 +572,8 @@
                 entrarIntegrador(data.user, data.passwords || { tecnico: pass, operativo: pass });
             } catch (e) {
                 MASTER_ERROR.textContent = 'No se pudo validar el acceso';
+            } finally {
+                setLoginLoading(false, 'Entrar');
             }
         }
 

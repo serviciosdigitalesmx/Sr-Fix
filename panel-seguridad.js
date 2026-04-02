@@ -6,6 +6,17 @@ let accionesCache = [];
 let usuariosCache = [];
 let currentUser = null;
 
+function setButtonBusy(buttonId, isBusy, idleLabel, busyLabel) {
+    const btn = document.getElementById(buttonId);
+    if (!btn) return;
+    btn.disabled = isBusy;
+    btn.classList.toggle('opacity-80', isBusy);
+    btn.classList.toggle('cursor-wait', isBusy);
+    btn.innerHTML = isBusy
+        ? `<span class="btn-busy"><span class="spinner-ui"></span><span>${busyLabel}</span></span>`
+        : idleLabel;
+}
+
 function escapeHtml(v) {
     return String(v || '')
         .replace(/&/g, '&amp;')
@@ -45,6 +56,7 @@ function setStatus(msg, type = 'muted') {
     el.className = 'text-sm min-h-[20px]';
     if (type === 'ok') el.classList.add('text-green-300');
     else if (type === 'error') el.classList.add('text-red-300');
+    else if (type === 'working') el.classList.add('status-working');
     else el.classList.add('text-[#8A8F95]');
     el.textContent = msg || '';
 }
@@ -97,6 +109,10 @@ function actualizarKpis(config) {
 }
 
 async function cargarConfiguracion() {
+    setButtonBusy('btn-refresh', true, '<i class="fa-solid fa-rotate-right"></i> Actualizar', 'Actualizando...');
+    setButtonBusy('btn-reload', true, 'Recargar', 'Recargando...');
+    document.getElementById('form-seguridad').classList.add('section-busy');
+    setStatus('Cargando configuración...', 'working');
     const [seguridad, usuarios] = await Promise.all([
         fetchJson({ action: 'obtener_config_seguridad' }),
         fetchJson({ action: 'listar_usuarios_internos' })
@@ -112,6 +128,9 @@ async function cargarConfiguracion() {
     document.getElementById('admin-password-actual').value = '';
     actualizarKpis(seguridad.config || {});
     setStatus('Configuración cargada.');
+    setButtonBusy('btn-refresh', false, '<i class="fa-solid fa-rotate-right"></i> Actualizar', 'Actualizando...');
+    setButtonBusy('btn-reload', false, 'Recargar', 'Recargando...');
+    document.getElementById('form-seguridad').classList.remove('section-busy');
 }
 
 function abrirModalUsuario(item = null) {
@@ -156,28 +175,35 @@ async function guardarConfiguracion(ev) {
         requiereAdmin: input.checked
     }));
 
-    setStatus('Guardando configuración...');
-    const data = await fetchJson({
-        action: 'guardar_config_seguridad',
-        adminPasswordActual: passActual,
-        adminPassword: pass,
-        mensajeAutorizacion: document.getElementById('mensaje-autorizacion').value.trim(),
-        bitacoraActiva: document.getElementById('bitacora-activa').checked,
-        acciones: acciones,
-        actor: {
-            usuario: currentUser?.USUARIO || '',
-            nombre: currentUser?.NOMBRE || '',
-            rol: currentUser?.ROL || ''
-        }
-    });
+    setButtonBusy('btn-save-config', true, 'Guardar configuración', 'Guardando...');
+    document.getElementById('form-seguridad').classList.add('section-busy');
+    setStatus('Guardando configuración...', 'working');
+    try {
+        const data = await fetchJson({
+            action: 'guardar_config_seguridad',
+            adminPasswordActual: passActual,
+            adminPassword: pass,
+            mensajeAutorizacion: document.getElementById('mensaje-autorizacion').value.trim(),
+            bitacoraActiva: document.getElementById('bitacora-activa').checked,
+            acciones: acciones,
+            actor: {
+                usuario: currentUser?.USUARIO || '',
+                nombre: currentUser?.NOMBRE || '',
+                rol: currentUser?.ROL || ''
+            }
+        });
 
-    accionesCache = Array.isArray(data.acciones) ? data.acciones : [];
-    renderAcciones();
-    actualizarKpis(data.config || {});
-    document.getElementById('admin-password').value = '';
-    document.getElementById('admin-password-confirm').value = '';
-    document.getElementById('admin-password-actual').value = '';
-    setStatus('Configuración guardada correctamente.', 'ok');
+        accionesCache = Array.isArray(data.acciones) ? data.acciones : [];
+        renderAcciones();
+        actualizarKpis(data.config || {});
+        document.getElementById('admin-password').value = '';
+        document.getElementById('admin-password-confirm').value = '';
+        document.getElementById('admin-password-actual').value = '';
+        setStatus('Configuración guardada correctamente.', 'ok');
+    } finally {
+        setButtonBusy('btn-save-config', false, 'Guardar configuración', 'Guardando...');
+        document.getElementById('form-seguridad').classList.remove('section-busy');
+    }
 }
 
 async function guardarUsuario(ev) {
@@ -203,12 +229,17 @@ async function guardarUsuario(ev) {
         }
     };
 
-    setStatus('Guardando usuario...');
-    const data = await fetchJson(payload);
-    usuariosCache = Array.isArray(data.usuarios) ? data.usuarios : [];
-    renderUsuarios();
-    cerrarModalUsuario();
-    setStatus('Usuario guardado correctamente.', 'ok');
+    setButtonBusy('btn-save-user', true, 'Guardar usuario', 'Guardando...');
+    setStatus('Guardando usuario...', 'working');
+    try {
+        const data = await fetchJson(payload);
+        usuariosCache = Array.isArray(data.usuarios) ? data.usuarios : [];
+        renderUsuarios();
+        cerrarModalUsuario();
+        setStatus('Usuario guardado correctamente.', 'ok');
+    } finally {
+        setButtonBusy('btn-save-user', false, 'Guardar usuario', 'Guardando...');
+    }
 }
 
 function bindEvents() {

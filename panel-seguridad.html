@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRFIX - Seguridad</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-[#1E1E1E] text-[#F2F2F2]">
+    <header class="border-b border-[#1F7EDC] bg-[#161616] sticky top-0 z-10">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <h1 class="text-xl font-bold text-[#1F7EDC] flex items-center gap-2">
+                    <i class="fa-solid fa-shield-halved"></i> Seguridad y Permisos
+                </h1>
+                <p class="text-sm text-[#8A8F95]">Define desde dashboard qué acciones críticas requieren autorización administrativa.</p>
+            </div>
+            <div class="flex gap-2">
+                <button id="btn-refresh" class="px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">
+                    <i class="fa-solid fa-rotate-right"></i> Actualizar
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-6">
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-[#1F7EDC]/10 border border-[#1F7EDC]/30 rounded-xl p-4">
+                <div id="kpi-acciones" class="text-3xl font-bold text-[#8cc4ff]">0</div>
+                <div class="text-xs uppercase tracking-wide text-[#9dcfff]">Acciones protegidas</div>
+            </div>
+            <div class="bg-[#FF6A2A]/10 border border-[#FF6A2A]/30 rounded-xl p-4">
+                <div id="kpi-admin" class="text-3xl font-bold text-[#ffb28f]">No</div>
+                <div class="text-xs uppercase tracking-wide text-[#ffd5c2]">Clave admin configurada</div>
+            </div>
+            <div class="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+                <div id="kpi-bitacora" class="text-3xl font-bold text-green-300">No</div>
+                <div class="text-xs uppercase tracking-wide text-green-200">Bitácora de seguridad</div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 xl:grid-cols-[1.2fr_.8fr] gap-4">
+            <form id="form-seguridad" class="bg-[#2B2B2B] border border-[#1F7EDC]/30 rounded-xl p-5 space-y-5">
+                <div>
+                    <h2 class="text-sm uppercase tracking-wide text-[#8A8F95] mb-2">Contraseña administrativa</h2>
+                    <p class="text-sm text-[#8A8F95] mb-4">Esta clave servirá para autorizar cambios delicados sin tener que tocar el código.</p>
+                    <div class="grid md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs text-[#8A8F95] uppercase">Nueva clave admin</label>
+                            <input id="admin-password" type="password" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm" placeholder="Deja vacío para no cambiarla">
+                        </div>
+                        <div>
+                            <label class="text-xs text-[#8A8F95] uppercase">Confirmar clave admin</label>
+                            <input id="admin-password-confirm" type="password" class="mt-1 w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm" placeholder="Repite la nueva clave">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 class="text-sm uppercase tracking-wide text-[#8A8F95] mb-2">Mensaje de autorización</h2>
+                    <textarea id="mensaje-autorizacion" rows="3" class="w-full rounded-lg bg-[#161616] border border-[#1F7EDC]/30 px-3 py-2 text-sm" placeholder="Ej. Esta acción requiere autorización administrativa."></textarea>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <div>
+                            <h2 class="text-sm uppercase tracking-wide text-[#8A8F95]">Acciones críticas</h2>
+                            <p class="text-sm text-[#8A8F95]">Activa o desactiva el candado administrativo por tipo de acción.</p>
+                        </div>
+                        <label class="inline-flex items-center gap-2 text-sm text-[#F2F2F2]">
+                            <input id="bitacora-activa" type="checkbox" class="accent-[#FF6A2A]">
+                            Bitácora de seguridad activa
+                        </label>
+                    </div>
+                    <div id="acciones-list" class="space-y-3"></div>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" id="btn-reload" class="flex-1 px-3 py-2 rounded-lg border border-[#1F7EDC] hover:bg-[#1F7EDC]/20 text-sm">Recargar</button>
+                    <button type="submit" class="flex-1 px-3 py-2 rounded-lg bg-[#FF6A2A] hover:bg-[#ff7d46] text-white text-sm font-semibold">Guardar configuración</button>
+                </div>
+                <div id="save-status" class="text-sm text-[#8A8F95] min-h-[20px]"></div>
+            </form>
+
+            <section class="bg-[#2B2B2B] border border-[#1F7EDC]/30 rounded-xl p-5 space-y-4">
+                <div>
+                    <h2 class="text-sm uppercase tracking-wide text-[#8A8F95] mb-2">Cómo usarlo</h2>
+                    <ul class="space-y-2 text-sm text-[#d5d8de]">
+                        <li>1. Define la clave administrativa una sola vez.</li>
+                        <li>2. Marca qué acciones delicadas necesitan candado.</li>
+                        <li>3. El sistema guardará estas reglas en Google Sheets.</li>
+                        <li>4. Más adelante podemos conectar estas reglas a cada botón crítico.</li>
+                    </ul>
+                </div>
+                <div class="rounded-xl border border-[#1F7EDC]/20 bg-[#161616] p-4">
+                    <div class="text-xs uppercase tracking-wide text-[#8A8F95] mb-2">Fuente de verdad</div>
+                    <div class="text-sm text-[#F2F2F2]">Hoja <span class="font-mono text-[#8cc4ff]">ConfiguracionSeguridad</span> en Google Sheets.</div>
+                </div>
+                <div class="rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm text-yellow-100">
+                    Este módulo ya deja configurable la política. El siguiente paso natural es aplicar estos candados a acciones como entregar equipo, editar precio y marcar no reparable.
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <script src="./panel-seguridad.js"></script>
+</body>
+</html>

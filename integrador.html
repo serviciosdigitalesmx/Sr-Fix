@@ -190,6 +190,7 @@
             <button id="tab-finanzas" class="tab" type="button">Finanzas</button>
             <button id="tab-reportes" class="tab" type="button">Reportes</button>
             <button id="tab-sucursales" class="tab" type="button">Sucursales</button>
+            <button id="tab-seguridad" class="tab" type="button">Seguridad</button>
         </nav>
   </aside>
   <div class="wrap">
@@ -232,6 +233,9 @@
         <section id="panel-sucursales" class="panel" aria-label="Módulo Sucursales">
             <iframe id="frame-sucursales" title="Modulo Sucursales" src="about:blank"></iframe>
         </section>
+        <section id="panel-seguridad" class="panel" aria-label="Módulo Seguridad">
+            <iframe id="frame-seguridad" title="Modulo Seguridad" src="about:blank"></iframe>
+        </section>
     </div>
 </div> <!-- app-layout -->
     <div class="fallback">
@@ -247,7 +251,8 @@
         <a href="./panel-gastos.html" target="_blank">Gastos</a> |
         <a href="./panel-finanzas.html" target="_blank">Finanzas</a> |
         <a href="./panel-reportes.html" target="_blank">Reportes</a> |
-        <a href="./panel-sucursales.html" target="_blank">Sucursales</a>
+        <a href="./panel-sucursales.html" target="_blank">Sucursales</a> |
+        <a href="./panel-seguridad.html" target="_blank">Seguridad</a>
     </div>
 
     <script>
@@ -264,6 +269,7 @@
         const PANEL_FI = document.getElementById('panel-finanzas');
         const PANEL_RE = document.getElementById('panel-reportes');
         const PANEL_SU = document.getElementById('panel-sucursales');
+        const PANEL_SG = document.getElementById('panel-seguridad');
         const BTN_OP = document.getElementById('tab-operativo');
         const BTN_TE = document.getElementById('tab-tecnico');
         const BTN_SO = document.getElementById('tab-solicitudes');
@@ -277,6 +283,7 @@
         const BTN_FI = document.getElementById('tab-finanzas');
         const BTN_RE = document.getElementById('tab-reportes');
         const BTN_SU = document.getElementById('tab-sucursales');
+        const BTN_SG = document.getElementById('tab-seguridad');
         const FRAME_OP = document.getElementById('frame-operativo');
         const FRAME_TE = document.getElementById('frame-tecnico');
         const FRAME_SO = document.getElementById('frame-solicitudes');
@@ -290,6 +297,7 @@
         const FRAME_FI = document.getElementById('frame-finanzas');
         const FRAME_RE = document.getElementById('frame-reportes');
         const FRAME_SU = document.getElementById('frame-sucursales');
+        const FRAME_SG = document.getElementById('frame-seguridad');
         const SELECTOR_SUCURSAL = document.getElementById('selector-sucursal');
         const LOGIN_SCREEN = document.getElementById('login-screen');
         const MASTER_INPUT = document.getElementById('master-password');
@@ -310,7 +318,8 @@
             gastos: './panel-gastos.html',
             finanzas: './panel-finanzas.html',
             reportes: './panel-reportes.html',
-            sucursales: './panel-sucursales.html'
+            sucursales: './panel-sucursales.html',
+            seguridad: './panel-seguridad.html'
         };
 
         function asegurarCargaIframe(modulo) {
@@ -353,10 +362,13 @@
             if (modulo === 'sucursales' && FRAME_SU.src === 'about:blank') {
                 FRAME_SU.src = FRAME_SRC.sucursales;
             }
+            if (modulo === 'seguridad' && FRAME_SG.src === 'about:blank') {
+                FRAME_SG.src = FRAME_SRC.seguridad;
+            }
         }
 
         function mostrarModulo(modulo) {
-            const actual = ['operativo', 'tecnico', 'solicitudes', 'archivo', 'tareas', 'stock', 'proveedores', 'compras', 'gastos', 'finanzas'].includes(modulo) ? modulo : 'operativo';
+            const actual = ['operativo', 'tecnico', 'solicitudes', 'archivo', 'clientes', 'tareas', 'stock', 'proveedores', 'compras', 'gastos', 'finanzas', 'reportes', 'sucursales', 'seguridad'].includes(modulo) ? modulo : 'operativo';
             asegurarCargaIframe(actual);
             PANEL_OP.classList.toggle('active', actual === 'operativo');
             PANEL_TE.classList.toggle('active', actual === 'tecnico');
@@ -371,6 +383,7 @@
             PANEL_FI.classList.toggle('active', actual === 'finanzas');
             PANEL_RE.classList.toggle('active', actual === 'reportes');
             PANEL_SU.classList.toggle('active', actual === 'sucursales');
+            PANEL_SG.classList.toggle('active', actual === 'seguridad');
             BTN_OP.classList.toggle('active', actual === 'operativo');
             BTN_TE.classList.toggle('active', actual === 'tecnico');
             BTN_SO.classList.toggle('active', actual === 'solicitudes');
@@ -384,6 +397,7 @@
             BTN_FI.classList.toggle('active', actual === 'finanzas');
             BTN_RE.classList.toggle('active', actual === 'reportes');
             BTN_SU.classList.toggle('active', actual === 'sucursales');
+            BTN_SG.classList.toggle('active', actual === 'seguridad');
 
             const url = new URL(window.location.href);
             url.searchParams.set('modulo', actual);
@@ -403,6 +417,7 @@
         BTN_FI.addEventListener('click', () => mostrarModulo('finanzas'));
         BTN_RE.addEventListener('click', () => mostrarModulo('reportes'));
         BTN_SU.addEventListener('click', () => mostrarModulo('sucursales'));
+        BTN_SG.addEventListener('click', () => mostrarModulo('seguridad'));
 
         async function cargarSucursales() {
             try {
@@ -422,7 +437,7 @@
 
         SELECTOR_SUCURSAL.addEventListener('change', () => {
             localStorage.setItem('srfix_sucursal_activa', SELECTOR_SUCURSAL.value || 'GLOBAL');
-            [FRAME_OP, FRAME_TE, FRAME_SO, FRAME_AR, FRAME_CL, FRAME_TA, FRAME_ST, FRAME_PR, FRAME_CO, FRAME_GA, FRAME_FI, FRAME_RE, FRAME_SU].forEach(frame => {
+            [FRAME_OP, FRAME_TE, FRAME_SO, FRAME_AR, FRAME_CL, FRAME_TA, FRAME_ST, FRAME_PR, FRAME_CO, FRAME_GA, FRAME_FI, FRAME_RE, FRAME_SU, FRAME_SG].forEach(frame => {
                 if (frame && frame.src && frame.src !== 'about:blank') {
                     frame.src = frame.src;
                 }

@@ -107,6 +107,8 @@ function inicializarSistema() {
       'COMPROBANTE_URL', 'NOTAS', 'FECHA_CREACION', 'FECHA_ACTUALIZACION'
     ]);
 
+    asegurarConfiguracionSeguridad(ss);
+
     asegurarEstructuraMultisucursal(ss);
 
     // Deja contraseñas de ejemplo si aún no existen.
@@ -151,6 +153,207 @@ function inicializarPasswordsPorDefecto() {
   if (Object.keys(updates).length > 0) {
     props.setProperties(updates, false);
   }
+}
+
+function obtenerHojaConfiguracionSeguridad(ss) {
+  return crearHojaSiNoExiste(ss || SpreadsheetApp.getActiveSpreadsheet(), 'ConfiguracionSeguridad', [
+    'CLAVE', 'VALOR', 'DESCRIPCION', 'FECHA_ACTUALIZACION'
+  ]);
+}
+
+function defaultsConfiguracionSeguridad() {
+  return [
+    { clave: 'ADMIN_PASSWORD', valor: 'Admin1', descripcion: 'Clave administrativa para autorizar acciones críticas desde el dashboard.' },
+    { clave: 'REQUIERE_ADMIN_ENTREGAR_EQUIPO', valor: 'SI', descripcion: 'Solicita autorización admin antes de marcar un equipo como entregado.' },
+    { clave: 'REQUIERE_ADMIN_EDITAR_PRECIO', valor: 'SI', descripcion: 'Solicita autorización admin antes de cambiar el precio o costo estimado.' },
+    { clave: 'REQUIERE_ADMIN_MARCAR_NO_REPARABLE', valor: 'SI', descripcion: 'Solicita autorización admin al marcar un equipo como no reparable.' },
+    { clave: 'REQUIERE_ADMIN_REABRIR_CASO', valor: 'SI', descripcion: 'Solicita autorización admin al reabrir un caso cerrado o entregado.' },
+    { clave: 'REQUIERE_ADMIN_EDITAR_FALLA_ENTREGA', valor: 'SI', descripcion: 'Solicita autorización admin para editar condiciones delicadas de entrega.' },
+    { clave: 'BITACORA_SEGURIDAD_ACTIVA', valor: 'SI', descripcion: 'Activa el registro de auditoría para acciones críticas.' },
+    { clave: 'MENSAJE_AUTORIZACION', valor: 'Esta acción requiere autorización administrativa.', descripcion: 'Mensaje mostrado al pedir elevación administrativa.' }
+  ];
+}
+
+function asegurarConfiguracionSeguridad(ss) {
+  const hoja = obtenerHojaConfiguracionSeguridad(ss);
+  const datos = withRetry(() => hoja.getDataRange().getValues(), 'asegurarConfiguracionSeguridad.getValues');
+  const existentes = {};
+  datos.slice(1).forEach(row => {
+    const clave = String(row[0] || '').trim();
+    if (clave) existentes[clave] = true;
+  });
+  const ahora = new Date().toISOString();
+  const faltantes = defaultsConfiguracionSeguridad()
+    .filter(item => !existentes[item.clave])
+    .map(item => [item.clave, item.valor, item.descripcion, ahora]);
+  if (faltantes.length) {
+    withRetry(() => hoja.getRange(hoja.getLastRow() + 1, 1, faltantes.length, 4).setValues(faltantes), 'asegurarConfiguracionSeguridad.insert');
+  }
+  return hoja;
+}
+
+function leerConfiguracionSeguridad(ss) {
+  const hoja = asegurarConfiguracionSeguridad(ss || SpreadsheetApp.getActiveSpreadsheet());
+  const datos = withRetry(() => hoja.getDataRange().getValues(), 'leerConfiguracionSeguridad.getValues');
+  const map = {};
+  datos.slice(1).forEach(row => {
+    const clave = String(row[0] || '').trim();
+    if (!clave) return;
+    map[clave] = {
+      valor: String(row[1] || '').trim(),
+      descripcion: String(row[2] || '').trim(),
+      fechaActualizacion: String(row[3] || '').trim()
+    };
+  });
+  return { hoja: hoja, map: map };
+}
+
+function boolConfig(value, defaultValue) {
+  const raw = String(value == null ? '' : value).trim().toUpperCase();
+  if (!raw) return !!defaultValue;
+  return ['SI', 'SÍ', 'TRUE', '1', 'YES', 'ON'].indexOf(raw) >= 0;
+}
+
+function buildConfiguracionSeguridadPayload() {
+  const cfg = leerConfiguracionSeguridad();
+  const map = cfg.map;
+  const acciones = [
+    {
+      clave: 'REQUIERE_ADMIN_ENTREGAR_EQUIPO',
+      accion: 'ENTREGAR_EQUIPO',
+      titulo: 'Entregar equipo',
+      descripcion: 'Evita cierres o entregas no autorizadas.',
+      requiereAdmin: boolConfig(map.REQUIERE_ADMIN_ENTREGAR_EQUIPO && map.REQUIERE_ADMIN_ENTREGAR_EQUIPO.valor, true)
+    },
+    {
+      clave: 'REQUIERE_ADMIN_EDITAR_PRECIO',
+      accion: 'EDITAR_PRECIO',
+      titulo: 'Editar precio o costo',
+      descripcion: 'Protege cambios económicos y cotizaciones sensibles.',
+      requiereAdmin: boolConfig(map.REQUIERE_ADMIN_EDITAR_PRECIO && map.REQUIERE_ADMIN_EDITAR_PRECIO.valor, true)
+    },
+    {
+      clave: 'REQUIERE_ADMIN_MARCAR_NO_REPARABLE',
+      accion: 'MARCAR_NO_REPARABLE',
+      titulo: 'Marcar como no reparable',
+      descripcion: 'Evita cierres con resultado técnico delicado sin aprobación.',
+      requiereAdmin: boolConfig(map.REQUIERE_ADMIN_MARCAR_NO_REPARABLE && map.REQUIERE_ADMIN_MARCAR_NO_REPARABLE.valor, true)
+    },
+    {
+      clave: 'REQUIERE_ADMIN_REABRIR_CASO',
+      accion: 'REABRIR_CASO',
+      titulo: 'Reabrir caso cerrado',
+      descripcion: 'Protege cambios posteriores a cierres o entregas.',
+      requiereAdmin: boolConfig(map.REQUIERE_ADMIN_REABRIR_CASO && map.REQUIERE_ADMIN_REABRIR_CASO.valor, true)
+    },
+    {
+      clave: 'REQUIERE_ADMIN_EDITAR_FALLA_ENTREGA',
+      accion: 'EDITAR_FALLA_ENTREGA',
+      titulo: 'Editar observaciones delicadas de entrega',
+      descripcion: 'Protege cambios de última milla en la entrega al cliente.',
+      requiereAdmin: boolConfig(map.REQUIERE_ADMIN_EDITAR_FALLA_ENTREGA && map.REQUIERE_ADMIN_EDITAR_FALLA_ENTREGA.valor, true)
+    }
+  ];
+
+  return {
+    config: {
+      adminPasswordConfigured: !!(map.ADMIN_PASSWORD && map.ADMIN_PASSWORD.valor),
+      bitacoraActiva: boolConfig(map.BITACORA_SEGURIDAD_ACTIVA && map.BITACORA_SEGURIDAD_ACTIVA.valor, true),
+      mensajeAutorizacion: (map.MENSAJE_AUTORIZACION && map.MENSAJE_AUTORIZACION.valor) || 'Esta acción requiere autorización administrativa.'
+    },
+    acciones: acciones,
+    lastUpdate: new Date().toISOString()
+  };
+}
+
+function obtenerConfiguracionSeguridad() {
+  return jsonResponse(buildConfiguracionSeguridadPayload());
+}
+
+function guardarConfiguracionSeguridad(data) {
+  return withDocumentLock(function() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const cfg = leerConfiguracionSeguridad(ss);
+    const hoja = cfg.hoja;
+    const map = cfg.map;
+    const datos = withRetry(() => hoja.getDataRange().getValues(), 'guardarConfiguracionSeguridad.getValues');
+    const headers = datos[0];
+    const idxClave = headers.indexOf('CLAVE');
+    const idxValor = headers.indexOf('VALOR');
+    const idxDesc = headers.indexOf('DESCRIPCION');
+    const idxFecha = headers.indexOf('FECHA_ACTUALIZACION');
+    const ahora = new Date().toISOString();
+
+    const updates = {};
+    if (data.adminPassword !== undefined && String(data.adminPassword || '').trim()) {
+      updates.ADMIN_PASSWORD = {
+        valor: String(data.adminPassword || '').trim(),
+        descripcion: (map.ADMIN_PASSWORD && map.ADMIN_PASSWORD.descripcion) || 'Clave administrativa para autorizar acciones críticas desde el dashboard.'
+      };
+    }
+    if (data.mensajeAutorizacion !== undefined) {
+      updates.MENSAJE_AUTORIZACION = {
+        valor: String(data.mensajeAutorizacion || '').trim() || 'Esta acción requiere autorización administrativa.',
+        descripcion: (map.MENSAJE_AUTORIZACION && map.MENSAJE_AUTORIZACION.descripcion) || 'Mensaje mostrado al pedir elevación administrativa.'
+      };
+    }
+    if (data.bitacoraActiva !== undefined) {
+      updates.BITACORA_SEGURIDAD_ACTIVA = {
+        valor: data.bitacoraActiva ? 'SI' : 'NO',
+        descripcion: (map.BITACORA_SEGURIDAD_ACTIVA && map.BITACORA_SEGURIDAD_ACTIVA.descripcion) || 'Activa el registro de auditoría para acciones críticas.'
+      };
+    }
+
+    const acciones = Array.isArray(data.acciones) ? data.acciones : [];
+    acciones.forEach(item => {
+      const clave = String(item && item.clave || '').trim();
+      if (!clave) return;
+      updates[clave] = {
+        valor: item && item.requiereAdmin ? 'SI' : 'NO',
+        descripcion: (map[clave] && map[clave].descripcion) || `Configuración editable para ${clave}`
+      };
+    });
+
+    Object.keys(updates).forEach(clave => {
+      let rowIdx = -1;
+      for (let i = 1; i < datos.length; i++) {
+        if (String(datos[i][idxClave] || '').trim() === clave) {
+          rowIdx = i + 1;
+          break;
+        }
+      }
+      if (rowIdx === -1) {
+        rowIdx = hoja.getLastRow() + 1;
+        withRetry(() => hoja.getRange(rowIdx, 1, 1, 4).setValues([[clave, updates[clave].valor, updates[clave].descripcion, ahora]]), `guardarConfiguracionSeguridad.insert.${clave}`);
+      } else {
+        withRetry(() => hoja.getRange(rowIdx, idxValor + 1, 1, 3).setValues([[updates[clave].valor, updates[clave].descripcion, ahora]]), `guardarConfiguracionSeguridad.update.${clave}`);
+      }
+    });
+
+    return jsonResponse(buildConfiguracionSeguridadPayload());
+  }, 12000);
+}
+
+function obtenerPoliticaAccionCritica(accion) {
+  const target = String(accion || '').trim().toUpperCase();
+  const payload = buildConfiguracionSeguridadPayload();
+  const match = (payload.acciones || []).find(item => String(item.accion || '').trim().toUpperCase() === target);
+  return jsonResponse({
+    accion: target,
+    requiereAdmin: !!(match && match.requiereAdmin),
+    mensaje: payload.config && payload.config.mensajeAutorizacion
+      ? payload.config.mensajeAutorizacion
+      : 'Esta acción requiere autorización administrativa.'
+  });
+}
+
+function validarAutorizacionAdmin(data) {
+  const cfg = leerConfiguracionSeguridad();
+  const guardada = String(cfg.map.ADMIN_PASSWORD && cfg.map.ADMIN_PASSWORD.valor || '').trim();
+  const enviada = String(data && data.adminPassword || '').trim();
+  return jsonResponse({
+    success: !!guardada && guardada === enviada
+  });
 }
 
 function obtenerPasswords() {
@@ -479,6 +682,10 @@ function doGet(e) {
         return listarNombresProveedores();
       case 'listar_sucursales':
         return listarSucursales({ texto: e.parameter.texto || '', soloActivas: e.parameter.soloActivas || '', page: pag.page, pageSize: pag.pageSize });
+      case 'obtener_config_seguridad':
+        return obtenerConfiguracionSeguridad();
+      case 'politica_accion_critica':
+        return obtenerPoliticaAccionCritica(e.parameter.accion || '');
       case 'listar_transferencias_stock':
         return listarTransferenciasStock({ texto: e.parameter.texto || '', sucursalId: e.parameter.sucursalId || '', page: pag.page, pageSize: pag.pageSize });
       case 'listar_ordenes_compra':
@@ -614,6 +821,14 @@ function doPost(e) {
         return listarNombresProveedores();
       case 'listar_sucursales':
         return listarSucursales({ ...data, page: pag.page, pageSize: pag.pageSize });
+      case 'obtener_config_seguridad':
+        return obtenerConfiguracionSeguridad();
+      case 'guardar_config_seguridad':
+        return guardarConfiguracionSeguridad(data);
+      case 'validar_admin_password':
+        return validarAutorizacionAdmin(data);
+      case 'politica_accion_critica':
+        return obtenerPoliticaAccionCritica(data.accion || '');
       case 'guardar_sucursal':
         return guardarSucursal(data);
       case 'transferir_stock':

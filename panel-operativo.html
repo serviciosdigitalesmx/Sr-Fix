@@ -13,14 +13,14 @@
     <link rel="stylesheet" href="./pwa-mobile.css">
 
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col operativo-shell">
 
     <!-- CONFIGURACIÓN -->
 
     <!-- LOGIN -->
-    <div id="login-screen" class="fixed inset-0 bg-[#1E1E1E] flex items-center justify-center z-50 p-4">
+    <div id="login-screen" class="fixed inset-0 bg-[#1E1E1E] flex items-center justify-center z-50 p-4 operativo-login">
         <div class="w-full max-w-sm text-center">
-            <div class="w-20 h-20 bg-[#1F7EDC] rounded-full flex items-center justify-center mx-auto mb-4 text-white text-3xl overflow-hidden">
+            <div class="w-20 h-20 bg-[#1F7EDC] rounded-full flex items-center justify-center mx-auto mb-4 text-white text-3xl overflow-hidden operativo-login-badge">
                 <img src="./logo.webp" 
                      alt="SrFix" 
                      class="w-full h-full object-contain bg-white p-1"
@@ -29,7 +29,7 @@
             <h1 class="text-3xl font-bold text-[#1F7EDC] mb-2">SR<span class="text-[#1F7EDC]">FIX</span></h1>
             <p class="text-[#8A8F95] mb-8">Panel de Recepción Profesional</p>
             
-            <div class="card-srf p-6">
+            <div class="card-srf p-6 operativo-login-card">
                 <input type="password" id="password-input" placeholder="Contraseña" 
                        class="w-full input-srf rounded-xl p-4 text-center mb-2"
                        onkeypress="if(event.key==='Enter') login()">
@@ -48,8 +48,8 @@
     </div>
 
     <!-- APP PRINCIPAL -->
-    <div id="app" class="hidden flex-grow max-w-2xl mx-auto w-full p-4">
-        <header class="mb-6 flex justify-between items-center">
+    <div id="app" class="hidden flex-grow max-w-2xl mx-auto w-full p-4 operativo-main">
+        <header class="mb-6 flex justify-between items-center operativo-header">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-[#1F7EDC] rounded-lg flex items-center justify-center text-white font-bold overflow-hidden">
                     <img src="./logo.webp" 
@@ -69,7 +69,7 @@
 
         <!-- PASOS (indicador mejorado) -->
         <div class="flex justify-center mb-6">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 operativo-steps">
                 <div id="step-1-ind" class="w-10 h-10 rounded-full flex items-center justify-center font-bold step-active transition-all">1</div>
                 <div class="w-8 h-1 bg-[#1F7EDC] opacity-30"></div>
                 <div id="step-2-ind" class="w-10 h-10 rounded-full flex items-center justify-center font-bold step-inactive transition-all">2</div>
@@ -79,8 +79,8 @@
         </div>
 
         <!-- PASO 1: Datos del cliente -->
-        <div id="step-1" class="card-srf p-6">
-            <div class="bg-[#1E1E1E] border border-[#1F7EDC] rounded-lg p-4 mb-4">
+        <div id="step-1" class="card-srf p-6 operativo-card">
+            <div class="bg-[#1E1E1E] border border-[#1F7EDC] rounded-lg p-4 mb-4 operativo-section-box">
                 <label class="block text-sm text-[#8A8F95] mb-2 font-semibold">
                     <i class="fa-solid fa-hashtag text-[#1F7EDC] mr-1"></i> Cargar por folio de cotización (opcional)
                 </label>
@@ -121,7 +121,7 @@
         </div>
 
         <!-- PASO 2: Información del equipo -->
-        <div id="step-2" class="hidden card-srf p-6">
+        <div id="step-2" class="hidden card-srf p-6 operativo-card">
             <h3 class="text-lg font-bold text-[#1F7EDC] mb-4 flex items-center gap-2">
                 <i class="fa-solid fa-mobile-screen"></i> Información del Equipo
             </h3>
@@ -152,7 +152,7 @@
             </div>
 
             <!-- CHECKLIST mejorado -->
-            <div class="bg-[#1E1E1E] rounded-lg p-4 my-4 border border-[#1F7EDC]">
+            <div class="bg-[#1E1E1E] rounded-lg p-4 my-4 border border-[#1F7EDC] operativo-section-box">
                 <p class="text-sm text-[#8A8F95] mb-3 font-semibold flex items-center gap-2">
                     <i class="fa-solid fa-clipboard-check text-[#1F7EDC]"></i> Checklist de Recepción:
                 </p>
@@ -177,7 +177,7 @@
             </div>
 
             <!-- FOTO DE RECEPCIÓN -->
-            <div class="bg-[#1E1E1E] rounded-lg p-4 my-4 border border-[#1F7EDC]">
+            <div class="bg-[#1E1E1E] rounded-lg p-4 my-4 border border-[#1F7EDC] operativo-section-box">
                 <label class="block text-sm text-[#8A8F95] mb-2 font-semibold flex items-center gap-2">
                     <i class="fa-solid fa-camera text-[#FF6A2A]"></i> Foto del estado en recepción
                 </label>
@@ -218,12 +218,12 @@
         </div>
 
         <!-- PASO 3: Confirmar Orden -->
-        <div id="step-3" class="hidden card-srf p-6">
+        <div id="step-3" class="hidden card-srf p-6 operativo-card">
             <h3 class="text-lg font-bold text-[#1F7EDC] mb-4 flex items-center gap-2">
                 <i class="fa-solid fa-check-circle"></i> Confirmar Orden
             </h3>
             
-            <div class="bg-[#1E1E1E] rounded-lg p-4 mb-6 space-y-3 text-sm border border-[#1F7EDC]">
+            <div class="bg-[#1E1E1E] rounded-lg p-4 mb-6 space-y-3 text-sm border border-[#1F7EDC] operativo-section-box">
                 <div class="flex justify-between border-b border-[#1F7EDC] pb-2">
                     <span class="text-[#8A8F95]">Cliente:</span>
                     <span id="res-cliente" class="text-[#F2F2F2] font-medium"></span>
@@ -276,13 +276,13 @@
         </div>
 
         <!-- ÉXITO (folio generado) -->
-        <div id="exito" class="hidden text-center py-8">
-            <div class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 text-white text-3xl animate-bounce">
+        <div id="exito" class="hidden text-center py-8 operativo-success">
+            <div class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 text-white text-3xl animate-bounce operativo-success-badge">
                 <i class="fa-solid fa-check"></i>
             </div>
             <h2 class="text-2xl font-bold text-[#1F7EDC] mb-2">¡Orden Registrada!</h2>
             <p class="text-[#8A8F95] mb-4">El folio generado es:</p>
-            <div class="card-srf border-2 border-[#FF6A2A] rounded-xl p-6 max-w-xs mx-auto mb-6">
+            <div class="card-srf border-2 border-[#FF6A2A] rounded-xl p-6 max-w-xs mx-auto mb-6 operativo-success-card">
                 <span id="folio-generado" class="text-3xl font-mono font-bold text-[#FF6A2A] tracking-wider"></span>
             </div>
             <div class="flex flex-col sm:flex-row gap-3 justify-center mb-6">

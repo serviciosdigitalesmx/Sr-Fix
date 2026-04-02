@@ -1,13 +1,75 @@
 /* Operativo: estilos especificos del flujo por pasos */
 
+.operativo-shell {
+  background:
+    radial-gradient(circle at top left, rgba(31, 126, 220, 0.16) 0%, transparent 28%),
+    radial-gradient(circle at 84% 14%, rgba(255, 106, 42, 0.12) 0%, transparent 22%),
+    linear-gradient(180deg, #0b1220 0%, #101827 100%);
+}
+
+.operativo-login {
+  background:
+    radial-gradient(circle at top left, rgba(31, 126, 220, 0.18) 0%, transparent 30%),
+    radial-gradient(circle at 85% 15%, rgba(255, 106, 42, 0.14) 0%, transparent 22%),
+    rgba(7, 12, 22, 0.94) !important;
+}
+
+.operativo-login-badge {
+  box-shadow: 0 18px 40px rgba(31, 126, 220, 0.28);
+}
+
+.operativo-login-card {
+  background: rgba(21, 31, 53, 0.88) !important;
+  border-color: rgba(31, 126, 220, 0.34) !important;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(16px);
+}
+
+.operativo-main {
+  padding-top: 1.25rem;
+  padding-bottom: 1.5rem;
+}
+
+.operativo-header {
+  background: rgba(15, 23, 42, 0.74);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 1.35rem;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(14px);
+}
+
+.operativo-steps {
+  background: rgba(15, 23, 42, 0.66);
+  border: 1px solid rgba(31, 126, 220, 0.16);
+  border-radius: 999px;
+  padding: 0.45rem 0.75rem;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.14);
+}
+
+.operativo-card {
+  background: rgba(21, 31, 53, 0.9) !important;
+  border-color: rgba(31, 126, 220, 0.26) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(14px);
+}
+
+.operativo-section-box {
+  background: rgba(8, 15, 30, 0.78) !important;
+  border-color: rgba(31, 126, 220, 0.22) !important;
+  border-radius: 1rem;
+}
+
 .step-active {
   background-color: #1F7EDC;
   color: #F2F2F2;
+  box-shadow: 0 10px 26px rgba(31, 126, 220, 0.25);
 }
 
 .step-completed {
   background-color: #22c55e;
   color: #F2F2F2;
+  box-shadow: 0 10px 26px rgba(34, 197, 94, 0.22);
 }
 
 .step-inactive {
@@ -25,4 +87,69 @@
   color: #ef4444;
   font-size: 0.75rem;
   margin-top: 0.25rem;
+}
+
+.operativo-success {
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(34, 197, 94, 0.22);
+  border-radius: 1.5rem;
+  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.22);
+}
+
+.operativo-success-badge {
+  box-shadow: 0 18px 36px rgba(34, 197, 94, 0.28);
+}
+
+.operativo-success-card {
+  background: rgba(21, 31, 53, 0.92) !important;
+}
+
+@media (max-width: 900px) {
+  .operativo-main {
+    padding-top: 0.85rem;
+  }
+
+  .operativo-header {
+    border-radius: 1rem;
+    padding: 0.9rem;
+  }
+
+  .operativo-steps {
+    padding: 0.35rem 0.6rem;
+  }
+
+  .operativo-card {
+    border-radius: 1.1rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .operativo-login-card {
+    border-radius: 1.35rem;
+  }
+
+  .operativo-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.85rem;
+  }
+
+  .operativo-steps {
+    transform: scale(0.94);
+    transform-origin: center;
+  }
+
+  .operativo-card {
+    padding: 1rem !important;
+  }
+
+  .operativo-section-box {
+    padding: 0.9rem !important;
+  }
+
+  .operativo-success {
+    border-radius: 1.15rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
 }

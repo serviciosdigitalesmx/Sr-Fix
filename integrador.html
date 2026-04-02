@@ -319,6 +319,7 @@
         const MASTER_BTN = document.getElementById('master-login-btn');
         const MASTER_ERROR = document.getElementById('master-error');
         const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxH1zD8_14TvCajstFhtEpLNODwG9GZXkLoCXOb1IBNm0JIRmpCwS6SRsuGhZETK88z/exec';
+        const APP_BUILD = '20260402a';
         const FRAME_SRC = {
             operativo: './panel-operativo.html',
             tecnico: './panel-tecnico.html',
@@ -336,48 +337,54 @@
             seguridad: './panel-seguridad.html'
         };
 
+        function buildFrameUrl(path) {
+            const url = new URL(path, window.location.href);
+            url.searchParams.set('v', APP_BUILD);
+            return url.toString();
+        }
+
         function asegurarCargaIframe(modulo) {
             if (modulo === 'operativo' && FRAME_OP.src === 'about:blank') {
-                FRAME_OP.src = FRAME_SRC.operativo;
+                FRAME_OP.src = buildFrameUrl(FRAME_SRC.operativo);
             }
             if (modulo === 'tecnico' && FRAME_TE.src === 'about:blank') {
-                FRAME_TE.src = FRAME_SRC.tecnico;
+                FRAME_TE.src = buildFrameUrl(FRAME_SRC.tecnico);
             }
             if (modulo === 'solicitudes' && FRAME_SO.src === 'about:blank') {
-                FRAME_SO.src = FRAME_SRC.solicitudes;
+                FRAME_SO.src = buildFrameUrl(FRAME_SRC.solicitudes);
             }
             if (modulo === 'archivo' && FRAME_AR.src === 'about:blank') {
-                FRAME_AR.src = FRAME_SRC.archivo;
+                FRAME_AR.src = buildFrameUrl(FRAME_SRC.archivo);
             }
             if (modulo === 'clientes' && FRAME_CL.src === 'about:blank') {
-                FRAME_CL.src = FRAME_SRC.clientes;
+                FRAME_CL.src = buildFrameUrl(FRAME_SRC.clientes);
             }
             if (modulo === 'tareas' && FRAME_TA.src === 'about:blank') {
-                FRAME_TA.src = FRAME_SRC.tareas;
+                FRAME_TA.src = buildFrameUrl(FRAME_SRC.tareas);
             }
             if (modulo === 'stock' && FRAME_ST.src === 'about:blank') {
-                FRAME_ST.src = FRAME_SRC.stock;
+                FRAME_ST.src = buildFrameUrl(FRAME_SRC.stock);
             }
             if (modulo === 'proveedores' && FRAME_PR.src === 'about:blank') {
-                FRAME_PR.src = FRAME_SRC.proveedores;
+                FRAME_PR.src = buildFrameUrl(FRAME_SRC.proveedores);
             }
             if (modulo === 'compras' && FRAME_CO.src === 'about:blank') {
-                FRAME_CO.src = FRAME_SRC.compras;
+                FRAME_CO.src = buildFrameUrl(FRAME_SRC.compras);
             }
             if (modulo === 'gastos' && FRAME_GA.src === 'about:blank') {
-                FRAME_GA.src = FRAME_SRC.gastos;
+                FRAME_GA.src = buildFrameUrl(FRAME_SRC.gastos);
             }
             if (modulo === 'finanzas' && FRAME_FI.src === 'about:blank') {
-                FRAME_FI.src = FRAME_SRC.finanzas;
+                FRAME_FI.src = buildFrameUrl(FRAME_SRC.finanzas);
             }
             if (modulo === 'reportes' && FRAME_RE.src === 'about:blank') {
-                FRAME_RE.src = FRAME_SRC.reportes;
+                FRAME_RE.src = buildFrameUrl(FRAME_SRC.reportes);
             }
             if (modulo === 'sucursales' && FRAME_SU.src === 'about:blank') {
-                FRAME_SU.src = FRAME_SRC.sucursales;
+                FRAME_SU.src = buildFrameUrl(FRAME_SRC.sucursales);
             }
             if (modulo === 'seguridad' && FRAME_SG.src === 'about:blank') {
-                FRAME_SG.src = FRAME_SRC.seguridad;
+                FRAME_SG.src = buildFrameUrl(FRAME_SRC.seguridad);
             }
         }
 
@@ -453,7 +460,8 @@
             localStorage.setItem('srfix_sucursal_activa', SELECTOR_SUCURSAL.value || 'GLOBAL');
             [FRAME_OP, FRAME_TE, FRAME_SO, FRAME_AR, FRAME_CL, FRAME_TA, FRAME_ST, FRAME_PR, FRAME_CO, FRAME_GA, FRAME_FI, FRAME_RE, FRAME_SU, FRAME_SG].forEach(frame => {
                 if (frame && frame.src && frame.src !== 'about:blank') {
-                    frame.src = frame.src;
+                    const cleanPath = new URL(frame.src).pathname.split('/').pop();
+                    frame.src = buildFrameUrl(`./${cleanPath}`);
                 }
             });
         });

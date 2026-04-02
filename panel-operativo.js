@@ -30,6 +30,10 @@
         }
 
         (function() {
+            if (hasOperativoAccess()) {
+                setTimeout(login, 200);
+                return;
+            }
             const saved = sessionStorage.getItem('srfix_pass_operativo') || localStorage.getItem('srfix_pass_operativo');
             if (saved) {
                 document.getElementById('password-input').value = saved;

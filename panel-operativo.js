@@ -125,6 +125,12 @@
                 sessionStorage.removeItem('srfix_pass_operativo');
                 localStorage.removeItem('srfix_pass_operativo');
                 localStorage.removeItem('srfix_borrador_orden');
+                try {
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage({ type: 'srfix:logout' }, '*');
+                        return;
+                    }
+                } catch (e) {}
                 location.reload();
             }
         }

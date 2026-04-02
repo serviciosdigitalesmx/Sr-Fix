@@ -206,7 +206,7 @@
         </div>
     </div>
 
-    <header class="bar">
+    <header id="main-bar" class="bar">
         <div class="left">
             <img src="./logo.webp" alt="SRFIX" class="logo" onerror="this.src='./logo.png'">
             <div class="title">SRFIX Integrador Interno</div>
@@ -219,7 +219,7 @@
         </div>
     </header>
     
-<div class="app-layout">
+<div id="app-layout" class="app-layout">
   <aside class="sidebar">
     <nav class="tabs">
             <button id="tab-operativo" class="tab" type="button">Operativo</button>
@@ -283,7 +283,7 @@
         </section>
     </div>
 </div> <!-- app-layout -->
-    <div class="fallback">
+    <div id="fallback-links" class="fallback">
         Si algo falla: <a href="./panel-operativo.html" target="_blank">Operativo</a> |
         <a href="./panel-tecnico.html" target="_blank">Técnico</a> |
         <a href="./panel-solicitudes.html" target="_blank">Solicitudes</a> |
@@ -345,6 +345,9 @@
         const FRAME_SG = document.getElementById('frame-seguridad');
         const SELECTOR_SUCURSAL = document.getElementById('selector-sucursal');
         const LOGIN_SCREEN = document.getElementById('login-screen');
+        const MAIN_BAR = document.getElementById('main-bar');
+        const APP_LAYOUT = document.getElementById('app-layout');
+        const FALLBACK_LINKS = document.getElementById('fallback-links');
         const MASTER_INPUT = document.getElementById('master-password');
         const MASTER_USER = document.getElementById('master-username');
         const MASTER_REMEMBER = document.getElementById('master-remember');
@@ -521,7 +524,53 @@
             }
         }
 
+        function resetFrames() {
+            [FRAME_OP, FRAME_TE, FRAME_SO, FRAME_AR, FRAME_CL, FRAME_TA, FRAME_ST, FRAME_PR, FRAME_CO, FRAME_GA, FRAME_FI, FRAME_RE, FRAME_SU, FRAME_SG]
+                .forEach(frame => {
+                    if (frame) frame.src = 'about:blank';
+                });
+        }
+
+        function mostrarPantallaLogin() {
+            LOGIN_SCREEN.style.display = 'flex';
+            MAIN_BAR.style.display = 'none';
+            APP_LAYOUT.style.display = 'none';
+            FALLBACK_LINKS.style.display = 'none';
+        }
+
+        function mostrarIntegrador() {
+            LOGIN_SCREEN.style.display = 'none';
+            MAIN_BAR.style.display = '';
+            APP_LAYOUT.style.display = 'flex';
+            FALLBACK_LINKS.style.display = '';
+        }
+
+        function limpiarSesionGlobal() {
+            [
+                'srfix_auth_user',
+                'srfix_pass_master',
+                'srfix_pass_operativo',
+                'srfix_pass_tecnico'
+            ].forEach(key => {
+                sessionStorage.removeItem(key);
+                localStorage.removeItem(key);
+            });
+        }
+
+        function cerrarSesionGlobal() {
+            limpiarSesionGlobal();
+            MASTER_INPUT.value = '';
+            MASTER_ERROR.textContent = '';
+            resetFrames();
+            aplicarRolUI(null);
+            mostrarPantallaLogin();
+            mostrarModulo('operativo');
+        }
+
         function getAllowedModules(user) {
+            if (!user || !user.ROL) {
+                return [];
+            }
             const role = String(user && user.ROL || '').toLowerCase();
             if (role === 'admin') {
                 return ['operativo', 'tecnico', 'solicitudes', 'archivo', 'clientes', 'tareas', 'stock', 'proveedores', 'compras', 'gastos', 'finanzas', 'reportes', 'sucursales', 'seguridad'];
@@ -560,7 +609,7 @@
             if (!localStorage.getItem('srfix_sucursal_activa')) {
                 localStorage.setItem('srfix_sucursal_activa', 'GLOBAL');
             }
-            LOGIN_SCREEN.style.display = 'none';
+            mostrarIntegrador();
             cargarSucursales();
             const modulo = new URLSearchParams(window.location.search).get('modulo');
             const solicitado = modulo || 'operativo';
@@ -614,6 +663,16 @@
         MASTER_INPUT.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') validarMaster();
         });
+
+        window.addEventListener('message', (event) => {
+            const data = event && event.data;
+            if (!data || typeof data !== 'object') return;
+            if (data.type === 'srfix:logout') {
+                cerrarSesionGlobal();
+            }
+        });
+
+        mostrarPantallaLogin();
 
         try {
             const raw = sessionStorage.getItem('srfix_auth_user') || localStorage.getItem('srfix_auth_user');

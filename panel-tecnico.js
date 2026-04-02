@@ -128,6 +128,12 @@
 
         function logout() {
             if (intervalo) clearInterval(intervalo);
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'srfix:logout' }, '*');
+                    return;
+                }
+            } catch (e) {}
             sessionStorage.removeItem('srfix_pass_tecnico');
             localStorage.removeItem('srfix_pass_tecnico');
             location.reload();

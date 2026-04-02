@@ -949,7 +949,6 @@ function getEquipoByFolio(folio) {
   }
 
   delete equipo.NOTAS_INTERNAS;
-  delete equipo.COSTO_ESTIMADO;
 
   return jsonResponse({ equipo: equipo });
 }

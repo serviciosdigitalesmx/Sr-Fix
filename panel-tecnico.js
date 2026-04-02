@@ -316,6 +316,15 @@
             } catch (e) { return dateStr; }
         }
 
+        function formatMoney(value) {
+            const amount = Number(value || 0);
+            return new Intl.NumberFormat('es-MX', {
+                style: 'currency',
+                currency: 'MXN',
+                minimumFractionDigits: 2
+            }).format(isFinite(amount) ? amount : 0);
+        }
+
         function renderizar() {
             const grid = document.getElementById('equipos-grid');
             if (!equiposFiltrados.length) {
@@ -382,6 +391,7 @@
             }
             equipoActual = eq;
             document.getElementById('modal-folio').textContent = eq.FOLIO;
+            document.getElementById('modal-folio-detalle').textContent = eq.FOLIO || 'N/A';
             document.getElementById('modal-cliente').textContent = eq.CLIENTE_NOMBRE || 'N/A';
             document.getElementById('modal-telefono').textContent = eq.CLIENTE_TELEFONO || 'N/A';
             const waBtn = document.getElementById('modal-wa-btn');
@@ -394,6 +404,9 @@
                 waBtn.classList.add('hidden');
             }
             document.getElementById('modal-equipo').textContent = `${eq.DISPOSITIVO || ''} ${eq.MODELO || ''}`.trim() || 'N/A';
+            document.getElementById('modal-costo').textContent = Number(eq.COSTO_ESTIMADO || 0) > 0
+                ? formatMoney(eq.COSTO_ESTIMADO)
+                : 'Pendiente por cotizar';
             document.getElementById('modal-falla').textContent = eq.FALLA_REPORTADA || 'Sin descripción';
 
             const fechaPromesaEl = document.getElementById('modal-fecha-promesa');

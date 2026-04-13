@@ -27,7 +27,9 @@
             try {
                 if (window.parent === window) return false;
                 const params = new URLSearchParams(window.location.search);
-                return params.get('integrador') === '1';
+                if (params.get('integrador') === '1') return true;
+                const parentHref = String(window.parent.location && window.parent.location.href || '');
+                return /integrador\.html/i.test(parentHref);
             } catch (e) {
                 return false;
             }
@@ -76,6 +78,38 @@
             el.textContent = texto.charAt(0).toUpperCase() + texto.slice(1);
         }
 
+        async function fetchJsonConTimeout(url, options = {}, timeoutMs = 12000) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                return await fetch(url, { ...options, signal: controller.signal });
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        async function postJsonConRetry(payload, maxAttempts = 2) {
+            let lastError = null;
+            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+                try {
+                    const res = await fetchJsonConTimeout(CONFIG.BACKEND_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(payload)
+                    }, 15000);
+                    if (!res.ok) throw new Error('Error de conexión');
+                    const result = await res.json();
+                    if (!result || result.error) throw new Error((result && result.error) || 'Respuesta inválida');
+                    return result;
+                } catch (e) {
+                    lastError = e;
+                    if (attempt < maxAttempts) {
+                        await new Promise(r => setTimeout(r, 350));
+                    }
+                }
+            }
+            throw lastError || new Error('Error de conexión');
+        }
+
         // ==========================================
         // LOGIN / LOGOUT
         // ==========================================
@@ -101,22 +135,23 @@
             ocultarErrorLogin();
 
             try {
-                let res = await fetch(CONFIG.BACKEND_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'semaforo'
-                    })
-                });
+                let res = await fetchJsonConTimeout(`${CONFIG.BACKEND_URL}?action=semaforo&t=${Date.now()}`, { method: 'GET' });
                 let data = null;
                 if (res.ok) {
                     try { data = await res.json(); } catch (e) {}
                 }
                 if (!data || data.error) {
-                    res = await fetch(`${CONFIG.BACKEND_URL}?action=semaforo&t=${Date.now()}`);
-                    if (!res.ok) throw new Error('Error de conexión');
-                    data = await res.json();
+                    res = await fetchJsonConTimeout(CONFIG.BACKEND_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            action: 'semaforo'
+                        })
+                    });
+                    if (res.ok) {
+                        try { data = await res.json(); } catch (e) {}
+                    }
                 }
-                if (data.error) throw new Error(data.error);
+                if (!data || data.error) throw new Error((data && data.error) || 'Error de conexión');
 
                 const remember = document.getElementById('remember-me').checked;
                 if (!trustedInternalAccess) {
@@ -512,9 +547,7 @@
             };
 
             try {
-                const res = await fetch(CONFIG.BACKEND_URL, { method: 'POST', body: JSON.stringify(data) });
-                if (!res.ok) throw new Error('Error de conexión');
-                const result = await res.json();
+                const result = await postJsonConRetry(data, 2);
 
                 if (result.success) {
                     ultimaOrdenRegistrada = {

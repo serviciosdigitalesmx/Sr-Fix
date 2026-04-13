@@ -931,20 +931,14 @@
             });
         });
 
-        function persistAuth(user, passwords, remember) {
+        function persistAuth(user, remember) {
             const authPayload = JSON.stringify(user || {});
             sessionStorage.setItem('srfix_auth_user', authPayload);
             sessionStorage.setItem('srfix_pass_master', 'OK');
-            sessionStorage.setItem('srfix_pass_operativo', passwords.operativo);
-            sessionStorage.setItem('srfix_pass_tecnico', passwords.tecnico);
             if (remember) {
                 localStorage.setItem('srfix_auth_user', authPayload);
-                localStorage.setItem('srfix_pass_operativo', passwords.operativo);
-                localStorage.setItem('srfix_pass_tecnico', passwords.tecnico);
             } else {
                 localStorage.removeItem('srfix_auth_user');
-                localStorage.removeItem('srfix_pass_operativo');
-                localStorage.removeItem('srfix_pass_tecnico');
             }
         }
 
@@ -972,9 +966,7 @@
         function limpiarSesionGlobal() {
             [
                 'srfix_auth_user',
-                'srfix_pass_master',
-                'srfix_pass_operativo',
-                'srfix_pass_tecnico'
+                'srfix_pass_master'
             ].forEach(key => {
                 sessionStorage.removeItem(key);
                 localStorage.removeItem(key);
@@ -1030,7 +1022,7 @@
             PANEL_SG.classList.toggle('active', false);
         }
 
-        function entrarIntegrador(user, passwords) {
+        function entrarIntegrador(user) {
             const allowed = getAllowedModules(user);
             aplicarRolUI(user);
             if (!localStorage.getItem('srfix_sucursal_activa')) {
@@ -1051,6 +1043,49 @@
                 : label;
         }
 
+        async function fetchLoginInternoConRetry(usuario, pass, maxAttempts = 2) {
+            let lastError = null;
+            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+                try {
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), 12000);
+                    let res;
+                    try {
+                        res = await fetch(BACKEND_URL, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                action: 'login_interno',
+                                usuario: usuario,
+                                password: pass
+                            }),
+                            signal: controller.signal
+                        });
+                    } finally {
+                        clearTimeout(timer);
+                    }
+                    let data = null;
+                    try { data = await res.json(); } catch (e) {}
+                    if (!res.ok || !data || !data.success) {
+                        const backendErr = (data && data.error) || 'Credenciales inválidas';
+                        if (/credenciales/i.test(backendErr)) {
+                            throw new Error(backendErr);
+                        }
+                        throw new Error(backendErr || 'No se pudo validar el acceso');
+                    }
+                    return data;
+                } catch (e) {
+                    lastError = e;
+                    const msg = String((e && e.message) || e || '');
+                    const esCredencial = /credenciales|usuario|contrase/i.test(msg);
+                    if (esCredencial) throw e;
+                    if (attempt < maxAttempts) {
+                        await new Promise(r => setTimeout(r, 350));
+                    }
+                }
+            }
+            throw lastError || new Error('No se pudo validar el acceso');
+        }
+
         async function validarMaster() {
             MASTER_ERROR.textContent = '';
             const usuario = (MASTER_USER.value || '').trim();
@@ -1061,23 +1096,14 @@
             }
             setLoginLoading(true, 'Ingresando...');
             try {
-                const res = await fetch(BACKEND_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'login_interno',
-                        usuario: usuario,
-                        password: pass
-                    })
-                });
-                const data = await res.json();
-                if (!res.ok || !data.success) {
-                    MASTER_ERROR.textContent = (data && data.error) || 'Credenciales inválidas';
-                    return;
-                }
-                persistAuth(data.user, data.passwords || { tecnico: pass, operativo: pass }, MASTER_REMEMBER.checked);
-                entrarIntegrador(data.user, data.passwords || { tecnico: pass, operativo: pass });
+                const data = await fetchLoginInternoConRetry(usuario, pass, 2);
+                persistAuth(data.user, MASTER_REMEMBER.checked);
+                entrarIntegrador(data.user);
             } catch (e) {
-                MASTER_ERROR.textContent = 'No se pudo validar el acceso';
+                const msg = String((e && e.message) || e || 'No se pudo validar el acceso');
+                MASTER_ERROR.textContent = /credenciales|usuario|contrase/i.test(msg)
+                    ? msg
+                    : 'No se pudo validar el acceso. Reintenta en unos segundos.';
             } finally {
                 setLoginLoading(false, 'Entrar');
             }
@@ -1115,17 +1141,10 @@
 
         try {
             const raw = sessionStorage.getItem('srfix_auth_user') || localStorage.getItem('srfix_auth_user');
-            const passOperativo = sessionStorage.getItem('srfix_pass_operativo') || localStorage.getItem('srfix_pass_operativo');
-            const passTecnico = sessionStorage.getItem('srfix_pass_tecnico') || localStorage.getItem('srfix_pass_tecnico');
-            if (raw && passOperativo && passTecnico) {
+            if (raw) {
                 sessionStorage.setItem('srfix_auth_user', raw);
-                sessionStorage.setItem('srfix_pass_operativo', passOperativo);
-                sessionStorage.setItem('srfix_pass_tecnico', passTecnico);
                 MASTER_REMEMBER.checked = !!localStorage.getItem('srfix_auth_user');
-                entrarIntegrador(JSON.parse(raw), {
-                    operativo: passOperativo,
-                    tecnico: passTecnico
-                });
+                entrarIntegrador(JSON.parse(raw));
             }
         } catch (e) {}
 

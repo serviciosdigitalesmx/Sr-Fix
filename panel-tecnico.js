@@ -20,6 +20,7 @@
         let ultimoBeepRojoTs = 0;
         let ultimaFirmaSemaforo = '';
         let loginEnCurso = false;
+        let cargaDatosSeq = 0;
         let seguimientoOriginalSerializado = '[]';
         let filtros = {
             texto: '',
@@ -41,7 +42,9 @@
             try {
                 if (window.parent === window) return false;
                 const params = new URLSearchParams(window.location.search);
-                return params.get('integrador') === '1';
+                if (params.get('integrador') === '1') return true;
+                const parentHref = String(window.parent.location && window.parent.location.href || '');
+                return /integrador\.html/i.test(parentHref);
             } catch (e) {
                 return false;
             }
@@ -226,28 +229,47 @@
                 .join('||');
         }
 
-        async function cargarDatos(esLogin = false) {
-            mostrarRefreshing(true);
+        async function fetchJsonConTimeout(url, options = {}, timeoutMs = 12000) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
             try {
-                const pageSize = Math.max(1000, equiposData.length || 0);
-                let res = await fetch(CONFIG.BACKEND_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'semaforo',
-                        page: 1,
-                        pageSize: pageSize
-                    })
-                });
-                let data = null;
+                const res = await fetch(url, { ...options, signal: controller.signal });
+                return res;
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        async function obtenerSemaforoData(pageSize) {
+            const queryUrl = `${CONFIG.BACKEND_URL}?action=semaforo&page=1&pageSize=${encodeURIComponent(pageSize)}&t=${Date.now()}`;
+            const body = JSON.stringify({
+                action: 'semaforo',
+                page: 1,
+                pageSize: pageSize
+            });
+
+            let data = null;
+            let res = await fetchJsonConTimeout(queryUrl, { method: 'GET' });
+            if (res.ok) {
+                try { data = await res.json(); } catch (e) {}
+            }
+            if (!data || data.error) {
+                res = await fetchJsonConTimeout(CONFIG.BACKEND_URL, { method: 'POST', body: body });
                 if (res.ok) {
                     try { data = await res.json(); } catch (e) {}
                 }
-                if (!data || data.error) {
-                    res = await fetch(`${CONFIG.BACKEND_URL}?action=semaforo&page=1&pageSize=${encodeURIComponent(pageSize)}&t=${Date.now()}`);
-                    if (!res.ok) throw new Error('Error de conexión');
-                    data = await res.json();
-                }
-                if (data.error) throw new Error(data.error);
+            }
+            if (!data || data.error) throw new Error((data && data.error) || 'Error de conexión');
+            return data;
+        }
+
+        async function cargarDatos(esLogin = false) {
+            const requestSeq = ++cargaDatosSeq;
+            mostrarRefreshing(true);
+            try {
+                const pageSize = Math.max(1000, equiposData.length || 0);
+                const data = await obtenerSemaforoData(pageSize);
+                if (requestSeq !== cargaDatosSeq) return false;
 
                 const nuevosEquipos = data.equipos || [];
                 const firmaNueva = calcularFirmaSemaforo(nuevosEquipos);
@@ -273,6 +295,9 @@
                 if (!esLogin && huboCambios) mostrarToast('Datos actualizados', 'success');
                 return true;
             } catch (e) {
+                const mensaje = String((e && e.message) || e || '');
+                const esAbort = mensaje.toLowerCase().includes('abort');
+                if (esAbort) return false;
                 console.error('Error cargando datos:', e);
                 if (!esLogin) {
                     mostrarToast('Error al actualizar', 'error');
@@ -456,7 +481,12 @@
             };
 
             let valor = raw;
-            if (typeof valor === 'string') {
+            if (Array.isArray(valor) && valor.length) {
+                valor = valor[0];
+            }
+            if (valor && typeof valor === 'object') {
+                valor = valor.url || valor.src || valor.dataUrl || valor.base64 || valor.FOTO_RECEPCION || valor.fotoRecepcion || '';
+            } else if (typeof valor === 'string') {
                 const t = valor.trim();
                 if (t.startsWith('{') || t.startsWith('[')) {
                     try {
@@ -485,6 +515,17 @@
             }
 
             return resultados;
+        }
+
+        function obtenerFotoRecepcionRaw(eq) {
+            if (!eq || typeof eq !== 'object') return '';
+            return eq.FOTO_RECEPCION
+                || eq.fotoRecepcion
+                || eq.FOTO
+                || eq.foto
+                || eq.IMAGEN_RECEPCION
+                || eq.imagenRecepcion
+                || '';
         }
 
         function cargarFotoRecepcionModal(raw) {
@@ -555,7 +596,7 @@
             seguimientoOriginalSerializado = JSON.stringify(seguimientoFotosBase64);
             renderizarGaleriaSeguimiento();
 
-            cargarFotoRecepcionModal(eq.FOTO_RECEPCION);
+            cargarFotoRecepcionModal(obtenerFotoRecepcionRaw(eq));
 
             document.getElementById('check-cargador').checked = checkToBool(eq.CHECK_CARGADOR, eq.CHECK_CARGADOR_BOOL);
             document.getElementById('check-pantalla').checked = checkToBool(eq.CHECK_PANTALLA, eq.CHECK_PANTALLA_BOOL);
@@ -738,14 +779,14 @@
             window.open(`https://wa.me/${destino}?text=${encodeURIComponent(mensaje)}`, '_blank');
         }
 
-        function descargarFichaPDF() {
+        async function descargarFichaPDF() {
             if (!equipoActual) {
                 mostrarToast('No hay equipo seleccionado', 'error');
                 return;
             }
             const e = equipoActual;
-            const logoPrincipal = new URL(CONFIG.LOGO_URL || './logo.webp', window.location.href).href;
-            const logoFallback = new URL('./logo.png', window.location.href).href;
+            const logoPrincipal = await resolverLogoPdf();
+            const fotoRecepcionPdf = obtenerCandidatasImagen(obtenerFotoRecepcionRaw(e))[0] || '';
             const html = `
                 <!DOCTYPE html>
                 <html lang="es">
@@ -779,8 +820,8 @@
                     <div class="container">
                         <div class="header">
                             <div style="display:flex;align-items:center;gap:15px">
-                                <img src="${logoPrincipal}" class="brand-logo" alt="Logo SrFix" onerror="this.onerror=null;this.src='${logoFallback}'">
-                                ${e.FOTO_RECEPCION ? `<img src="${e.FOTO_RECEPCION}" style="width:60px;height:60px;border-radius:12px;object-cover;border:2px solid rgba(255,255,255,0.3);background:#fff">` : ''}
+                                ${logoPrincipal ? `<img src="${logoPrincipal}" class="brand-logo" alt="Logo SrFix">` : '<div class="brand-logo" style="display:flex;align-items:center;justify-content:center;font-weight:800;color:#0F4C81">SRFIX</div>'}
+                                ${fotoRecepcionPdf ? `<img src="${fotoRecepcionPdf}" style="width:60px;height:60px;border-radius:12px;object-fit:cover;border:2px solid rgba(255,255,255,0.3);background:#fff">` : ''}
                                 <div><h1>SR<span>FIX</span></h1><p>Ficha Técnica (Semáforo)</p></div>
                             </div>
                             <div class="folio">${escapeHtml(e.FOLIO || '---')}</div>
@@ -838,6 +879,34 @@
             w.document.open();
             w.document.write(html);
             w.document.close();
+        }
+
+        async function resolverLogoPdf() {
+            const intentos = [CONFIG.LOGO_URL || './logo.webp', './logo.webp', './logo.png'];
+            for (const ruta of intentos) {
+                try {
+                    const url = new URL(ruta, window.location.href).href;
+                    const res = await fetch(url);
+                    if (!res.ok) continue;
+                    const blob = await res.blob();
+                    const dataUrl = await blobToDataUrl(blob);
+                    if (dataUrl) return dataUrl;
+                } catch (e) {}
+            }
+            return '';
+        }
+
+        function blobToDataUrl(blob) {
+            return new Promise((resolve) => {
+                try {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(String(reader.result || ''));
+                    reader.onerror = () => resolve('');
+                    reader.readAsDataURL(blob);
+                } catch (e) {
+                    resolve('');
+                }
+            });
         }
 
         function parseSeguimientoFotos(raw) {

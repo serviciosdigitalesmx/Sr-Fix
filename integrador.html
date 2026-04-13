@@ -758,7 +758,7 @@
         const WORKSPACE_MODULE = document.getElementById('workspace-current-module');
         const BTN_SHELL_LOGOUT = document.getElementById('btn-shell-logout');
         const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxH1zD8_14TvCajstFhtEpLNODwG9GZXkLoCXOb1IBNm0JIRmpCwS6SRsuGhZETK88z/exec';
-        const APP_BUILD = '20260402a';
+        const APP_BUILD = '20260413b';
         const MODULE_META = {
             operativo: { title: 'Recepción', subtitle: 'Recepción, captura y seguimiento de ingreso de equipos.' },
             tecnico: { title: 'Técnico', subtitle: 'Semáforo, diagnóstico, avances y cierre técnico del taller.' },
@@ -795,6 +795,7 @@
         function buildFrameUrl(path) {
             const url = new URL(path, window.location.href);
             url.searchParams.set('v', APP_BUILD);
+            url.searchParams.set('integrador', '1');
             return url.toString();
         }
 

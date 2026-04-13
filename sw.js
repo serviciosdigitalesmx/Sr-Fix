@@ -1,4 +1,4 @@
-const CACHE_NAME = 'srfix-static-v1';
+const CACHE_NAME = 'srfix-static-v2';
 const STATIC_ASSETS = [
   './',
   './integrador.html',
@@ -51,6 +51,27 @@ self.addEventListener('fetch', (event) => {
   const isApiLike = url.searchParams.has('action') || url.pathname.includes('/exec');
 
   if (!isSameOrigin || isApiLike) {
+    return;
+  }
+
+  const destino = request.destination || '';
+  const esDocumento = request.mode === 'navigate' || destino === 'document';
+  const esAssetCritico = destino === 'script' || destino === 'style';
+
+  if (esDocumento || esAssetCritico) {
+    event.respondWith(
+      fetch(request).then((response) => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(request).then((cached) => {
+        if (cached) return cached;
+        if (request.mode === 'navigate') return caches.match('./integrador.html');
+        return new Response('', { status: 503, statusText: 'Offline' });
+      }))
+    );
     return;
   }
 

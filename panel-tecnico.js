@@ -19,6 +19,7 @@
         let primeraCargaTecnico = true;
         let ultimoBeepRojoTs = 0;
         let ultimaFirmaSemaforo = '';
+        let loginEnCurso = false;
         let seguimientoOriginalSerializado = '[]';
         let filtros = {
             texto: '',
@@ -36,7 +37,18 @@
             }
         }
 
+        function isEmbeddedIntegratorAccess() {
+            try {
+                if (window.parent === window) return false;
+                const params = new URLSearchParams(window.location.search);
+                return params.get('integrador') === '1';
+            } catch (e) {
+                return false;
+            }
+        }
+
         function hasTecnicoAccess() {
+            if (isEmbeddedIntegratorAccess()) return true;
             const user = readInternalUser();
             if (!user) return false;
             const rol = String(user.ROL || '').toLowerCase();
@@ -94,11 +106,19 @@
         // LOGIN / LOGOUT
         // ==========================================
         async function login() {
+            if (loginEnCurso) return;
+            loginEnCurso = true;
             PASSWORD = document.getElementById('password-input').value.trim();
             const trustedInternalAccess = hasTecnicoAccess();
             if (!trustedInternalAccess) {
-                if (!PASSWORD) return mostrarErrorLogin('Ingresa la contraseña');
-                if (PASSWORD !== CONFIG.FRONT_PASSWORD) return mostrarErrorLogin('Contraseña incorrecta');
+                if (!PASSWORD) {
+                    loginEnCurso = false;
+                    return mostrarErrorLogin('Ingresa la contraseña');
+                }
+                if (PASSWORD !== CONFIG.FRONT_PASSWORD) {
+                    loginEnCurso = false;
+                    return mostrarErrorLogin('Contraseña incorrecta');
+                }
             }
 
             const btn = document.getElementById('btn-login');
@@ -126,10 +146,11 @@
                 if (intervalo) clearInterval(intervalo);
                 intervalo = setInterval(cargarDatos, 30000);
             } else {
-                mostrarErrorLogin('Contraseña incorrecta o error de conexión');
+                mostrarErrorLogin('No se pudo iniciar sesión por conexión o backend. Si la clave es Admin1, intenta de nuevo.');
                 btn.innerHTML = 'INGRESAR';
                 btn.disabled = false;
             }
+            loginEnCurso = false;
         }
 
         function logout() {
@@ -416,6 +437,83 @@
         // ==========================================
         let equipoActual = null;
 
+        function extraerDriveIdDesdeTexto(texto) {
+            const s = String(texto || '').trim();
+            if (!s) return '';
+            let m = s.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (m && m[1]) return m[1];
+            m = s.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+            if (m && m[1]) return m[1];
+            return '';
+        }
+
+        function obtenerCandidatasImagen(raw) {
+            const resultados = [];
+            const push = (valor) => {
+                const s = String(valor || '').trim();
+                if (!s) return;
+                if (!resultados.includes(s)) resultados.push(s);
+            };
+
+            let valor = raw;
+            if (typeof valor === 'string') {
+                const t = valor.trim();
+                if (t.startsWith('{') || t.startsWith('[')) {
+                    try {
+                        const parsed = JSON.parse(t);
+                        if (Array.isArray(parsed) && parsed.length) {
+                            valor = parsed[0];
+                        } else if (parsed && typeof parsed === 'object' && parsed.url) {
+                            valor = parsed.url;
+                        }
+                    } catch (e) {}
+                }
+            }
+
+            const principal = String(valor || '').trim();
+            if (!principal) return resultados;
+            push(principal);
+
+            if (principal.startsWith('//')) {
+                push(`https:${principal}`);
+            }
+
+            const driveId = extraerDriveIdDesdeTexto(principal);
+            if (driveId) {
+                push(`https://drive.google.com/uc?export=view&id=${driveId}`);
+                push(`https://drive.google.com/thumbnail?id=${driveId}&sz=w1600`);
+            }
+
+            return resultados;
+        }
+
+        function cargarFotoRecepcionModal(raw) {
+            const wrap = document.getElementById('modal-foto-wrap');
+            const img = document.getElementById('modal-foto');
+            const candidatas = obtenerCandidatasImagen(raw);
+
+            if (!candidatas.length) {
+                wrap.classList.add('hidden');
+                img.removeAttribute('src');
+                img.onerror = null;
+                return;
+            }
+
+            let idx = 0;
+            wrap.classList.remove('hidden');
+            img.onerror = () => {
+                idx += 1;
+                if (idx < candidatas.length) {
+                    img.src = candidatas[idx];
+                    return;
+                }
+                img.onerror = null;
+                wrap.classList.add('hidden');
+                img.removeAttribute('src');
+            };
+            img.src = candidatas[idx];
+        }
+
         async function abrirModal(eq) {
             equipoActual = eq;
             if (!eq.FOTO_RECEPCION) {
@@ -457,19 +555,7 @@
             seguimientoOriginalSerializado = JSON.stringify(seguimientoFotosBase64);
             renderizarGaleriaSeguimiento();
 
-            if (eq.FOTO_RECEPCION) {
-                // Asegurar que la URL sea de visualización directa para Google Drive si es un ID
-                let src = eq.FOTO_RECEPCION;
-                if (src.includes('drive.google.com') && !src.includes('export=view')) {
-                    const idMatch = src.match(/id=([a-zA-Z0-9_-]+)/);
-                    if (idMatch) src = `https://drive.google.com/uc?export=view&id=${idMatch[1]}`;
-                }
-                document.getElementById('modal-foto').src = src;
-                document.getElementById('modal-foto-wrap').classList.remove('hidden');
-            } else {
-                document.getElementById('modal-foto-wrap').classList.add('hidden');
-                document.getElementById('modal-foto').removeAttribute('src');
-            }
+            cargarFotoRecepcionModal(eq.FOTO_RECEPCION);
 
             document.getElementById('check-cargador').checked = checkToBool(eq.CHECK_CARGADOR, eq.CHECK_CARGADOR_BOOL);
             document.getElementById('check-pantalla').checked = checkToBool(eq.CHECK_PANTALLA, eq.CHECK_PANTALLA_BOOL);
@@ -658,6 +744,8 @@
                 return;
             }
             const e = equipoActual;
+            const logoPrincipal = new URL(CONFIG.LOGO_URL || './logo.webp', window.location.href).href;
+            const logoFallback = new URL('./logo.png', window.location.href).href;
             const html = `
                 <!DOCTYPE html>
                 <html lang="es">
@@ -673,6 +761,7 @@
                         .container{max-width:980px;margin:0 auto;background:#fff;border-radius:24px;box-shadow:0 20px 40px -10px rgba(0,20,50,.15);overflow:hidden;border:1px solid #e2e8f0}
                         .header{background:linear-gradient(135deg,#0F4C81 0%,#1F7EDC 100%);color:#fff;padding:30px 35px;display:flex;justify-content:space-between;align-items:center}
                         .header h1{font-size:30px;font-weight:800;letter-spacing:1px}.header h1 span{color:#FF6A2A}
+                        .brand-logo{width:58px;height:58px;border-radius:12px;object-fit:contain;background:#fff;padding:6px;border:2px solid rgba(255,255,255,.3)}
                         .folio{background:rgba(255,255,255,.15);padding:10px 22px;border-radius:60px;border:1px solid rgba(255,255,255,.3);font-weight:700}
                         .content{padding:35px}
                         .pill{display:flex;justify-content:space-between;gap:10px;background:#f1f5f9;padding:14px 18px;border-radius:999px;margin-bottom:24px}
@@ -690,6 +779,7 @@
                     <div class="container">
                         <div class="header">
                             <div style="display:flex;align-items:center;gap:15px">
+                                <img src="${logoPrincipal}" class="brand-logo" alt="Logo SrFix" onerror="this.onerror=null;this.src='${logoFallback}'">
                                 ${e.FOTO_RECEPCION ? `<img src="${e.FOTO_RECEPCION}" style="width:60px;height:60px;border-radius:12px;object-cover;border:2px solid rgba(255,255,255,0.3);background:#fff">` : ''}
                                 <div><h1>SR<span>FIX</span></h1><p>Ficha Técnica (Semáforo)</p></div>
                             </div>
@@ -865,21 +955,6 @@
             enviarWhatsAppCliente();
         });
 
-        window.addEventListener('load', () => {
-            if (hasTecnicoAccess()) {
-                login();
-                return;
-            }
-
-            const pass = sessionStorage.getItem('srfix_pass_tecnico') || localStorage.getItem('srfix_pass_tecnico');
-            if (pass) {
-                document.getElementById('password-input').value = pass;
-                if (localStorage.getItem('srfix_pass_tecnico')) {
-                    document.getElementById('remember-me').checked = true;
-                }
-                login();
-            }
-        });
         ['click', 'touchstart', 'keydown'].forEach(evt => {
             document.addEventListener(evt, unlockAudio, { once: true, passive: true });
         });

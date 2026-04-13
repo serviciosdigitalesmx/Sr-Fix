@@ -74,7 +74,9 @@
     function registerServiceWorker() {
         if (!('serviceWorker' in navigator)) return;
         if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
-        navigator.serviceWorker.register(SW_PATH).catch(() => {});
+        navigator.serviceWorker.register(SW_PATH).then((reg) => {
+            try { reg.update(); } catch (e) {}
+        }).catch(() => {});
     }
 
     function setupInstallPrompt() {

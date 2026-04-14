@@ -21,12 +21,12 @@ function Router_getGetRoutes() {
       required: [],
       handler: function(params) {
         const pag = Router_getPagination(params);
-        return listarSolicitudes({ page: pag.page, pageSize: pag.pageSize });
+        return Service_listarSolicitudes({ page: pag.page, pageSize: pag.pageSize });
       }
     },
     solicitud: {
       required: ['folio'],
-      handler: function(params) { return getSolicitudByFolio(params.folio); }
+      handler: function(params) { return Service_getSolicitudByFolio(params.folio); }
     },
     listar_sucursales: {
       required: [],
@@ -182,11 +182,11 @@ function Router_getPostRoutes() {
     },
     crear_solicitud: {
       required: [],
-      handler: function(data) { return crearSolicitud(data || {}); }
+      handler: function(data) { return Service_crearSolicitud(data || {}); }
     },
     archivar_solicitud: {
       required: ['folio'],
-      handler: function(data) { return archivarSolicitud(data || {}); }
+      handler: function(data) { return Service_archivarSolicitud(data || {}); }
     },
     crear_tarea: {
       required: [],
@@ -244,12 +244,12 @@ function Router_getPostRoutes() {
       required: [],
       handler: function(data) {
         const pag = Router_getPagination(data);
-        return listarSolicitudes({ page: pag.page, pageSize: pag.pageSize });
+        return Service_listarSolicitudes({ page: pag.page, pageSize: pag.pageSize });
       }
     },
     solicitud: {
       required: ['folio'],
-      handler: function(data) { return getSolicitudByFolio(data.folio); }
+      handler: function(data) { return Service_getSolicitudByFolio(data.folio); }
     },
     listar_tareas: {
       required: [],

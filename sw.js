@@ -20,7 +20,7 @@ const STATIC_ASSETS = [
   './pwa-mobile.css',
   './pwa-init.js',
   './manifest.webmanifest',
-  './logo.png',
+  './logo.webp',
   './logo.webp',
   './assets/icons/icon-192x192.png',
   './assets/icons/icon-512x512.png'

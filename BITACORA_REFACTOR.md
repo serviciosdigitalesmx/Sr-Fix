@@ -96,3 +96,7 @@
 ## 2026-04-14 12:24 America/Monterrey
 - Se consulta bitacora antes de commit.
 - Se valida diff final de checklist/bitacora/codigo y se prepara versionado del bloque de 8 puntos.
+
+## 2026-04-14 12:36 America/Monterrey
+- Se consulta bitacora antes de versionar cambios de reestructura final.
+- Solicitud del usuario: subir todo a GitHub.

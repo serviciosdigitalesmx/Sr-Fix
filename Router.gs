@@ -3,11 +3,157 @@
  * Si una acción no está en rutas nuevas, cae en handler legacy para no romper compatibilidad.
  */
 
+function Router_getPagination(input) {
+  return parsePaginacion(input || {});
+}
+
 function Router_getGetRoutes() {
   return {
     status: {
       required: [],
       handler: function() { return Utils_ok(Service_getStatus()); }
+    },
+    semaforo: {
+      required: [],
+      handler: function(params) { return getSemaforoData(Router_getPagination(params)); }
+    },
+    listar_solicitudes: {
+      required: [],
+      handler: function(params) {
+        const pag = Router_getPagination(params);
+        return listarSolicitudes({ page: pag.page, pageSize: pag.pageSize });
+      }
+    },
+    solicitud: {
+      required: ['folio'],
+      handler: function(params) { return getSolicitudByFolio(params.folio); }
+    },
+    listar_sucursales: {
+      required: [],
+      handler: function(params) {
+        const pag = Router_getPagination(params);
+        return listarSucursales({
+          texto: params.texto || '',
+          soloActivas: params.soloActivas || '',
+          page: pag.page,
+          pageSize: pag.pageSize
+        });
+      }
+    },
+    listar_tareas: {
+      required: [],
+      handler: function(params) {
+        const pag = Router_getPagination(params);
+        return listarTareas({
+          texto: params.texto || '',
+          estado: params.estado || '',
+          prioridad: params.prioridad || '',
+          responsable: params.responsable || '',
+          fechaDesde: params.fechaDesde || '',
+          fechaHasta: params.fechaHasta || '',
+          sucursalId: params.sucursalId || '',
+          tipoRelacion: params.tipoRelacion || '',
+          page: pag.page,
+          pageSize: pag.pageSize
+        });
+      }
+    },
+    listar_productos: {
+      required: [],
+      handler: function(params) {
+        const pag = Router_getPagination(params);
+        return listarProductos({
+          texto: params.texto || '',
+          categoria: params.categoria || '',
+          marca: params.marca || '',
+          proveedor: params.proveedor || '',
+          estatus: params.estatus || '',
+          nivelAlerta: params.nivelAlerta || '',
+          soloAlertas: params.soloAlertas || '',
+          page: pag.page,
+          pageSize: pag.pageSize
+        });
+      }
+    },
+    obtener_alertas_stock: {
+      required: [],
+      handler: function(params) {
+        const pag = Router_getPagination(params);
+        return obtenerAlertasStock({
+          texto: params.texto || '',
+          categoria: params.categoria || '',
+          marca: params.marca || '',
+          proveedor: params.proveedor || '',
+          nivelAlerta: params.nivelAlerta || '',
+          estatus: params.estatus || '',
+          page: pag.page,
+          pageSize: pag.pageSize
+        });
+      }
+    },
+    listar_proveedores: {
+      required: [],
+      handler: function(params) {
+        const pag = Router_getPagination(params);
+        return listarProveedores({
+          texto: params.texto || '',
+          estatus: params.estatus || '',
+          categoria: params.categoria || '',
+          page: pag.page,
+          pageSize: pag.pageSize
+        });
+      }
+    },
+    listar_gastos: {
+      required: [],
+      handler: function(params) {
+        const pag = Router_getPagination(params);
+        return listarGastos({
+          fechaDesde: params.fechaDesde || '',
+          fechaHasta: params.fechaHasta || '',
+          tipo: params.tipo || '',
+          categoria: params.categoria || '',
+          sucursalId: params.sucursalId || '',
+          texto: params.texto || '',
+          page: pag.page,
+          pageSize: pag.pageSize
+        });
+      }
+    },
+    resumen_gastos: {
+      required: [],
+      handler: function(params) {
+        return resumenGastos({
+          fechaDesde: params.fechaDesde || '',
+          fechaHasta: params.fechaHasta || '',
+          sucursalId: params.sucursalId || ''
+        });
+      }
+    },
+    resumen_finanzas: {
+      required: [],
+      handler: function(params) {
+        return resumenFinanzas({
+          fechaDesde: params.fechaDesde || '',
+          fechaHasta: params.fechaHasta || '',
+          sucursalId: params.sucursalId || ''
+        });
+      }
+    },
+    listar_clientes: {
+      required: [],
+      handler: function(params) {
+        const pag = Router_getPagination(params);
+        return listarClientes({
+          texto: params.texto || '',
+          page: pag.page,
+          pageSize: pag.pageSize
+        });
+      }
+    },
+    cliente: {
+      required: ['id'],
+      handler: function(params) { return getClienteById(params.id); }
     },
     hub_dashboard_summary: {
       required: [],
@@ -33,6 +179,131 @@ function Router_getPostRoutes() {
     login_interno: {
       required: ['usuario', 'password'],
       handler: function(data) { return Service_loginInterno(data || {}); }
+    },
+    crear_solicitud: {
+      required: [],
+      handler: function(data) { return crearSolicitud(data || {}); }
+    },
+    archivar_solicitud: {
+      required: ['folio'],
+      handler: function(data) { return archivarSolicitud(data || {}); }
+    },
+    crear_tarea: {
+      required: [],
+      handler: function(data) { return crearTarea(data || {}); }
+    },
+    actualizar_tarea: {
+      required: ['folio'],
+      handler: function(data) { return actualizarTarea(data || {}); }
+    },
+    guardar_producto: {
+      required: [],
+      handler: function(data) { return guardarProducto(data || {}); }
+    },
+    eliminar_producto: {
+      required: ['sku'],
+      handler: function(data) { return eliminarProducto(data || {}); }
+    },
+    guardar_proveedor: {
+      required: [],
+      handler: function(data) { return guardarProveedor(data || {}); }
+    },
+    eliminar_proveedor: {
+      required: ['id'],
+      handler: function(data) { return eliminarProveedor(data || {}); }
+    },
+    guardar_gasto: {
+      required: [],
+      handler: function(data) { return guardarGasto(data || {}); }
+    },
+    eliminar_gasto: {
+      required: ['id'],
+      handler: function(data) { return eliminarGasto(data || {}); }
+    },
+    guardar_cliente: {
+      required: [],
+      handler: function(data) { return guardarCliente(data || {}); }
+    },
+    listar_sucursales: {
+      required: [],
+      handler: function(data) {
+        const pag = Router_getPagination(data);
+        return listarSucursales({
+          texto: data.texto || '',
+          soloActivas: data.soloActivas || '',
+          page: pag.page,
+          pageSize: pag.pageSize
+        });
+      }
+    },
+    semaforo: {
+      required: [],
+      handler: function(data) { return getSemaforoData(Router_getPagination(data)); }
+    },
+    listar_solicitudes: {
+      required: [],
+      handler: function(data) {
+        const pag = Router_getPagination(data);
+        return listarSolicitudes({ page: pag.page, pageSize: pag.pageSize });
+      }
+    },
+    solicitud: {
+      required: ['folio'],
+      handler: function(data) { return getSolicitudByFolio(data.folio); }
+    },
+    listar_tareas: {
+      required: [],
+      handler: function(data) {
+        const pag = Router_getPagination(data);
+        return listarTareas(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
+      }
+    },
+    listar_productos: {
+      required: [],
+      handler: function(data) {
+        const pag = Router_getPagination(data);
+        return listarProductos(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
+      }
+    },
+    obtener_alertas_stock: {
+      required: [],
+      handler: function(data) {
+        const pag = Router_getPagination(data);
+        return obtenerAlertasStock(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
+      }
+    },
+    listar_proveedores: {
+      required: [],
+      handler: function(data) {
+        const pag = Router_getPagination(data);
+        return listarProveedores(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
+      }
+    },
+    listar_gastos: {
+      required: [],
+      handler: function(data) {
+        const pag = Router_getPagination(data);
+        return listarGastos(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
+      }
+    },
+    resumen_gastos: {
+      required: [],
+      handler: function(data) { return resumenGastos(data || {}); }
+    },
+    resumen_finanzas: {
+      required: [],
+      handler: function(data) { return resumenFinanzas(data || {}); }
+    },
+    listar_clientes: {
+      required: [],
+      handler: function(data) {
+        const pag = Router_getPagination(data);
+        return listarClientes(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
+      }
+    },
+    cliente: {
+      required: ['id'],
+      handler: function(data) { return getClienteById(data.id); }
     },
     hub_dashboard_summary: {
       required: [],

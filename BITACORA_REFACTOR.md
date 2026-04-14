@@ -76,3 +76,23 @@
   - GET status responde fallback online (sin HttpController en ese deployment).
   - POST de acciones (`listar_productos`, `listar_gastos`, `listar_clientes`) no llega a rutas y redirige a pagina generica de Docs (deployment no alineado para POST de API).
 - Conclusión: codigo refactor local listo, validacion E2E destructiva en linea sigue bloqueada por estado de deployment.
+
+## 2026-04-14 12:02 America/Monterrey
+- Se consulta bitacora antes de editar.
+- Inicio de cierre de 8 puntos: lock waitLock, legacy routing registry, upsert cliente por busqueda puntual, mapping dinamico equipo y fechas timestamp-safe, descomposicion de reporte.
+
+## 2026-04-14 12:18 America/Monterrey
+- Se consulta bitacora antes de cierre de bloque.
+- Refactor aplicado en `codigo.gs`:
+  - `withDocumentLock` ahora usa `lock.waitLock(timeout)`.
+  - `doGetLegacy/doPostLegacy` ahora usan registro de rutas + validacion de requeridos previa.
+  - `mapearFilaEquipo` migrado a resolver headers normalizados (sin alias hardcode por campo).
+  - `crearEquipo` usa `upsertClienteLigero` con `TextFinder` (sin barrer toda la hoja de clientes).
+  - Se agrega soporte timestamp-safe (`parseFechaFlexible` con epoch + guardado paralelo `_TS` en equipos).
+  - `reporteOperativo` descompuesto en funciones de servicio por segmento.
+- Validacion sintactica local OK (`node --check /tmp/codigo_check.js`).
+- Checklist actualizado con cierre de 8 puntos criticos.
+
+## 2026-04-14 12:24 America/Monterrey
+- Se consulta bitacora antes de commit.
+- Se valida diff final de checklist/bitacora/codigo y se prepara versionado del bloque de 8 puntos.

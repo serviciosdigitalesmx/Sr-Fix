@@ -219,10 +219,14 @@ function registrarBitacoraSeguridad(entry) {
       String(entry && entry.origen || '').trim()
     ]), 'registrarBitacoraSeguridad.append');
   } catch (e) {
-    logError('registrarBitacoraSeguridad', e, {
+    // Nunca reintentar en hojas al fallar bitácora para evitar cascadas de error por lock.
+    console.error(JSON.stringify({
+      contexto: 'registrarBitacoraSeguridad',
+      mensaje: e && e.message ? e.message : String(e || ''),
+      stack: e && e.stack ? String(e.stack) : '',
       accion: entry && entry.accion ? String(entry.accion) : '',
       usuario: entry && entry.usuario ? String(entry.usuario) : ''
-    });
+    }));
   }
 }
 
@@ -831,299 +835,136 @@ function recalcularStockGlobalProducto(ss, sku) {
 // ==========================================
 
 function doGetLegacy(e) {
-  const action = e.parameter.action || 'status';
-
+  const params = (e && e.parameter) ? e.parameter : {};
+  const action = String(params.action || 'status').trim();
   try {
-    const pag = parsePaginacion(e.parameter || {});
-    switch(action) {
-      case 'status':
-        return jsonResponse({ status: 'online', version: CONFIG.API_VERSION, storage: 'google_sheets' });
-      case 'equipo':
-        if (!e.parameter.folio) return jsonResponse({ error: 'Folio requerido' });
-        return getEquipoByFolio(e.parameter.folio);
-      case 'semaforo':
-        return getSemaforoData(pag);
-      case 'listar_solicitudes':
-        return listarSolicitudes({ page: pag.page, pageSize: pag.pageSize });
-      case 'solicitud':
-        if (!e.parameter.folio) return jsonResponse({ error: 'Folio requerido' });
-        return getSolicitudByFolio(e.parameter.folio);
-      case 'archivar_solicitud':
-        if (!e.parameter.folio) return jsonResponse({ error: 'Folio requerido' });
-        return archivarSolicitud({ folio: e.parameter.folio });
-      case 'archivar_cotizacion':
-        if (!e.parameter.folio) return jsonResponse({ error: 'Folio requerido' });
-        return archivarCotizacion({ folio: e.parameter.folio, cotizacion: {} });
-      case 'listar_archivo':
-        return listarArchivo({
-          from: e.parameter.from || '',
-          to: e.parameter.to || '',
-          tipo: e.parameter.tipo || 'todos',
-          page: pag.page,
-          pageSize: pag.pageSize
-        });
-      case 'listar_tareas':
-        return listarTareas({
-          texto: e.parameter.texto || '',
-          estado: e.parameter.estado || '',
-          prioridad: e.parameter.prioridad || '',
-          responsable: e.parameter.responsable || '',
-          fechaDesde: e.parameter.fechaDesde || '',
-          fechaHasta: e.parameter.fechaHasta || '',
-          sucursalId: e.parameter.sucursalId || '',
-          tipoRelacion: e.parameter.tipoRelacion || '',
-          page: pag.page,
-          pageSize: pag.pageSize
-        });
-      case 'tarea':
-        if (!e.parameter.folio) return jsonResponse({ error: 'Folio requerido' });
-        return getTareaByFolio(e.parameter.folio);
-      case 'listar_productos':
-        return listarProductos({
-          texto: e.parameter.texto || '',
-          categoria: e.parameter.categoria || '',
-          marca: e.parameter.marca || '',
-          proveedor: e.parameter.proveedor || '',
-          estatus: e.parameter.estatus || '',
-          nivelAlerta: e.parameter.nivelAlerta || '',
-          soloAlertas: e.parameter.soloAlertas || '',
-          page: pag.page,
-          pageSize: pag.pageSize
-        });
-      case 'obtener_alertas_stock':
-        return obtenerAlertasStock({
-          texto: e.parameter.texto || '',
-          categoria: e.parameter.categoria || '',
-          marca: e.parameter.marca || '',
-          proveedor: e.parameter.proveedor || '',
-          nivelAlerta: e.parameter.nivelAlerta || '',
-          estatus: e.parameter.estatus || '',
-          page: pag.page,
-          pageSize: pag.pageSize
-        });
-      case 'listar_movimientos_producto':
-        if (!e.parameter.sku) return jsonResponse({ error: 'SKU requerido' });
-        return listarMovimientosProducto({
-          sku: e.parameter.sku || '',
-          sucursalId: e.parameter.sucursalId || '',
-          page: pag.page,
-          pageSize: pag.pageSize
-        });
-      case 'listar_folios_relacion':
-        return listarFoliosRelacion();
-      case 'listar_proveedores':
-        return listarProveedores({
-          texto: e.parameter.texto || '',
-          estatus: e.parameter.estatus || '',
-          categoria: e.parameter.categoria || '',
-          page: pag.page,
-          pageSize: pag.pageSize
-        });
-      case 'proveedor':
-        if (!e.parameter.id) return jsonResponse({ error: 'ID requerido' });
-        return getProveedorById(e.parameter.id);
-      case 'listar_nombres_proveedores':
-        return listarNombresProveedores();
-      case 'listar_sucursales':
-        return listarSucursales({ texto: e.parameter.texto || '', soloActivas: e.parameter.soloActivas || '', page: pag.page, pageSize: pag.pageSize });
-      case 'listar_usuarios_internos':
-        return listarUsuariosInternos();
-      case 'obtener_config_seguridad':
-        return obtenerConfiguracionSeguridad();
-      case 'politica_accion_critica':
-        return obtenerPoliticaAccionCritica(e.parameter.accion || '');
-      case 'listar_transferencias_stock':
-        return listarTransferenciasStock({ texto: e.parameter.texto || '', sucursalId: e.parameter.sucursalId || '', page: pag.page, pageSize: pag.pageSize });
-      case 'listar_ordenes_compra':
-        return listarOrdenesCompra({
-          texto: e.parameter.texto || '',
-          estado: e.parameter.estado || '',
-          proveedor: e.parameter.proveedor || '',
-          sucursalId: e.parameter.sucursalId || '',
-          page: pag.page,
-          pageSize: pag.pageSize
-        });
-      case 'orden_compra':
-        if (!e.parameter.folio) return jsonResponse({ error: 'Folio requerido' });
-        return getOrdenCompraByFolio(e.parameter.folio);
-      case 'listar_gastos':
-        return listarGastos({
-          fechaDesde: e.parameter.fechaDesde || '',
-          fechaHasta: e.parameter.fechaHasta || '',
-          tipo: e.parameter.tipo || '',
-          categoria: e.parameter.categoria || '',
-          sucursalId: e.parameter.sucursalId || '',
-          texto: e.parameter.texto || '',
-          page: pag.page,
-          pageSize: pag.pageSize
-        });
-      case 'resumen_gastos':
-        return resumenGastos({
-          fechaDesde: e.parameter.fechaDesde || '',
-          fechaHasta: e.parameter.fechaHasta || '',
-          sucursalId: e.parameter.sucursalId || ''
-        });
-      case 'resumen_finanzas':
-        return resumenFinanzas({
-          fechaDesde: e.parameter.fechaDesde || '',
-          fechaHasta: e.parameter.fechaHasta || '',
-          sucursalId: e.parameter.sucursalId || ''
-        });
-      case 'reporte_operativo':
-        return reporteOperativo({
-          tipo: e.parameter.tipo || 'diario',
-          fechaDesde: e.parameter.fechaDesde || '',
-          fechaHasta: e.parameter.fechaHasta || '',
-          sucursalId: e.parameter.sucursalId || ''
-        });
-      case 'listar_clientes':
-        return listarClientes({
-          texto: e.parameter.texto || '',
-          page: pag.page,
-          pageSize: pag.pageSize
-        });
-      case 'cliente':
-        if (!e.parameter.id) return jsonResponse({ error: 'ID requerido' });
-        return getClienteById(e.parameter.id);
-      case 'crear_solicitud':
-        return crearSolicitud({
-          nombre: e.parameter.nombre || '',
-          telefono: e.parameter.telefono || '',
-          email: e.parameter.email || '',
-          dispositivo: e.parameter.dispositivo || '',
-          modelo: e.parameter.modelo || '',
-          problemas: (e.parameter.problemas || '').split(',').map(s => String(s).trim()).filter(Boolean),
-          descripcion: e.parameter.descripcion || '',
-          urgencia: e.parameter.urgencia || ''
-        });
-      default:
-        return jsonResponse({ error: 'Acción no válida' });
-    }
+    return Legacy_dispatchRoute('GET', action, params);
   } catch (error) {
-    logError('doGet', error, { action: action, params: e && e.parameter ? e.parameter : {} });
+    logError('doGetLegacy', error, { action: action, params: params });
     return jsonResponse({ error: error.toString() });
   }
 }
 
 function doPostLegacy(e) {
+  const data = parsePostData(e);
+  const action = String(data && data.action || '').trim();
   try {
-    const data = parsePostData(e);
-    const action = data.action;
-    const pag = parsePaginacion(data || {});
-
-    switch(action) {
-      case 'crear_equipo':
-        return crearEquipo(data);
-      case 'actualizar_equipo':
-        return actualizarEquipo(data);
-      case 'semaforo':
-        return getSemaforoData(pag);
-      case 'crear_solicitud':
-        return crearSolicitud(data);
-      case 'login_interno':
-        return loginInterno(data);
-      case 'listar_solicitudes':
-        return listarSolicitudes({ page: pag.page, pageSize: pag.pageSize });
-      case 'solicitud':
-        if (!data.folio) return jsonResponse({ error: 'Folio requerido' });
-        return getSolicitudByFolio(data.folio);
-      case 'archivar_solicitud':
-        return archivarSolicitud(data);
-      case 'archivar_cotizacion':
-        return archivarCotizacion(data);
-      case 'listar_archivo':
-        return listarArchivo({ ...data, page: pag.page, pageSize: pag.pageSize });
-      case 'crear_tarea':
-        return crearTarea(data);
-      case 'actualizar_tarea':
-        return actualizarTarea(data);
-      case 'listar_tareas':
-        return listarTareas({ ...data, page: pag.page, pageSize: pag.pageSize });
-      case 'tarea':
-        if (!data.folio) return jsonResponse({ error: 'Folio requerido' });
-        return getTareaByFolio(data.folio);
-      case 'guardar_producto':
-        return guardarProducto(data);
-      case 'eliminar_producto':
-        return eliminarProducto(data);
-      case 'listar_productos':
-        return listarProductos({ ...data, page: pag.page, pageSize: pag.pageSize });
-      case 'obtener_alertas_stock':
-        return obtenerAlertasStock({ ...data, page: pag.page, pageSize: pag.pageSize });
-      case 'listar_movimientos_producto':
-        return listarMovimientosProducto({ ...data, page: pag.page, pageSize: pag.pageSize });
-      case 'registrar_movimiento_stock':
-        return registrarMovimientoStock(data);
-      case 'listar_folios_relacion':
-        return listarFoliosRelacion();
-      case 'guardar_proveedor':
-        return guardarProveedor(data);
-      case 'eliminar_proveedor':
-        return eliminarProveedor(data);
-      case 'listar_proveedores':
-        return listarProveedores({ ...data, page: pag.page, pageSize: pag.pageSize });
-      case 'proveedor':
-        if (!data.id) return jsonResponse({ error: 'ID requerido' });
-        return getProveedorById(data.id);
-      case 'listar_nombres_proveedores':
-        return listarNombresProveedores();
-      case 'listar_sucursales':
-        return listarSucursales({ ...data, page: pag.page, pageSize: pag.pageSize });
-      case 'listar_usuarios_internos':
-        return listarUsuariosInternos();
-      case 'guardar_usuario_interno':
-        return guardarUsuarioInterno(data);
-      case 'obtener_config_seguridad':
-        return obtenerConfiguracionSeguridad();
-      case 'guardar_config_seguridad':
-        return guardarConfiguracionSeguridad(data);
-      case 'validar_admin_password':
-        return validarAutorizacionAdmin(data);
-      case 'politica_accion_critica':
-        return obtenerPoliticaAccionCritica(data.accion || '');
-      case 'guardar_sucursal':
-        return guardarSucursal(data);
-      case 'transferir_stock':
-        return transferirStock(data);
-      case 'listar_transferencias_stock':
-        return listarTransferenciasStock({ ...data, page: pag.page, pageSize: pag.pageSize });
-      case 'guardar_orden_compra':
-        return guardarOrdenCompra(data);
-      case 'listar_ordenes_compra':
-        return listarOrdenesCompra({ ...data, page: pag.page, pageSize: pag.pageSize });
-      case 'orden_compra':
-        if (!data.folio) return jsonResponse({ error: 'Folio requerido' });
-        return getOrdenCompraByFolio(data.folio);
-      case 'cambiar_estado_orden_compra':
-        return cambiarEstadoOrdenCompra(data);
-      case 'recibir_orden_compra':
-        return recibirOrdenCompra(data);
-      case 'guardar_gasto':
-        return guardarGasto(data);
-      case 'eliminar_gasto':
-        return eliminarGasto(data);
-      case 'listar_gastos':
-        return listarGastos({ ...data, page: pag.page, pageSize: pag.pageSize });
-      case 'resumen_gastos':
-        return resumenGastos(data);
-      case 'resumen_finanzas':
-        return resumenFinanzas(data);
-      case 'reporte_operativo':
-        return reporteOperativo(data);
-      case 'listar_clientes':
-        return listarClientes({ ...data, page: pag.page, pageSize: pag.pageSize });
-      case 'cliente':
-        if (!data.id) return jsonResponse({ error: 'ID requerido' });
-        return getClienteById(data.id);
-      case 'guardar_cliente':
-        return guardarCliente(data);
-      default:
-        return jsonResponse({ error: 'Acción no válida' });
-    }
+    return Legacy_dispatchRoute('POST', action, data || {});
   } catch (error) {
-    logError('doPost', error);
+    logError('doPostLegacy', error, { action: action });
     return jsonResponse({ error: error.toString() });
   }
+}
+
+function Legacy_dispatchRoute(method, action, payload) {
+  const routes = method === 'GET' ? Legacy_getGetRoutes() : Legacy_getPostRoutes();
+  const route = routes[action];
+  if (!route) return jsonResponse({ error: 'Acción no válida' });
+
+  const required = Legacy_requireFields(payload || {}, route.required || []);
+  if (!required.ok) return jsonResponse({ error: required.error });
+
+  return route.handler(payload || {});
+}
+
+function Legacy_requireFields(data, requiredFields) {
+  const missing = (requiredFields || []).filter(function(field) {
+    const val = data && data[field];
+    return val === undefined || val === null || String(val).trim() === '';
+  });
+  if (missing.length) return { ok: false, error: 'Campos requeridos: ' + missing.join(', ') };
+  return { ok: true, error: '' };
+}
+
+function Legacy_getGetRoutes() {
+  return {
+    status: { required: [], handler: function() { return jsonResponse({ status: 'online', version: CONFIG.API_VERSION, storage: 'google_sheets' }); } },
+    equipo: { required: ['folio'], handler: function(p) { return getEquipoByFolio(p.folio); } },
+    semaforo: { required: [], handler: function(p) { return getSemaforoData(parsePaginacion(p)); } },
+    listar_solicitudes: { required: [], handler: function(p) { const pag = parsePaginacion(p); return listarSolicitudes({ page: pag.page, pageSize: pag.pageSize }); } },
+    solicitud: { required: ['folio'], handler: function(p) { return getSolicitudByFolio(p.folio); } },
+    archivar_solicitud: { required: ['folio'], handler: function(p) { return archivarSolicitud({ folio: p.folio }); } },
+    archivar_cotizacion: { required: ['folio'], handler: function(p) { return archivarCotizacion({ folio: p.folio, cotizacion: {} }); } },
+    listar_archivo: { required: [], handler: function(p) { const pag = parsePaginacion(p); return listarArchivo({ from: p.from || '', to: p.to || '', tipo: p.tipo || 'todos', page: pag.page, pageSize: pag.pageSize }); } },
+    listar_tareas: { required: [], handler: function(p) { const pag = parsePaginacion(p); return listarTareas({ texto: p.texto || '', estado: p.estado || '', prioridad: p.prioridad || '', responsable: p.responsable || '', fechaDesde: p.fechaDesde || '', fechaHasta: p.fechaHasta || '', sucursalId: p.sucursalId || '', tipoRelacion: p.tipoRelacion || '', page: pag.page, pageSize: pag.pageSize }); } },
+    tarea: { required: ['folio'], handler: function(p) { return getTareaByFolio(p.folio); } },
+    listar_productos: { required: [], handler: function(p) { const pag = parsePaginacion(p); return listarProductos({ texto: p.texto || '', categoria: p.categoria || '', marca: p.marca || '', proveedor: p.proveedor || '', estatus: p.estatus || '', nivelAlerta: p.nivelAlerta || '', soloAlertas: p.soloAlertas || '', page: pag.page, pageSize: pag.pageSize }); } },
+    obtener_alertas_stock: { required: [], handler: function(p) { const pag = parsePaginacion(p); return obtenerAlertasStock({ texto: p.texto || '', categoria: p.categoria || '', marca: p.marca || '', proveedor: p.proveedor || '', nivelAlerta: p.nivelAlerta || '', estatus: p.estatus || '', page: pag.page, pageSize: pag.pageSize }); } },
+    listar_movimientos_producto: { required: ['sku'], handler: function(p) { const pag = parsePaginacion(p); return listarMovimientosProducto({ sku: p.sku || '', sucursalId: p.sucursalId || '', page: pag.page, pageSize: pag.pageSize }); } },
+    listar_folios_relacion: { required: [], handler: function() { return listarFoliosRelacion(); } },
+    listar_proveedores: { required: [], handler: function(p) { const pag = parsePaginacion(p); return listarProveedores({ texto: p.texto || '', estatus: p.estatus || '', categoria: p.categoria || '', page: pag.page, pageSize: pag.pageSize }); } },
+    proveedor: { required: ['id'], handler: function(p) { return getProveedorById(p.id); } },
+    listar_nombres_proveedores: { required: [], handler: function() { return listarNombresProveedores(); } },
+    listar_sucursales: { required: [], handler: function(p) { const pag = parsePaginacion(p); return listarSucursales({ texto: p.texto || '', soloActivas: p.soloActivas || '', page: pag.page, pageSize: pag.pageSize }); } },
+    listar_usuarios_internos: { required: [], handler: function() { return listarUsuariosInternos(); } },
+    obtener_config_seguridad: { required: [], handler: function() { return obtenerConfiguracionSeguridad(); } },
+    politica_accion_critica: { required: [], handler: function(p) { return obtenerPoliticaAccionCritica(p.accion || ''); } },
+    listar_transferencias_stock: { required: [], handler: function(p) { const pag = parsePaginacion(p); return listarTransferenciasStock({ texto: p.texto || '', sucursalId: p.sucursalId || '', page: pag.page, pageSize: pag.pageSize }); } },
+    listar_ordenes_compra: { required: [], handler: function(p) { const pag = parsePaginacion(p); return listarOrdenesCompra({ texto: p.texto || '', estado: p.estado || '', proveedor: p.proveedor || '', sucursalId: p.sucursalId || '', page: pag.page, pageSize: pag.pageSize }); } },
+    orden_compra: { required: ['folio'], handler: function(p) { return getOrdenCompraByFolio(p.folio); } },
+    listar_gastos: { required: [], handler: function(p) { const pag = parsePaginacion(p); return listarGastos({ fechaDesde: p.fechaDesde || '', fechaHasta: p.fechaHasta || '', tipo: p.tipo || '', categoria: p.categoria || '', sucursalId: p.sucursalId || '', texto: p.texto || '', page: pag.page, pageSize: pag.pageSize }); } },
+    resumen_gastos: { required: [], handler: function(p) { return resumenGastos({ fechaDesde: p.fechaDesde || '', fechaHasta: p.fechaHasta || '', sucursalId: p.sucursalId || '' }); } },
+    resumen_finanzas: { required: [], handler: function(p) { return resumenFinanzas({ fechaDesde: p.fechaDesde || '', fechaHasta: p.fechaHasta || '', sucursalId: p.sucursalId || '' }); } },
+    reporte_operativo: { required: [], handler: function(p) { return reporteOperativo({ tipo: p.tipo || 'diario', fechaDesde: p.fechaDesde || '', fechaHasta: p.fechaHasta || '', sucursalId: p.sucursalId || '' }); } },
+    listar_clientes: { required: [], handler: function(p) { const pag = parsePaginacion(p); return listarClientes({ texto: p.texto || '', page: pag.page, pageSize: pag.pageSize }); } },
+    cliente: { required: ['id'], handler: function(p) { return getClienteById(p.id); } },
+    crear_solicitud: { required: [], handler: function(p) { return crearSolicitud({ nombre: p.nombre || '', telefono: p.telefono || '', email: p.email || '', dispositivo: p.dispositivo || '', modelo: p.modelo || '', problemas: (p.problemas || '').split(',').map(function(s) { return String(s).trim(); }).filter(Boolean), descripcion: p.descripcion || '', urgencia: p.urgencia || '' }); } }
+  };
+}
+
+function Legacy_getPostRoutes() {
+  return {
+    crear_equipo: { required: [], handler: function(d) { return crearEquipo(d); } },
+    actualizar_equipo: { required: [], handler: function(d) { return actualizarEquipo(d); } },
+    semaforo: { required: [], handler: function(d) { return getSemaforoData(parsePaginacion(d)); } },
+    crear_solicitud: { required: [], handler: function(d) { return crearSolicitud(d); } },
+    login_interno: { required: ['usuario', 'password'], handler: function(d) { return loginInterno(d); } },
+    listar_solicitudes: { required: [], handler: function(d) { const pag = parsePaginacion(d); return listarSolicitudes({ page: pag.page, pageSize: pag.pageSize }); } },
+    solicitud: { required: ['folio'], handler: function(d) { return getSolicitudByFolio(d.folio); } },
+    archivar_solicitud: { required: ['folio'], handler: function(d) { return archivarSolicitud(d); } },
+    archivar_cotizacion: { required: ['folio'], handler: function(d) { return archivarCotizacion(d); } },
+    listar_archivo: { required: [], handler: function(d) { const pag = parsePaginacion(d); return listarArchivo(Object.assign({}, d, { page: pag.page, pageSize: pag.pageSize })); } },
+    crear_tarea: { required: [], handler: function(d) { return crearTarea(d); } },
+    actualizar_tarea: { required: ['folio'], handler: function(d) { return actualizarTarea(d); } },
+    listar_tareas: { required: [], handler: function(d) { const pag = parsePaginacion(d); return listarTareas(Object.assign({}, d, { page: pag.page, pageSize: pag.pageSize })); } },
+    tarea: { required: ['folio'], handler: function(d) { return getTareaByFolio(d.folio); } },
+    guardar_producto: { required: [], handler: function(d) { return guardarProducto(d); } },
+    eliminar_producto: { required: ['sku'], handler: function(d) { return eliminarProducto(d); } },
+    listar_productos: { required: [], handler: function(d) { const pag = parsePaginacion(d); return listarProductos(Object.assign({}, d, { page: pag.page, pageSize: pag.pageSize })); } },
+    obtener_alertas_stock: { required: [], handler: function(d) { const pag = parsePaginacion(d); return obtenerAlertasStock(Object.assign({}, d, { page: pag.page, pageSize: pag.pageSize })); } },
+    listar_movimientos_producto: { required: ['sku'], handler: function(d) { const pag = parsePaginacion(d); return listarMovimientosProducto(Object.assign({}, d, { page: pag.page, pageSize: pag.pageSize })); } },
+    registrar_movimiento_stock: { required: ['sku', 'tipoMovimiento', 'cantidad'], handler: function(d) { return registrarMovimientoStock(d); } },
+    listar_folios_relacion: { required: [], handler: function() { return listarFoliosRelacion(); } },
+    guardar_proveedor: { required: [], handler: function(d) { return guardarProveedor(d); } },
+    eliminar_proveedor: { required: ['id'], handler: function(d) { return eliminarProveedor(d); } },
+    listar_proveedores: { required: [], handler: function(d) { const pag = parsePaginacion(d); return listarProveedores(Object.assign({}, d, { page: pag.page, pageSize: pag.pageSize })); } },
+    proveedor: { required: ['id'], handler: function(d) { return getProveedorById(d.id); } },
+    listar_nombres_proveedores: { required: [], handler: function() { return listarNombresProveedores(); } },
+    listar_sucursales: { required: [], handler: function(d) { const pag = parsePaginacion(d); return listarSucursales(Object.assign({}, d, { page: pag.page, pageSize: pag.pageSize })); } },
+    listar_usuarios_internos: { required: [], handler: function() { return listarUsuariosInternos(); } },
+    guardar_usuario_interno: { required: [], handler: function(d) { return guardarUsuarioInterno(d); } },
+    obtener_config_seguridad: { required: [], handler: function() { return obtenerConfiguracionSeguridad(); } },
+    guardar_config_seguridad: { required: [], handler: function(d) { return guardarConfiguracionSeguridad(d); } },
+    validar_admin_password: { required: ['password'], handler: function(d) { return validarAutorizacionAdmin(d); } },
+    politica_accion_critica: { required: [], handler: function(d) { return obtenerPoliticaAccionCritica(d.accion || ''); } },
+    guardar_sucursal: { required: [], handler: function(d) { return guardarSucursal(d); } },
+    transferir_stock: { required: [], handler: function(d) { return transferirStock(d); } },
+    listar_transferencias_stock: { required: [], handler: function(d) { const pag = parsePaginacion(d); return listarTransferenciasStock(Object.assign({}, d, { page: pag.page, pageSize: pag.pageSize })); } },
+    guardar_orden_compra: { required: [], handler: function(d) { return guardarOrdenCompra(d); } },
+    listar_ordenes_compra: { required: [], handler: function(d) { const pag = parsePaginacion(d); return listarOrdenesCompra(Object.assign({}, d, { page: pag.page, pageSize: pag.pageSize })); } },
+    orden_compra: { required: ['folio'], handler: function(d) { return getOrdenCompraByFolio(d.folio); } },
+    cambiar_estado_orden_compra: { required: ['folio', 'estado'], handler: function(d) { return cambiarEstadoOrdenCompra(d); } },
+    recibir_orden_compra: { required: ['folio'], handler: function(d) { return recibirOrdenCompra(d); } },
+    guardar_gasto: { required: [], handler: function(d) { return guardarGasto(d); } },
+    eliminar_gasto: { required: ['id'], handler: function(d) { return eliminarGasto(d); } },
+    listar_gastos: { required: [], handler: function(d) { const pag = parsePaginacion(d); return listarGastos(Object.assign({}, d, { page: pag.page, pageSize: pag.pageSize })); } },
+    resumen_gastos: { required: [], handler: function(d) { return resumenGastos(d); } },
+    resumen_finanzas: { required: [], handler: function(d) { return resumenFinanzas(d); } },
+    reporte_operativo: { required: [], handler: function(d) { return reporteOperativo(d); } },
+    listar_clientes: { required: [], handler: function(d) { const pag = parsePaginacion(d); return listarClientes(Object.assign({}, d, { page: pag.page, pageSize: pag.pageSize })); } },
+    cliente: { required: ['id'], handler: function(d) { return getClienteById(d.id); } },
+    guardar_cliente: { required: [], handler: function(d) { return guardarCliente(d); } }
+  };
 }
 
 function doGet(e) {
@@ -1247,23 +1088,7 @@ function withRetry(fn, contexto) {
 function withDocumentLock(fn, timeoutMs) {
   const lock = LockService.getDocumentLock();
   const maxWait = Math.max(1000, Number(timeoutMs || 10000));
-  const start = Date.now();
-  let intento = 0;
-  let locked = false;
-
-  while (!locked && (Date.now() - start) < maxWait) {
-    intento += 1;
-    locked = lock.tryLock(250);
-    if (locked) break;
-    const sleepMs = Math.min(600, 80 * intento) + Math.floor(Math.random() * 60);
-    Utilities.sleep(sleepMs);
-  }
-
-  if (!locked) {
-    const err = new Error('No se pudo adquirir lock de documento');
-    logError('withDocumentLock.timeout', err, { timeoutMs: maxWait, intentos: intento });
-    throw err;
-  }
+  lock.waitLock(maxWait);
   try {
     return fn();
   } finally {
@@ -1468,8 +1293,23 @@ function parseFechaFlexible(valor) {
     return isNaN(valor.getTime()) ? null : new Date(valor.getTime());
   }
 
+  if (typeof valor === 'number' && isFinite(valor)) {
+    const ms = valor > 9999999999 ? valor : valor * 1000;
+    const dNum = new Date(ms);
+    return isNaN(dNum.getTime()) ? null : dNum;
+  }
+
   const str = String(valor).trim();
   if (!str) return null;
+
+  if (/^\d{10,13}$/.test(str)) {
+    const raw = Number(str);
+    if (isFinite(raw)) {
+      const ms = str.length === 13 ? raw : raw * 1000;
+      const dTs = new Date(ms);
+      if (!isNaN(dTs.getTime())) return dTs;
+    }
+  }
 
   // Formato simple yyyy-mm-dd
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
@@ -1493,29 +1333,85 @@ function formatearFechaYMDOrEmpty(valor) {
   return d ? formatearFechaYMD(d) : '';
 }
 
+function asegurarColumnaFechaTimestamp(hoja, campoFecha) {
+  const tsField = String(campoFecha || '').trim() + '_TS';
+  if (!tsField || !hoja) return 0;
+  const lastCol = Math.max(hoja.getLastColumn(), 1);
+  const headers = withRetry(function() {
+    return hoja.getRange(1, 1, 1, lastCol).getValues()[0];
+  }, 'asegurarColumnaFechaTimestamp.headers');
+  let idx = headers.indexOf(tsField);
+  if (idx >= 0) return idx + 1;
+  withRetry(function() {
+    hoja.getRange(1, lastCol + 1).setValue(tsField);
+    return true;
+  }, 'asegurarColumnaFechaTimestamp.add');
+  return lastCol + 1;
+}
+
+function guardarTimestampParalelo(hoja, fila, campoFecha, valorFecha) {
+  if (!hoja || !fila || fila < 2 || !campoFecha) return;
+  const d = parseFechaFlexible(valorFecha) || new Date();
+  const ts = d.getTime();
+  const colTs = asegurarColumnaFechaTimestamp(hoja, campoFecha);
+  if (!colTs) return;
+  withRetry(function() {
+    hoja.getRange(fila, colTs).setValue(ts);
+    return true;
+  }, 'guardarTimestampParalelo.' + campoFecha);
+}
+
+function normalizarHeaderKey(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function construirIndiceHeadersNormalizados(headers) {
+  const out = {};
+  (headers || []).forEach(function(header, index) {
+    const key = normalizarHeaderKey(header);
+    if (!key || Object.prototype.hasOwnProperty.call(out, key)) return;
+    out[key] = { index: index, original: String(header || '').trim() };
+  });
+  return out;
+}
+
+function asignarCampoCanonicoDesdeHeaders(eq, headers, row, canonicalName, headerIndexMap) {
+  if (!canonicalName) return;
+  const canonicalKey = normalizarHeaderKey(canonicalName);
+  if (eq[canonicalName] !== undefined && eq[canonicalName] !== null && String(eq[canonicalName]).trim() !== '') return;
+
+  const direct = headerIndexMap[canonicalKey];
+  if (direct && row[direct.index] !== undefined && row[direct.index] !== null && String(row[direct.index]).trim() !== '') {
+    eq[canonicalName] = row[direct.index];
+    return;
+  }
+
+  const keys = Object.keys(headerIndexMap || {});
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    if (k === canonicalKey) continue;
+    if (k.indexOf(canonicalKey) === -1 && canonicalKey.indexOf(k) === -1) continue;
+    const meta = headerIndexMap[k];
+    const val = row[meta.index];
+    if (val === undefined || val === null || String(val).trim() === '') continue;
+    eq[canonicalName] = val;
+    return;
+  }
+}
+
 function mapearFilaEquipo(headers, row) {
   const eq = {};
   headers.forEach((h, i) => {
     if (h) eq[h] = row[i];
   });
-
-  // Fallback por alias de encabezados para evitar dependencia en índices fijos.
-  const aliases = {
-    FOTO_RECEPCION: ['FOTO_RECEPCION', 'FOTO RECEPCION', 'FOTO_RECEP'],
-    SEGUIMIENTO_CLIENTE: ['SEGUIMIENTO_CLIENTE', 'SEGUIMIENTO CLIENTE', 'COMENTARIO_CLIENTE'],
-    SEGUIMIENTO_FOTOS: ['SEGUIMIENTO_FOTOS', 'SEGUIMIENTO FOTOS', 'FOTOS_SEGUIMIENTO']
-  };
-  Object.keys(aliases).forEach(campo => {
-    if (eq[campo]) return;
-    const options = aliases[campo];
-    for (let i = 0; i < options.length; i++) {
-      const alias = options[i];
-      const idx = headers.indexOf(alias);
-      if (idx >= 0 && row[idx]) {
-        eq[campo] = row[idx];
-        return;
-      }
-    }
+  const idxNormalizado = construirIndiceHeadersNormalizados(headers || []);
+  ['FOTO_RECEPCION', 'SEGUIMIENTO_CLIENTE', 'SEGUIMIENTO_FOTOS', 'FECHA_PROMESA', 'FECHA_ENTREGA', 'FECHA_ULTIMA_ACTUALIZACION'].forEach(function(field) {
+    asignarCampoCanonicoDesdeHeaders(eq, headers, row, field, idxNormalizado);
   });
 
   return eq;
@@ -1585,26 +1481,19 @@ function crearEquipo(data) {
       '', // CASO_RESOLUCION_TECNICA (vacio al inicio)
       ahora // FECHA_ULTIMA_ACTUALIZACION
     ]), 'crearEquipo.appendRow');
+    const filaInsertada = hoja.getLastRow();
+    guardarTimestampParalelo(hoja, filaInsertada, 'FECHA_INGRESO', ahora);
+    guardarTimestampParalelo(hoja, filaInsertada, 'FECHA_PROMESA', payload.fechaPromesa || '');
+    guardarTimestampParalelo(hoja, filaInsertada, 'FECHA_ULTIMA_ACTUALIZACION', ahora);
 
     if (payload.clienteNombre || payload.clienteTelefono || payload.clienteEmail) {
-      const hojaClientes = obtenerHojaClientes(ss);
-      const datosClientes = withRetry(() => hojaClientes.getDataRange().getValues(), 'crearEquipo.getClientes');
-      const headersClientes = datosClientes && datosClientes.length
-        ? datosClientes[0]
-        : ['ID', 'NOMBRE', 'TELEFONO', 'EMAIL', 'FECHA_REGISTRO', 'ETIQUETA', 'NOTAS', 'FECHA_ACTUALIZACION'];
-      const rowsClientes = (datosClientes && datosClientes.length > 1 ? datosClientes.slice(1) : [])
-        .map(row => asegurarLongitudFila(row, headersClientes.length));
-      const maps = crearMapsClientes(headersClientes, rowsClientes);
-      const changed = aplicarUpsertCliente(headersClientes, rowsClientes, maps, {
+      upsertClienteLigero(ss, {
         nombre: payload.clienteNombre,
         telefono: payload.clienteTelefono,
         email: payload.clienteEmail || '',
         fechaRegistro: ahora,
         fechaActualizacion: ahora
-      }, ahora);
-      if (changed && rowsClientes.length) {
-        withRetry(() => hojaClientes.getRange(2, 1, rowsClientes.length, headersClientes.length).setValues(rowsClientes), 'crearEquipo.setClientes');
-      }
+      });
     }
 
     return jsonResponse({ success: true, folio: folio });
@@ -1658,10 +1547,17 @@ function actualizarEquipo(data) {
     });
 
     if (campos.ESTADO === 'Entregado' && colIndex.FECHA_ENTREGA) {
-      withRetry(() => hoja.getRange(fila, colIndex.FECHA_ENTREGA).setValue(new Date().toISOString()), 'actualizarEquipo.fechaEntrega');
+      const fechaEntregaIso = new Date().toISOString();
+      withRetry(() => hoja.getRange(fila, colIndex.FECHA_ENTREGA).setValue(fechaEntregaIso), 'actualizarEquipo.fechaEntrega');
+      guardarTimestampParalelo(hoja, fila, 'FECHA_ENTREGA', fechaEntregaIso);
     }
     if (colIndex.FECHA_ULTIMA_ACTUALIZACION) {
-      withRetry(() => hoja.getRange(fila, colIndex.FECHA_ULTIMA_ACTUALIZACION).setValue(new Date().toISOString()), 'actualizarEquipo.fechaSync');
+      const fechaSyncIso = new Date().toISOString();
+      withRetry(() => hoja.getRange(fila, colIndex.FECHA_ULTIMA_ACTUALIZACION).setValue(fechaSyncIso), 'actualizarEquipo.fechaSync');
+      guardarTimestampParalelo(hoja, fila, 'FECHA_ULTIMA_ACTUALIZACION', fechaSyncIso);
+    }
+    if (campos.FECHA_PROMESA) {
+      guardarTimestampParalelo(hoja, fila, 'FECHA_PROMESA', campos.FECHA_PROMESA);
     }
 
     return jsonResponse({ success: true });
@@ -2183,6 +2079,100 @@ function aplicarUpsertCliente(headers, rows, maps, input, fallbackFecha) {
 
   rows[rowIndex] = row;
   return changed;
+}
+
+function buscarFilaClientePorCampo(hoja, headers, fieldName, expectedValue) {
+  const clean = String(expectedValue || '').trim();
+  if (!clean) return 0;
+  const idx = headers.indexOf(fieldName);
+  if (idx < 0) return 0;
+  const lastRow = hoja.getLastRow();
+  if (lastRow < 2) return 0;
+  const range = hoja.getRange(2, idx + 1, lastRow - 1, 1);
+  const hit = withRetry(function() {
+    return range.createTextFinder(clean).matchEntireCell(true).findNext();
+  }, 'buscarFilaClientePorCampo.' + fieldName);
+  return hit ? hit.getRow() : 0;
+}
+
+function upsertClienteLigero(ss, input) {
+  const hoja = obtenerHojaClientes(ss);
+  const headerRow = withRetry(function() {
+    return hoja.getRange(1, 1, 1, Math.max(hoja.getLastColumn(), 1)).getValues()[0];
+  }, 'upsertClienteLigero.headers');
+  const headers = headerRow && headerRow.length ? headerRow : ['ID', 'NOMBRE', 'TELEFONO', 'EMAIL', 'FECHA_REGISTRO', 'ETIQUETA', 'NOTAS', 'FECHA_ACTUALIZACION'];
+
+  const nombre = String(input && input.nombre || '').trim();
+  const telefono = normalizarTelefono(input && input.telefono || '');
+  const email = String(input && input.email || '').trim();
+  const fechaRegistro = String(input && input.fechaRegistro || '').trim() || new Date().toISOString();
+  const fechaActualizacion = String(input && input.fechaActualizacion || '').trim() || new Date().toISOString();
+
+  if (!nombre && !telefono && !email) return false;
+
+  const rowByPhone = telefono ? buscarFilaClientePorCampo(hoja, headers, 'TELEFONO', telefono) : 0;
+  const rowByEmail = !rowByPhone && email ? buscarFilaClientePorCampo(hoja, headers, 'EMAIL', email) : 0;
+  const targetRow = rowByPhone || rowByEmail;
+
+  const idxId = headers.indexOf('ID');
+  const idxNombre = headers.indexOf('NOMBRE');
+  const idxTelefono = headers.indexOf('TELEFONO');
+  const idxEmail = headers.indexOf('EMAIL');
+  const idxFechaRegistro = headers.indexOf('FECHA_REGISTRO');
+  const idxEtiqueta = headers.indexOf('ETIQUETA');
+  const idxNotas = headers.indexOf('NOTAS');
+  const idxFechaActualizacion = headers.indexOf('FECHA_ACTUALIZACION');
+
+  if (!targetRow) {
+    const row = new Array(headers.length).fill('');
+    if (idxId >= 0) row[idxId] = Utilities.getUuid();
+    if (idxNombre >= 0) row[idxNombre] = nombre;
+    if (idxTelefono >= 0) row[idxTelefono] = telefono;
+    if (idxEmail >= 0) row[idxEmail] = email;
+    if (idxFechaRegistro >= 0) row[idxFechaRegistro] = fechaRegistro;
+    if (idxEtiqueta >= 0) row[idxEtiqueta] = '';
+    if (idxNotas >= 0) row[idxNotas] = '';
+    if (idxFechaActualizacion >= 0) row[idxFechaActualizacion] = fechaActualizacion;
+    withRetry(function() {
+      hoja.appendRow(row);
+      return true;
+    }, 'upsertClienteLigero.append');
+    return true;
+  }
+
+  const current = withRetry(function() {
+    return hoja.getRange(targetRow, 1, 1, headers.length).getValues()[0];
+  }, 'upsertClienteLigero.read');
+  const row = asegurarLongitudFila(current, headers.length);
+  let changed = false;
+
+  if (idxNombre >= 0 && nombre && String(row[idxNombre] || '').trim() !== nombre) {
+    row[idxNombre] = nombre;
+    changed = true;
+  }
+  if (idxTelefono >= 0 && telefono && String(row[idxTelefono] || '').trim() !== telefono) {
+    row[idxTelefono] = telefono;
+    changed = true;
+  }
+  if (idxEmail >= 0 && email && String(row[idxEmail] || '').trim() !== email) {
+    row[idxEmail] = email;
+    changed = true;
+  }
+  if (idxFechaRegistro >= 0 && !String(row[idxFechaRegistro] || '').trim()) {
+    row[idxFechaRegistro] = fechaRegistro;
+    changed = true;
+  }
+  if (idxFechaActualizacion >= 0 && (changed || !String(row[idxFechaActualizacion] || '').trim())) {
+    row[idxFechaActualizacion] = fechaActualizacion;
+    changed = true;
+  }
+
+  if (!changed) return false;
+  withRetry(function() {
+    hoja.getRange(targetRow, 1, 1, headers.length).setValues([row]);
+    return true;
+  }, 'upsertClienteLigero.update');
+  return true;
 }
 
 function sincronizarClientesDesdeEquipos(ss) {
@@ -4466,28 +4456,9 @@ function reporteOperativo(input) {
   try {
     const tipo = String(input && input.tipo || 'diario').trim().toLowerCase();
     const sucursalId = normalizarSucursalId(input && input.sucursalId || 'GLOBAL');
-    let fechaDesde = parseFechaFiltro(input && input.fechaDesde || '');
-    let fechaHasta = parseFechaFiltro(input && input.fechaHasta || '');
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-
-    if (!fechaDesde || !fechaHasta) {
-      if (tipo === 'semanal') {
-        fechaHasta = new Date(hoy);
-        fechaHasta.setHours(23, 59, 59, 999);
-        fechaDesde = new Date(hoy);
-        fechaDesde.setDate(hoy.getDate() - 6);
-      } else if (tipo === 'mensual') {
-        fechaDesde = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-        fechaHasta = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0, 23, 59, 59, 999);
-      } else {
-        fechaDesde = new Date(hoy);
-        fechaHasta = new Date(hoy);
-        fechaHasta.setHours(23, 59, 59, 999);
-      }
-    } else {
-      fechaHasta.setHours(23, 59, 59, 999);
-    }
+    const rango = resolverRangoReporteOperativo(tipo, input);
+    const fechaDesde = rango.fechaDesde;
+    const fechaHasta = rango.fechaHasta;
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const equipos = obtenerEquiposParaReportes(ss, fechaDesde, fechaHasta, sucursalId);
@@ -4496,21 +4467,12 @@ function reporteOperativo(input) {
     const compras = obtenerComprasParaReportes(ss, fechaDesde, fechaHasta, sucursalId);
     const productosCriticos = obtenerProductosCriticosParaReportes(ss, sucursalId);
 
-    const resumenBase = {
-      equiposRecibidos: equipos.recibidos.length,
-      equiposEntregados: equipos.entregados.length,
-      cotizacionesGeneradas: solicitudes.cotizaciones.length,
-      ventasEstimadas: Number(solicitudes.cotizaciones.reduce((acc, item) => acc + Number(item.total || 0), 0).toFixed(2)),
-      gastos: Number(gastos.reduce((acc, item) => acc + Number(item.MONTO || 0), 0).toFixed(2))
-    };
+    const resumenBase = construirResumenBaseReporteOperativo(equipos, solicitudes, gastos);
 
     if (tipo === 'diario') {
       return jsonResponse({
         tipo: 'diario',
-        rango: {
-          fechaDesde: formatearFechaYMD(fechaDesde),
-          fechaHasta: formatearFechaYMD(fechaHasta)
-        },
+        rango: construirRangoJsonReporteOperativo(fechaDesde, fechaHasta),
         resumen: resumenBase,
         detalle: {
           equiposRecibidos: equipos.recibidos,
@@ -4522,82 +4484,162 @@ function reporteOperativo(input) {
     }
 
     if (tipo === 'semanal') {
-      const porTecnico = {};
-      const incidencias = {};
-      let tiempoTotal = 0;
-      let tiemposCount = 0;
-
-      equipos.entregados.forEach(item => {
-        const tecnico = String(item.TECNICO_ASIGNADO || 'Sin asignar').trim() || 'Sin asignar';
-        porTecnico[tecnico] = (porTecnico[tecnico] || 0) + 1;
-        const ingreso = parseFechaFlexible(item.FECHA_INGRESO || '');
-        const entrega = parseFechaFlexible(item.FECHA_ENTREGA || '');
-        if (ingreso && entrega) {
-          tiempoTotal += Math.max(Math.round((entrega.getTime() - ingreso.getTime()) / 86400000), 0);
-          tiemposCount += 1;
-        }
-      });
-
-      equipos.recibidos.concat(equipos.entregados).forEach(item => {
-        const falla = String(item.FALLA_REPORTADA || 'Sin detalle').trim();
-        incidencias[falla] = (incidencias[falla] || 0) + 1;
-      });
+      const resumenSemanal = construirResumenSemanalReporteOperativo(equipos, productosCriticos);
+      const detalleSemanal = construirDetalleSemanalReporteOperativo(equipos, productosCriticos);
 
       return jsonResponse({
         tipo: 'semanal',
-        rango: {
-          fechaDesde: formatearFechaYMD(fechaDesde),
-          fechaHasta: formatearFechaYMD(fechaHasta)
-        },
+        rango: construirRangoJsonReporteOperativo(fechaDesde, fechaHasta),
         resumen: {
           ...resumenBase,
-          promedioDiasEntrega: tiemposCount ? Number((tiempoTotal / tiemposCount).toFixed(2)) : 0,
-          stockCritico: productosCriticos.length
+          promedioDiasEntrega: resumenSemanal.promedioDiasEntrega,
+          stockCritico: resumenSemanal.stockCritico
         },
-        detalle: {
-          porTecnico: Object.keys(porTecnico).map(key => ({ tecnico: key, total: porTecnico[key] })).sort((a, b) => b.total - a.total),
-          incidencias: Object.keys(incidencias).map(key => ({ incidencia: key, total: incidencias[key] })).sort((a, b) => b.total - a.total).slice(0, 10),
-          stockCritico: productosCriticos
-        }
+        detalle: detalleSemanal
       });
     }
 
-    const ingresos = Number(equipos.entregados.reduce((acc, item) => acc + Number(item.COSTO_ESTIMADO || 0), 0).toFixed(2));
-    const egresos = Number((gastos.reduce((acc, item) => acc + Number(item.MONTO || 0), 0) + compras.reduce((acc, item) => acc + Number(item.TOTAL || 0), 0)).toFixed(2));
-    const servicios = {};
-    const clientes = {};
-
-    equipos.recibidos.concat(equipos.entregados).forEach(item => {
-      const dispositivo = String(item.DISPOSITIVO || 'Sin clasificar').trim();
-      servicios[dispositivo] = (servicios[dispositivo] || 0) + 1;
-      const cliente = String(item.CLIENTE_NOMBRE || 'Sin nombre').trim();
-      clientes[cliente] = (clientes[cliente] || 0) + 1;
-    });
+    const resumenMensual = construirResumenMensualReporteOperativo(equipos, gastos, compras);
+    const detalleMensual = construirDetalleMensualReporteOperativo(equipos, compras, gastos);
 
     return jsonResponse({
       tipo: 'mensual',
-      rango: {
-        fechaDesde: formatearFechaYMD(fechaDesde),
-        fechaHasta: formatearFechaYMD(fechaHasta)
-      },
-      resumen: {
-        ingresos: ingresos,
-        egresos: egresos,
-        utilidad: Number((ingresos - egresos).toFixed(2)),
-        serviciosFrecuentes: Object.keys(servicios).length,
-        clientesRecurrentes: Object.values(clientes).filter(total => total > 1).length
-      },
-      detalle: {
-        serviciosFrecuentes: Object.keys(servicios).map(key => ({ servicio: key, total: servicios[key] })).sort((a, b) => b.total - a.total).slice(0, 10),
-        clientesRecurrentes: Object.keys(clientes).map(key => ({ cliente: key, total: clientes[key] })).filter(item => item.total > 1).sort((a, b) => b.total - a.total).slice(0, 10),
-        compras: compras,
-        gastos: gastos
-      }
+      rango: construirRangoJsonReporteOperativo(fechaDesde, fechaHasta),
+      resumen: resumenMensual,
+      detalle: detalleMensual
     });
   } catch (error) {
     logError('reporteOperativo', error, input || {});
     return jsonResponse({ error: error.toString() });
   }
+}
+
+function resolverRangoReporteOperativo(tipo, input) {
+  let fechaDesde = parseFechaFiltro(input && input.fechaDesde || '');
+  let fechaHasta = parseFechaFiltro(input && input.fechaHasta || '');
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+
+  if (!fechaDesde || !fechaHasta) {
+    if (tipo === 'semanal') {
+      fechaHasta = new Date(hoy);
+      fechaHasta.setHours(23, 59, 59, 999);
+      fechaDesde = new Date(hoy);
+      fechaDesde.setDate(hoy.getDate() - 6);
+    } else if (tipo === 'mensual') {
+      fechaDesde = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+      fechaHasta = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0, 23, 59, 59, 999);
+    } else {
+      fechaDesde = new Date(hoy);
+      fechaHasta = new Date(hoy);
+      fechaHasta.setHours(23, 59, 59, 999);
+    }
+  } else {
+    fechaHasta.setHours(23, 59, 59, 999);
+  }
+  return { fechaDesde: fechaDesde, fechaHasta: fechaHasta };
+}
+
+function construirRangoJsonReporteOperativo(fechaDesde, fechaHasta) {
+  return {
+    fechaDesde: formatearFechaYMD(fechaDesde),
+    fechaHasta: formatearFechaYMD(fechaHasta)
+  };
+}
+
+function construirResumenBaseReporteOperativo(equipos, solicitudes, gastos) {
+  return {
+    equiposRecibidos: (equipos && equipos.recibidos ? equipos.recibidos.length : 0),
+    equiposEntregados: (equipos && equipos.entregados ? equipos.entregados.length : 0),
+    cotizacionesGeneradas: (solicitudes && solicitudes.cotizaciones ? solicitudes.cotizaciones.length : 0),
+    ventasEstimadas: Number(((solicitudes && solicitudes.cotizaciones ? solicitudes.cotizaciones : []).reduce(function(acc, item) {
+      return acc + Number(item.total || 0);
+    }, 0)).toFixed(2)),
+    gastos: Number(((gastos || []).reduce(function(acc, item) {
+      return acc + Number(item.MONTO || 0);
+    }, 0)).toFixed(2))
+  };
+}
+
+function construirResumenSemanalReporteOperativo(equipos, productosCriticos) {
+  let tiempoTotal = 0;
+  let tiemposCount = 0;
+  (equipos && equipos.entregados ? equipos.entregados : []).forEach(function(item) {
+    const ingreso = parseFechaFlexible(item.FECHA_INGRESO || item.FECHA_INGRESO_TS || '');
+    const entrega = parseFechaFlexible(item.FECHA_ENTREGA || item.FECHA_ENTREGA_TS || '');
+    if (!ingreso || !entrega) return;
+    tiempoTotal += Math.max(Math.round((entrega.getTime() - ingreso.getTime()) / 86400000), 0);
+    tiemposCount += 1;
+  });
+  return {
+    promedioDiasEntrega: tiemposCount ? Number((tiempoTotal / tiemposCount).toFixed(2)) : 0,
+    stockCritico: (productosCriticos || []).length
+  };
+}
+
+function construirDetalleSemanalReporteOperativo(equipos, productosCriticos) {
+  const porTecnico = {};
+  const incidencias = {};
+  (equipos && equipos.entregados ? equipos.entregados : []).forEach(function(item) {
+    const tecnico = String(item.TECNICO_ASIGNADO || 'Sin asignar').trim() || 'Sin asignar';
+    porTecnico[tecnico] = (porTecnico[tecnico] || 0) + 1;
+  });
+
+  (equipos && equipos.recibidos ? equipos.recibidos : []).concat(equipos && equipos.entregados ? equipos.entregados : []).forEach(function(item) {
+    const falla = String(item.FALLA_REPORTADA || 'Sin detalle').trim();
+    incidencias[falla] = (incidencias[falla] || 0) + 1;
+  });
+
+  return {
+    porTecnico: Object.keys(porTecnico).map(function(key) { return { tecnico: key, total: porTecnico[key] }; }).sort(function(a, b) { return b.total - a.total; }),
+    incidencias: Object.keys(incidencias).map(function(key) { return { incidencia: key, total: incidencias[key] }; }).sort(function(a, b) { return b.total - a.total; }).slice(0, 10),
+    stockCritico: productosCriticos || []
+  };
+}
+
+function construirResumenMensualReporteOperativo(equipos, gastos, compras) {
+  const ingresos = Number(((equipos && equipos.entregados ? equipos.entregados : []).reduce(function(acc, item) {
+    return acc + Number(item.COSTO_ESTIMADO || 0);
+  }, 0)).toFixed(2));
+  const egresos = Number((((gastos || []).reduce(function(acc, item) {
+    return acc + Number(item.MONTO || 0);
+  }, 0)) + ((compras || []).reduce(function(acc, item) {
+    return acc + Number(item.TOTAL || 0);
+  }, 0))).toFixed(2));
+
+  const servicios = {};
+  const clientes = {};
+  (equipos && equipos.recibidos ? equipos.recibidos : []).concat(equipos && equipos.entregados ? equipos.entregados : []).forEach(function(item) {
+    const dispositivo = String(item.DISPOSITIVO || 'Sin clasificar').trim();
+    servicios[dispositivo] = (servicios[dispositivo] || 0) + 1;
+    const cliente = String(item.CLIENTE_NOMBRE || 'Sin nombre').trim();
+    clientes[cliente] = (clientes[cliente] || 0) + 1;
+  });
+
+  return {
+    ingresos: ingresos,
+    egresos: egresos,
+    utilidad: Number((ingresos - egresos).toFixed(2)),
+    serviciosFrecuentes: Object.keys(servicios).length,
+    clientesRecurrentes: Object.keys(clientes).filter(function(k) { return Number(clientes[k] || 0) > 1; }).length
+  };
+}
+
+function construirDetalleMensualReporteOperativo(equipos, compras, gastos) {
+  const servicios = {};
+  const clientes = {};
+  (equipos && equipos.recibidos ? equipos.recibidos : []).concat(equipos && equipos.entregados ? equipos.entregados : []).forEach(function(item) {
+    const dispositivo = String(item.DISPOSITIVO || 'Sin clasificar').trim();
+    servicios[dispositivo] = (servicios[dispositivo] || 0) + 1;
+    const cliente = String(item.CLIENTE_NOMBRE || 'Sin nombre').trim();
+    clientes[cliente] = (clientes[cliente] || 0) + 1;
+  });
+  return {
+    serviciosFrecuentes: Object.keys(servicios).map(function(key) { return { servicio: key, total: servicios[key] }; }).sort(function(a, b) { return b.total - a.total; }).slice(0, 10),
+    clientesRecurrentes: Object.keys(clientes).map(function(key) { return { cliente: key, total: clientes[key] }; }).filter(function(item) { return item.total > 1; }).sort(function(a, b) { return b.total - a.total; }).slice(0, 10),
+    compras: compras || [],
+    gastos: gastos || []
+  };
 }
 
 function obtenerEquiposParaReportes(ss, fechaDesde, fechaHasta, sucursalId) {

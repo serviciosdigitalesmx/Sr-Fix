@@ -35,3 +35,13 @@ Estado legend:
 - [~] Smoke test de rutas migradas
 - [~] E2E destructivo completo en endpoint estable
 - [ ] Cierre documental (bitacora + checklist final)
+
+## Cierre 8 Puntos Críticos
+- [x] `LockService` wrapper simplificado a `waitLock(timeout)` (sin while manual)
+- [x] `mapearFilaEquipo` migrado a resolución dinámica de headers normalizados (sin alias hardcode por campo)
+- [x] `crearEquipo` ya no carga toda la tabla de clientes para upsert (búsqueda puntual con `TextFinder`)
+- [x] `doGetLegacy/doPostLegacy` migrados a registry de rutas (`Legacy_getGetRoutes/Legacy_getPostRoutes`)
+- [x] Validación de campos requeridos centralizada antes de ejecutar handler (`Legacy_requireFields`)
+- [x] Falla en bitácora ya no intenta reloguear en hoja bloqueada; error crítico a consola estructurada
+- [x] Fechas con compatibilidad timestamp: `parseFechaFlexible` soporta epoch y se guardan campos `_TS` paralelos en flujo de equipos
+- [x] `reporteOperativo` descompuesto en funciones de servicio (rango/resúmenes/detalles) para reducir función monolítica

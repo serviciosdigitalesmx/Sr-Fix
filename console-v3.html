@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SR. FIX | Console v3.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
+        
+        :root {
+            --bg-main: #0a0a0b;
+            --bg-sidebar: #121214;
+            --border: #27272a;
+            --brand: #4f46e5; /* Sr. Fix Indigo */
+            --brand-surface: rgba(79, 70, 229, 0.1);
+        }
+
+        body { 
+            background-color: var(--bg-main);
+            font-family: 'Inter', sans-serif;
+            color: #e4e4e7;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        .sidebar-item {
+            transition: all 0.15s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-item.active {
+            background-color: var(--brand-surface);
+            color: #fff;
+            border-left-color: var(--brand);
+        }
+
+        .console-card {
+            background-color: #121214;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .status-pill {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        /* Firebase style scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
+        
+        .grid-mesh {
+            background-image: radial-gradient(#27272a 0.5px, transparent 0.5px);
+            background-size: 24px 24px;
+        }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+
+    <!-- Sidebar Estilo Firebase -->
+    <aside class="w-72 bg-[#121214] border-r border-zinc-800 flex flex-col z-30">
+        <!-- Logo & Project Selector -->
+        <div class="p-5 border-b border-zinc-800">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center text-white font-black shadow-lg shadow-indigo-500/20">
+                    F
+                </div>
+                <div>
+                    <h1 class="text-sm font-bold tracking-tighter">Sr. Fix Console</h1>
+                    <p class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">v3.0 Production</p>
+                </div>
+            </div>
+            
+            <div class="bg-zinc-900/50 border border-zinc-800 rounded-md p-2 flex items-center justify-between cursor-pointer hover:bg-zinc-800 transition-colors">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                    <span class="text-xs font-semibold">Proyecto: Master_Hub</span>
+                </div>
+                <svg class="w-3 h-3 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+            </div>
+        </div>
+
+        <!-- Navigation Groups -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-8 no-scrollbar">
+            <div>
+                <p class="px-3 text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-3">Build & Monitor</p>
+                <div class="space-y-1">
+                    <button onclick="switchView('executive')" id="nav-executive" class="sidebar-item active w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-r-md text-zinc-400 hover:text-white hover:bg-zinc-800/50">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+                        Dashboard de Control
+                    </button>
+                    <button onclick="switchView('technician')" id="nav-technician" class="sidebar-item w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-r-md text-zinc-400 hover:text-white hover:bg-zinc-800/50">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                        Especialistas (SLA)
+                    </button>
+                    <button onclick="switchView('inventory')" id="nav-inventory" class="sidebar-item w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-r-md text-zinc-400 hover:text-white hover:bg-zinc-800/50">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                        Inventario & Stock
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <p class="px-3 text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-3">Engagement</p>
+                <div class="space-y-1">
+                    <button onclick="switchView('client')" id="nav-client" class="sidebar-item w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-r-md text-zinc-400 hover:text-white hover:bg-zinc-800/50">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                        Tracking de Clientes
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Footer -->
+        <div class="p-6 border-t border-zinc-800 bg-zinc-900/20">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[9px] font-black text-zinc-600 uppercase">Engine Status</span>
+                <span id="syncIndicator" class="text-[9px] font-bold text-emerald-500">SYNCED</span>
+            </div>
+            <p id="lastUpdate" class="text-[10px] font-mono text-zinc-500 uppercase italic">Init_Seq_Complete</p>
+        </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <div class="flex-1 flex flex-col min-w-0 bg-[#0a0a0b] grid-mesh">
+        <!-- Breadcrumbs & Global Actions -->
+        <header class="h-16 border-b border-zinc-800 bg-[#0a0a0b] flex items-center justify-between px-8 z-20">
+            <div class="flex items-center gap-3 text-xs">
+                <span class="text-zinc-500 font-medium">Console</span>
+                <svg class="w-3 h-3 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+                <span id="breadcrumb" class="text-white font-bold tracking-tight uppercase">Executive_Dashboard</span>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <button id="refreshBtn" onclick="refreshData()" class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase rounded-md shadow-lg shadow-indigo-600/10 transition-all active:scale-95">
+                    <svg id="refreshIcon" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Actualizar Hub
+                </button>
+            </div>
+        </header>
+
+        <!-- Viewport -->
+        <main class="flex-1 overflow-y-auto p-8 no-scrollbar" id="viewContainer">
+            <div class="flex items-center justify-center h-full">
+                <div class="flex flex-col items-center gap-4">
+                    <div class="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p class="text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-500">Connecting_to_Core_Datastore</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast de Notificación -->
+    <div id="toast" class="fixed bottom-8 right-8 z-[100] translate-y-20 opacity-0 transition-all duration-300">
+        <div class="bg-white text-black px-6 py-3 rounded-md shadow-2xl flex items-center gap-3 border border-zinc-200">
+            <div class="w-1 h-4 bg-indigo-600"></div>
+            <span class="text-[10px] font-black uppercase tracking-widest" id="toastMsg">Sync_Complete</span>
+        </div>
+    </div>
+
+<script>
+    let currentView = 'executive';
+    let globalData = null;
+    let isLoading = false;
+
+    const fmt = {
+        currency: (v) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(v || 0),
+        num: (v) => new Intl.NumberFormat('es-MX').format(v || 0)
+    };
+
+    function showNotification(msg) {
+        const t = document.getElementById('toast');
+        document.getElementById('toastMsg').textContent = msg.toUpperCase();
+        t.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 3000);
+    }
+
+    async function refreshData() {
+        if (isLoading) return;
+        isLoading = true;
+        document.getElementById('refreshIcon').classList.add('animate-spin');
+        document.getElementById('syncIndicator').textContent = 'SYNCING...';
+        document.getElementById('syncIndicator').className = 'text-[9px] font-bold text-indigo-500';
+
+        try {
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler(data => {
+                        globalData = data;
+                        renderCurrentView();
+                        finalizeLoad();
+                    })
+                    .withFailureHandler(err => {
+                        console.error(err);
+                        showNotification('Fatal Server Error');
+                        finalizeLoad();
+                    })
+                    .getDashboardData();
+            } else {
+                // Mock técnico para simulación
+                setTimeout(() => {
+                    globalData = {
+                        dashboard: {
+                            summary: { ingresos: 342000, utilidad: 218500, ordenesEntregadas: 156, leads: 489 },
+                            semaforo: { urgentes: 2, atencion: 9, aTiempo: 112 }
+                        },
+                        operational: {
+                            alertas: { stockCritico: 3, stockBajo: 21 },
+                            ordenes: [
+                                { FOLIO: 'FIX-1055', TECNICO_ASIGNADO: 'Ing. Marco Rivera', diasRestantes: 1, color: 'Rojo' },
+                                { FOLIO: 'FIX-1060', TECNICO_ASIGNADO: 'Téc. Andrea Gomez', diasRestantes: 2, color: 'Amarillo' },
+                                { FOLIO: 'FIX-1082', TECNICO_ASIGNADO: 'Ing. Marco Rivera', diasRestantes: 5, color: 'Verde' }
+                            ]
+                        }
+                    };
+                    renderCurrentView();
+                    finalizeLoad();
+                    showNotification('Sync: Mode_Preview');
+                }, 1000);
+            }
+        } catch (e) { finalizeLoad(); }
+    }
+
+    function finalizeLoad() {
+        isLoading = false;
+        document.getElementById('refreshIcon').classList.remove('animate-spin');
+        document.getElementById('syncIndicator').textContent = 'SYNCED';
+        document.getElementById('syncIndicator').className = 'text-[9px] font-bold text-emerald-500';
+        document.getElementById('lastUpdate').textContent = `U_SYNC_${new Date().toLocaleTimeString().replace(/:/g, '')}`;
+    }
+
+    function switchView(view) {
+        currentView = view;
+        document.getElementById('breadcrumb').textContent = view.toUpperCase() + '_WORKSPACE';
+        
+        document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+        document.getElementById(`nav-${view}`).classList.add('active');
+        
+        renderCurrentView();
+    }
+
+    function renderCurrentView() {
+        const container = document.getElementById('viewContainer');
+        if (!globalData) return;
+
+        if (currentView === 'executive') {
+            const { summary, semaforo } = globalData.dashboard;
+            const { alertas, ordenes } = globalData.operational;
+
+            container.innerHTML = `
+                <div class="space-y-10">
+                    <!-- Metrics Section -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        ${createConsoleMetric('Total_Gross', fmt.currency(summary.ingresos), 'Ingresos brutos')}
+                        ${createConsoleMetric('Net_Utility', fmt.currency(summary.utilidad), 'Utilidad neta')}
+                        ${createConsoleMetric('Active_Leads', summary.leads, 'MQLs en funnel')}
+                        ${createConsoleMetric('Success_Deliveries', summary.ordenesEntregadas, 'SLA completado')}
+                    </div>
+
+                    <!-- Main Grid Control -->
+                    <div class="grid grid-cols-12 gap-8">
+                        <!-- Project Health (SLA) -->
+                        <div class="col-span-12 lg:col-span-4 space-y-6">
+                            <div class="console-card p-6">
+                                <h3 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <span class="w-1 h-1 bg-indigo-500 rounded-full"></span> Health_Monitor
+                                </h3>
+                                <div class="space-y-4">
+                                    ${createStatusRow('Critical_Overdue', semaforo.urgentes, 'bg-red-500/10 text-red-500')}
+                                    ${createStatusRow('Attention_Required', semaforo.atencion, 'bg-amber-500/10 text-amber-500')}
+                                    ${createStatusRow('Optimal_Flow', semaforo.aTiempo, 'bg-emerald-500/10 text-emerald-500')}
+                                </div>
+                            </div>
+
+                            <div class="console-card p-6">
+                                <h3 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <span class="w-1 h-1 bg-indigo-500 rounded-full"></span> Stock_Alerts
+                                </h3>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="bg-zinc-900/50 p-4 rounded border border-zinc-800 text-center">
+                                        <p class="text-[9px] font-bold text-zinc-600 uppercase mb-1">Crit_Stock</p>
+                                        <p class="text-3xl font-black text-red-500">${alertas.stockCritico}</p>
+                                    </div>
+                                    <div class="bg-zinc-900/50 p-4 rounded border border-zinc-800 text-center">
+                                        <p class="text-[9px] font-bold text-zinc-600 uppercase mb-1">Low_Stock</p>
+                                        <p class="text-3xl font-black text-amber-500">${alertas.stockBajo}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Real-Time Feed Table -->
+                        <div class="col-span-12 lg:col-span-8 console-card overflow-hidden">
+                            <div class="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/30">
+                                <h3 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Global_Order_Manifest</h3>
+                                <span class="text-[9px] font-mono font-bold text-indigo-500">RECORDS_UP_TO_DATE</span>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead>
+                                        <tr class="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em] bg-zinc-900/50">
+                                            <th class="px-6 py-4">Manifest_UID</th>
+                                            <th class="px-4 py-4">Lead_Specialist</th>
+                                            <th class="px-4 py-4 text-center">SLA_Time</th>
+                                            <th class="px-6 py-4 text-right">State</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-zinc-800">
+                                        ${ordenes.map(o => `
+                                            <tr class="hover:bg-indigo-500/5 transition-colors cursor-default">
+                                                <td class="px-6 py-5 font-mono font-bold text-indigo-400 tracking-tighter">${o.FOLIO}</td>
+                                                <td class="px-4 py-5 font-semibold text-zinc-300 uppercase tracking-tighter">${o.TECNICO_ASIGNADO}</td>
+                                                <td class="px-4 py-5 text-center">
+                                                    <span class="font-mono text-[10px] ${o.diasRestantes <= 1 ? 'text-red-500' : 'text-zinc-500'}">
+                                                        ${o.diasRestantes}D_REM
+                                                    </span>
+                                                </td>
+                                                <td class="px-6 py-5 text-right">
+                                                    <div class="inline-flex items-center gap-2">
+                                                        <span class="text-[9px] font-black uppercase opacity-60 tracking-widest">${o.color}</span>
+                                                        <div class="w-1.5 h-1.5 rounded-full ${getStatusBg(o.color)}"></div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="h-full flex flex-col items-center justify-center p-20 opacity-20 grayscale">
+                    <div class="w-16 h-16 border border-zinc-700 rounded-lg flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    </div>
+                    <p class="text-xs font-mono uppercase tracking-[0.5em]">Module_Encrypted</p>
+                    <p class="text-[9px] mt-2 font-bold uppercase text-zinc-500 italic tracking-tighter">Requires Data Service Integration</p>
+                </div>
+            `;
+        }
+    }
+
+    function createConsoleMetric(label, val, sub) {
+        return `
+            <div class="console-card p-6 hover:border-zinc-700 transition-all group">
+                <p class="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-3 group-hover:text-indigo-500 transition-colors">${label}</p>
+                <p class="text-2xl font-black text-white tracking-tighter">${val}</p>
+                <p class="text-[9px] text-zinc-500 font-bold uppercase mt-1 tracking-tighter italic opacity-60">${sub}</p>
+            </div>
+        `;
+    }
+
+    function createStatusRow(label, val, style) {
+        return `
+            <div class="flex items-center justify-between p-3 rounded bg-zinc-900/50 border border-zinc-800">
+                <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-tighter">${label}</span>
+                <span class="text-sm font-black px-3 py-1 rounded ${style.split(' ')[1]} ${style.split(' ')[0]}">${val}</span>
+            </div>
+        `;
+    }
+
+    function getStatusBg(c) {
+        const color = (c || '').toLowerCase();
+        if (color === 'rojo') return 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]';
+        if (color === 'amarillo') return 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]';
+        return 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]';
+    }
+
+    window.addEventListener('load', refreshData);
+</script>
+
+</body>
+</html>

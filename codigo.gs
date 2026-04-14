@@ -826,11 +826,28 @@ function recalcularStockGlobalProducto(ss, sku) {
 // ==========================================
 
 function doGet(e) {
-  return HttpController_doGet(e);
+  if (typeof HttpController_doGet === 'function') {
+    return HttpController_doGet(e);
+  }
+  return jsonResponse({
+    success: true,
+    status: 'online',
+    message: 'SRFIX CLOUD API v2.5.0 (fallback)',
+    timestamp: new Date().toISOString(),
+    warning: 'HttpController_doGet no definido en este deployment'
+  });
 }
 
 function doPost(e) {
-  return HttpController_doPost(e);
+  if (typeof HttpController_doPost === 'function') {
+    return HttpController_doPost(e);
+  }
+  const data = parsePostData(e);
+  return jsonResponse({
+    success: false,
+    error: 'HttpController_doPost no definido en este deployment',
+    action: String(data && data.action || '')
+  });
 }
 
 function parsePostData(e) {

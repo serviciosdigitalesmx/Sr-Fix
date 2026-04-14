@@ -384,3 +384,63 @@ function Repository_findClienteById(id) {
   });
   return row ? mapearFila(headers, row) : null;
 }
+
+function Repository_getProductosSheet() {
+  const ss = Core_getSpreadsheet();
+  return obtenerHojaProductos(ss);
+}
+
+function Repository_readProductosTable() {
+  const hoja = Repository_getProductosSheet();
+  const data = withRetry(function() {
+    return hoja.getDataRange().getValues();
+  }, 'Repository_readProductosTable');
+  if (!data || data.length < 1) return { headers: [], rows: [] };
+  return {
+    headers: data[0] || [],
+    rows: data.slice(1)
+  };
+}
+
+function Repository_findProductoBySku(sku) {
+  const target = String(sku || '').trim().toUpperCase();
+  if (!target) return null;
+  const table = Repository_readProductosTable();
+  const headers = table.headers || [];
+  const idxSku = headers.indexOf('SKU');
+  if (idxSku < 0) return null;
+  const row = (table.rows || []).find(function(r) {
+    return String(r[idxSku] || '').trim().toUpperCase() === target;
+  });
+  return row ? mapearFila(headers, row) : null;
+}
+
+function Repository_appendProducto(rowValues) {
+  const hoja = Repository_getProductosSheet();
+  return withRetry(function() {
+    hoja.appendRow(rowValues || []);
+    return true;
+  }, 'Repository_appendProducto');
+}
+
+function Repository_updateProductoBySku(sku, nextRowValues) {
+  const target = String(sku || '').trim().toUpperCase();
+  if (!target) return false;
+  const hoja = Repository_getProductosSheet();
+  const data = withRetry(function() {
+    return hoja.getDataRange().getValues();
+  }, 'Repository_updateProductoBySku.read');
+  if (!data || data.length < 2) return false;
+  const headers = data[0];
+  const idxSku = headers.indexOf('SKU');
+  if (idxSku < 0) return false;
+  const rowIndex = data.findIndex(function(row, i) {
+    return i > 0 && String(row[idxSku] || '').trim().toUpperCase() === target;
+  });
+  if (rowIndex < 1) return false;
+  withRetry(function() {
+    hoja.getRange(rowIndex + 1, 1, 1, nextRowValues.length).setValues([nextRowValues]);
+    return true;
+  }, 'Repository_updateProductoBySku.write');
+  return true;
+}

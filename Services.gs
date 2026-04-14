@@ -147,7 +147,7 @@ function Service_listarTareas(params) {
   }
 
   const tareas = rows.map(function(row) {
-    return normalizarTareaForApi(mapearFila(headers, row));
+    return Utils_normalizeEntity('tarea', mapearFila(headers, row));
   }).filter(function(item) {
     if (estado && String(item.ESTADO || '').toLowerCase() !== estado) return false;
     if (prioridad && String(item.PRIORIDAD || '').toLowerCase() !== prioridad) return false;
@@ -179,7 +179,7 @@ function Service_listarTareas(params) {
 function Service_getTareaByFolio(folio) {
   const task = Repository_findTareaByFolio(folio);
   if (!task) return jsonResponse({ error: 'No encontrado' });
-  return jsonResponse({ tarea: normalizarTareaForApi(task) });
+  return jsonResponse({ tarea: Utils_normalizeEntity('tarea', task) });
 }
 
 function Service_crearTarea(data) {
@@ -234,7 +234,7 @@ function Service_actualizarTarea(data) {
     if (rowIndex < 0) return jsonResponse({ error: 'No encontrado' });
 
     const row = table.rows[rowIndex].slice();
-    const current = normalizarTareaForApi(mapearFila(headers, row));
+    const current = Utils_normalizeEntity('tarea', mapearFila(headers, row));
     let historial = current.HISTORIAL || [];
 
     const mapping = {
@@ -299,7 +299,7 @@ function Service_listarProveedores(params) {
   }
 
   const items = rows.map(function(row) {
-    return normalizarProveedorForApi(mapearFila(headers, row));
+    return Utils_normalizeEntity('proveedor', mapearFila(headers, row));
   }).filter(function(prov) {
     if (estatus && prov.ESTATUS !== estatus) return false;
     if (categoria) {
@@ -345,7 +345,7 @@ function Service_listarProveedores(params) {
 function Service_getProveedorById(id) {
   const prov = Repository_findProveedorById(id);
   if (!prov) return jsonResponse({ error: 'No encontrado' });
-  return jsonResponse({ proveedor: normalizarProveedorForApi(prov) });
+  return jsonResponse({ proveedor: Utils_normalizeEntity('proveedor', prov) });
 }
 
 function Service_guardarProveedor(data) {
@@ -440,19 +440,210 @@ function Service_eliminarProveedor(data) {
 }
 
 function Service_guardarProducto(data) {
-  return guardarProducto(data || {});
+  try {
+    return withDocumentLock(function() {
+      const input = data || {};
+      const payload = normalizarProductoPayload(input, !!(input && input.skuOriginal));
+      const skuOriginal = String(input && input.skuOriginal || payload.sku).trim().toUpperCase();
+      const now = new Date().toISOString();
+      const table = Repository_readProductosTable();
+      const headers = table.headers || [];
+      const rows = table.rows || [];
+      const idxSku = headers.indexOf('SKU');
+      if (idxSku < 0) throw new Error('Estructura de Productos inválida');
+
+      const existingIndex = rows.findIndex(function(r) {
+        return String(r[idxSku] || '').trim().toUpperCase() === skuOriginal;
+      });
+      const duplicateIndex = payload.sku !== skuOriginal
+        ? rows.findIndex(function(r) { return String(r[idxSku] || '').trim().toUpperCase() === payload.sku; })
+        : -1;
+      if (duplicateIndex >= 0) throw new Error('Ya existe un producto con ese SKU');
+
+      const ss = Core_getSpreadsheet();
+      asegurarEstructuraMultisucursal(ss);
+
+      if (existingIndex >= 0) {
+        const row = rows[existingIndex].slice();
+        const mapping = {
+          SKU: payload.sku,
+          NOMBRE: payload.nombre,
+          CATEGORIA: payload.categoria,
+          MARCA: payload.marca,
+          MODELO_COMPATIBLE: payload.modeloCompatible,
+          PROVEEDOR: payload.proveedor,
+          COSTO: payload.costo,
+          PRECIO: payload.precio,
+          STOCK_MINIMO: payload.stockMinimo,
+          UNIDAD: payload.unidad,
+          UBICACION: payload.ubicacion,
+          NOTAS: payload.notas,
+          ESTATUS: payload.estatus,
+          FECHA_ACTUALIZACION: now
+        };
+        Object.keys(mapping).forEach(function(key) {
+          const col = headers.indexOf(key);
+          if (col >= 0) row[col] = mapping[key];
+        });
+
+        actualizarInventarioSucursal(ss, payload.sku, payload.sucursalId, payload.stockActual, payload.stockMinimo);
+        const idxStock = headers.indexOf('STOCK_ACTUAL');
+        if (idxStock >= 0) row[idxStock] = recalcularStockGlobalProducto(ss, payload.sku);
+
+        const ok = Repository_updateProductoBySku(skuOriginal, row);
+        if (!ok) throw new Error('Producto no encontrado');
+        return jsonResponse({ success: true, sku: payload.sku, actualizado: true });
+      }
+
+      const nextId = Math.max(0, rows.length) + 1;
+      Repository_appendProducto([
+        nextId,
+        payload.sku,
+        payload.nombre,
+        payload.categoria,
+        payload.marca,
+        payload.modeloCompatible,
+        payload.proveedor,
+        payload.costo,
+        payload.precio,
+        0,
+        payload.stockMinimo,
+        payload.unidad,
+        payload.ubicacion,
+        payload.notas,
+        payload.estatus,
+        now,
+        now
+      ]);
+
+      actualizarInventarioSucursal(ss, payload.sku, payload.sucursalId, payload.stockActual, payload.stockMinimo);
+      recalcularStockGlobalProducto(ss, payload.sku);
+      return jsonResponse({ success: true, sku: payload.sku, actualizado: false });
+    }, 10000);
+  } catch (error) {
+    logError('Service_guardarProducto', error, data || {});
+    return jsonResponse({ error: error.toString() });
+  }
 }
 
 function Service_eliminarProducto(data) {
-  return eliminarProducto(data || {});
+  try {
+    return withDocumentLock(function() {
+      const sku = String(data && data.sku || '').trim().toUpperCase();
+      if (!sku) throw new Error('sku requerido');
+      const table = Repository_readProductosTable();
+      const headers = table.headers || [];
+      const idxSku = headers.indexOf('SKU');
+      if (idxSku < 0) throw new Error('Estructura de Productos inválida');
+      const rowIndex = table.rows.findIndex(function(r) {
+        return String(r[idxSku] || '').trim().toUpperCase() === sku;
+      });
+      if (rowIndex < 0) throw new Error('Producto no encontrado');
+
+      const row = table.rows[rowIndex].slice();
+      const colEstatus = headers.indexOf('ESTATUS');
+      const colActualizacion = headers.indexOf('FECHA_ACTUALIZACION');
+      if (colEstatus >= 0) row[colEstatus] = 'inactivo';
+      if (colActualizacion >= 0) row[colActualizacion] = new Date().toISOString();
+
+      const ok = Repository_updateProductoBySku(sku, row);
+      if (!ok) throw new Error('Producto no encontrado');
+      return jsonResponse({ success: true, sku: sku });
+    }, 10000);
+  } catch (error) {
+    logError('Service_eliminarProducto', error, data || {});
+    return jsonResponse({ error: error.toString() });
+  }
 }
 
 function Service_listarProductos(data) {
-  return listarProductos(data || {});
+  try {
+    const input = data || {};
+    const p = parsePaginacion(input);
+    const texto = String(input.texto || '').trim().toLowerCase();
+    const categoria = String(input.categoria || '').trim().toLowerCase();
+    const marca = String(input.marca || '').trim().toLowerCase();
+    const proveedor = String(input.proveedor || '').trim().toLowerCase();
+    const estatus = String(input.estatus || '').trim().toLowerCase();
+    const soloAlertas = String(input.soloAlertas || '').trim().toLowerCase();
+    const nivelAlerta = String(input.nivelAlerta || '').trim().toLowerCase();
+    const hasFilters = !!(texto || categoria || marca || proveedor || estatus || (soloAlertas === '1') || nivelAlerta);
+
+    const table = hasFilters
+      ? Repository_readProductosTable()
+      : Repository_readPage('Productos', p.page, p.pageSize);
+    const headers = table.headers || [];
+    const rows = table.rows || [];
+    if (!headers.length || !rows.length) {
+      return jsonResponse({
+        productos: [],
+        total: 0,
+        page: p.page,
+        pageSize: p.pageSize,
+        hasMore: false,
+        filtros: { categorias: [], marcas: [], proveedores: [] }
+      });
+    }
+
+    const ss = Core_getSpreadsheet();
+    asegurarEstructuraMultisucursal(ss);
+    const sucursalId = normalizarSucursalId(input.sucursalId || 'GLOBAL');
+
+    const productos = rows.map(function(row) {
+      const producto = Utils_normalizeEntity('producto', mapearFila(headers, row));
+      producto.SUCURSAL_ID = sucursalId;
+      producto.STOCK_ACTUAL = obtenerStockProductoEnSucursal(ss, producto.SKU, sucursalId);
+      producto.STOCK_MINIMO = obtenerStockMinimoProductoEnSucursal(ss, producto.SKU, sucursalId, producto.STOCK_MINIMO);
+      producto.ALERTA_NIVEL = clasificarNivelAlertaStock(producto);
+      producto.ALERTA_STOCK = !!producto.ALERTA_NIVEL;
+      return producto;
+    }).filter(function(item) {
+      if (categoria && String(item.CATEGORIA || '').toLowerCase() !== categoria) return false;
+      if (marca && String(item.MARCA || '').toLowerCase() !== marca) return false;
+      if (proveedor && String(item.PROVEEDOR || '').toLowerCase() !== proveedor) return false;
+      if (estatus && String(item.ESTATUS || '').toLowerCase() !== estatus) return false;
+      if (soloAlertas === '1' && !item.ALERTA_STOCK) return false;
+      if (nivelAlerta && String(item.ALERTA_NIVEL || '').toLowerCase() !== nivelAlerta) return false;
+      if (texto) {
+        const hay = [item.SKU, item.NOMBRE, item.MARCA, item.CATEGORIA, item.PROVEEDOR, item.MODELO_COMPATIBLE]
+          .some(function(v) { return String(v || '').toLowerCase().indexOf(texto) >= 0; });
+        if (!hay) return false;
+      }
+      return true;
+    }).sort(function(a, b) {
+      if (a.ALERTA_STOCK !== b.ALERTA_STOCK) return a.ALERTA_STOCK ? -1 : 1;
+      return String(a.NOMBRE || '').localeCompare(String(b.NOMBRE || ''));
+    });
+
+    const categorias = productos.map(function(x) { return x.CATEGORIA; }).filter(Boolean).filter(function(v, i, arr) { return arr.indexOf(v) === i; }).sort();
+    const marcas = productos.map(function(x) { return x.MARCA; }).filter(Boolean).filter(function(v, i, arr) { return arr.indexOf(v) === i; }).sort();
+    const proveedores = productos.map(function(x) { return x.PROVEEDOR; }).filter(Boolean).filter(function(v, i, arr) { return arr.indexOf(v) === i; }).sort();
+
+    const paginada = hasFilters ? paginarArreglo(productos, p.page, p.pageSize) : {
+      data: productos,
+      total: table.total,
+      page: table.page,
+      pageSize: table.pageSize,
+      hasMore: table.hasMore
+    };
+
+    return jsonResponse({
+      productos: paginada.data,
+      total: paginada.total,
+      page: paginada.page,
+      pageSize: paginada.pageSize,
+      hasMore: paginada.hasMore,
+      filtros: { categorias: categorias, marcas: marcas, proveedores: proveedores }
+    });
+  } catch (error) {
+    logError('Service_listarProductos', error, data || {});
+    return jsonResponse({ error: error.toString() });
+  }
 }
 
 function Service_obtenerAlertasStock(data) {
-  return obtenerAlertasStock(data || {});
+  const payload = Object.assign({}, data || {}, { soloAlertas: '1' });
+  return Service_listarProductos(payload);
 }
 
 function Service_guardarGasto(data) {
@@ -526,22 +717,31 @@ function Service_eliminarGasto(data) {
 function Service_listarGastos(data) {
   const input = data || {};
   const p = parsePaginacion(input);
-  const table = Repository_readGastosTable();
+  const fechaDesdeRaw = String(input.fechaDesde || '').trim();
+  const fechaHastaRaw = String(input.fechaHasta || '').trim();
+  const tipoRaw = String(input.tipo || '').trim();
+  const categoriaRaw = String(input.categoria || '').trim();
+  const textoRaw = String(input.texto || '').trim();
+  const sucursalRaw = String(input.sucursalId || '').trim();
+  const hasFilters = !!(fechaDesdeRaw || fechaHastaRaw || tipoRaw || categoriaRaw || textoRaw || sucursalRaw);
+  const table = hasFilters
+    ? Repository_readGastosTable()
+    : Repository_readPage('Gastos', p.page, p.pageSize);
   const headers = table.headers || [];
   const rows = table.rows || [];
   if (!headers.length || !rows.length) {
     return jsonResponse({ gastos: [], total: 0, page: p.page, pageSize: p.pageSize, hasMore: false });
   }
 
-  const fechaDesde = parseFechaFiltro(input.fechaDesde || '');
-  const fechaHasta = parseFechaFiltro(input.fechaHasta || '');
-  const tipo = String(input.tipo || '').trim().toLowerCase();
-  const categoria = String(input.categoria || '').trim().toLowerCase();
-  const texto = String(input.texto || '').trim().toLowerCase();
+  const fechaDesde = parseFechaFiltro(fechaDesdeRaw);
+  const fechaHasta = parseFechaFiltro(fechaHastaRaw);
+  const tipo = tipoRaw.toLowerCase();
+  const categoria = categoriaRaw.toLowerCase();
+  const texto = textoRaw.toLowerCase();
   const sucursalId = normalizarSucursalId(input.sucursalId || 'GLOBAL');
 
   const gastos = rows.map(function(row) {
-    return normalizarGastoForApi(mapearFila(headers, row));
+    return Utils_normalizeEntity('gasto', mapearFila(headers, row));
   }).filter(function(gasto) {
     if (sucursalId !== 'GLOBAL' && normalizarSucursalId(gasto.SUCURSAL_ID) !== sucursalId) return false;
     if (tipo && gasto.TIPO !== tipo) return false;
@@ -560,7 +760,13 @@ function Service_listarGastos(data) {
     return (fb ? fb.getTime() : 0) - (fa ? fa.getTime() : 0);
   });
 
-  const paginada = paginarArreglo(gastos, p.page, p.pageSize);
+  const paginada = hasFilters ? paginarArreglo(gastos, p.page, p.pageSize) : {
+    data: gastos,
+    total: table.total,
+    page: table.page,
+    pageSize: table.pageSize,
+    hasMore: table.hasMore
+  };
   return jsonResponse({
     gastos: paginada.data,
     total: paginada.total,
@@ -597,7 +803,7 @@ function Service_listarClientes(data) {
   }
 
   const clientes = rows.map(function(row) {
-    return normalizarClienteForApi(mapearFila(headers, row));
+    return Utils_normalizeEntity('cliente', mapearFila(headers, row));
   }).filter(function(cliente) {
     if (!texto) return true;
     return [cliente.NOMBRE, cliente.TELEFONO, cliente.EMAIL, cliente.ETIQUETA, cliente.NOTAS]
@@ -625,5 +831,5 @@ function Service_listarClientes(data) {
 function Service_getClienteById(id) {
   const cliente = Repository_findClienteById(id);
   if (!cliente) return jsonResponse({ error: 'No encontrado' });
-  return jsonResponse({ cliente: normalizarClienteForApi(cliente) });
+  return jsonResponse({ cliente: Utils_normalizeEntity('cliente', cliente) });
 }

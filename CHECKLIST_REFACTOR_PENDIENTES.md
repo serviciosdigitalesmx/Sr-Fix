@@ -22,16 +22,16 @@ Estado legend:
 - [x] Migrar flujo Tareas a Service+Repository
 - [x] Migrar flujo Proveedores a Service+Repository
 - [x] Migrar flujo Gastos a Service+Repository
-- [~] Migrar flujo Productos a Service+Repository
+- [x] Migrar flujo Productos a Service+Repository
 - [x] Mover listado Clientes a Service+Repository
 
 ## Fase 3 - Performance y robustez
 - [x] Reducir indices fijos criticos en mapearFilaEquipo
-- [~] Reducir lecturas masivas en listados criticos (paginacion por rango)
-- [ ] Estandarizar normalizacion por entidad
+- [x] Reducir lecturas masivas en listados criticos (paginacion por rango)
+- [x] Estandarizar normalizacion por entidad
 - [x] Centralizar rutas/required fields en Router
 
 ## Fase 4 - Verificacion
-- [ ] Smoke test de rutas migradas
-- [ ] E2E destructivo completo en endpoint estable
+- [~] Smoke test de rutas migradas
+- [~] E2E destructivo completo en endpoint estable
 - [ ] Cierre documental (bitacora + checklist final)

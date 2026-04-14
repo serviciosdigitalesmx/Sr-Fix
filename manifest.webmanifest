@@ -2,7 +2,7 @@
   "name": "SrFix - Gestion de Servicios",
   "short_name": "SrFix",
   "description": "Seguimiento tecnico, stock, compras y operacion del taller SrFix.",
-  "start_url": "./integrador.html",
+  "start_url": "./integrador.html?v=20260414a",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",

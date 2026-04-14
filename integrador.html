@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#1F7EDC">
     <title>SRFIX - Integrador Interno</title>
-    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" type="image/webp" href="./logo.webp">
+    <link rel="manifest" href="./manifest.webmanifest?v=20260414a">
     <link rel="stylesheet" href="./pwa-mobile.css">
     <style>
         :root {
@@ -365,6 +366,187 @@
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 28px 70px rgba(0, 0, 0, 0.22);
 }
 .tab { width: 100%; text-align: left; }
+.tab-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.tab-group-label {
+    font-size: 10px;
+    color: #64748b;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    padding: 0 6px;
+}
+.tab-group-secondary {
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.44);
+    overflow: hidden;
+}
+.tab-group-secondary > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 10px 12px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #93a7c3;
+}
+.tab-group-secondary > summary::-webkit-details-marker { display: none; }
+.tab-group-secondary[open] > summary {
+    background: rgba(31, 126, 220, 0.14);
+    color: #c8ddff;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+.tab-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+}
+.hub-quick-actions {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.hub-quick-btn {
+    appearance: none;
+    border: 1px solid rgba(79, 70, 229, 0.4);
+    background: rgba(79, 70, 229, 0.12);
+    color: #dfe6ff;
+    border-radius: 10px;
+    padding: 8px 11px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    cursor: pointer;
+}
+.hub-quick-btn:hover {
+    background: rgba(79, 70, 229, 0.2);
+    border-color: rgba(79, 70, 229, 0.62);
+}
+.hub-console {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.hub-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+.hub-kpi-card {
+    background: #121214;
+    border: 1px solid #27272a;
+    border-radius: 12px;
+    padding: 14px;
+}
+.hub-kpi-title {
+    margin: 0 0 8px;
+    color: #71717a;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+}
+.hub-kpi-number {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: -.02em;
+    color: #fff;
+}
+.hub-kpi-sub {
+    margin-top: 4px;
+    color: #52525b;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+.hub-kpi-meta {
+    margin-top: 8px;
+    font-size: 10px;
+    color: #a5b4fc;
+    font-weight: 700;
+    letter-spacing: .04em;
+}
+.hub-main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.hub-block {
+    background: #121214;
+    border: 1px solid #27272a;
+    border-radius: 12px;
+    overflow: hidden;
+}
+.hub-block-head {
+    padding: 12px 14px;
+    border-bottom: 1px solid #27272a;
+    color: #71717a;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-weight: 900;
+}
+.hub-block-body {
+    padding: 12px 14px;
+}
+.hub-mini-stat {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    border: 1px solid transparent;
+    border-left-width: 4px;
+}
+.hub-mini-stat strong { font-size: 18px; }
+.hub-mini-stat.rojo { background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); border-left-color: #ef4444; }
+.hub-mini-stat.amarillo { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border-color: rgba(245, 158, 11, 0.2); border-left-color: #f59e0b; }
+.hub-mini-stat.verde { background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.2); border-left-color: #10b981; }
+.hub-mini-stat.azul { background: rgba(79, 70, 229, 0.1); color: #a5b4fc; border-color: rgba(79, 70, 229, 0.2); border-left-color: #4f46e5; }
+.hub-table-wrap { overflow-x: auto; }
+.hub-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.hub-table th,
+.hub-table td {
+    padding: 11px 10px;
+    border-bottom: 1px solid #27272a;
+    font-size: 12px;
+}
+.hub-table th {
+    color: #71717a;
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+.hub-folio {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: #818cf8;
+    font-weight: 700;
+}
+.hub-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    display: inline-block;
+    margin-right: 6px;
+}
+.hub-status-dot.rojo { background: #ef4444; box-shadow: 0 0 10px rgba(239,68,68,.5); }
+.hub-status-dot.amarillo { background: #f59e0b; box-shadow: 0 0 10px rgba(245,158,11,.45); }
+.hub-status-dot.verde { background: #10b981; box-shadow: 0 0 10px rgba(16,185,129,.45); }
 
 @media (max-width: 900px) {
     .bar {
@@ -416,20 +598,18 @@
     }
 
     .tabs {
-        flex-direction: row;
-        gap: 8px;
-        width: max-content;
-        min-width: 100%;
-        padding-bottom: 4px;
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
     }
 
     .tab {
-        width: auto;
-        min-width: max-content;
-        white-space: nowrap;
-        padding: 10px 14px;
+        width: 100%;
+        min-width: 0;
+        white-space: normal;
+        padding: 10px 12px;
         border-radius: 12px;
-        font-size: 14px;
+        font-size: 13px;
     }
 
     .wrap {
@@ -469,6 +649,8 @@
         border-radius: 18px;
         padding: 8px;
     }
+    .hub-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hub-main-grid { grid-template-columns: 1fr; }
 
     .fallback {
         display: none;
@@ -558,6 +740,7 @@
         width: 100%;
         justify-content: center;
     }
+    .hub-kpi-grid { grid-template-columns: 1fr; }
 }
 
 </style>
@@ -605,20 +788,29 @@
         <div class="sidebar-note">Accede a los módulos activos del negocio desde un solo punto con control por rol y sucursal.</div>
     </div>
     <nav class="tabs">
-            <button id="tab-operativo" class="tab" type="button">Recepción</button>
-            <button id="tab-tecnico" class="tab" type="button">Técnico</button>
-            <button id="tab-solicitudes" class="tab" type="button">Solicitudes</button>
-            <button id="tab-archivo" class="tab" type="button">Archivo</button>
-            <button id="tab-clientes" class="tab" type="button">Clientes</button>
-            <button id="tab-tareas" class="tab" type="button">Tareas</button>
-            <button id="tab-stock" class="tab" type="button">Stock</button>
-            <button id="tab-proveedores" class="tab" type="button">Proveedores</button>
-            <button id="tab-compras" class="tab" type="button">Compras</button>
-            <button id="tab-gastos" class="tab" type="button">Gastos</button>
-            <button id="tab-finanzas" class="tab" type="button">Finanzas</button>
-            <button id="tab-reportes" class="tab" type="button">Reportes</button>
-            <button id="tab-sucursales" class="tab" type="button">Sucursales</button>
-            <button id="tab-seguridad" class="tab" type="button">Seguridad</button>
+            <div class="tab-group">
+                <div class="tab-group-label">Core</div>
+                <button id="tab-dashboard" class="tab" type="button">Dashboard HUB</button>
+                <button id="tab-operativo" class="tab" type="button">Recepción</button>
+                <button id="tab-tecnico" class="tab" type="button">Técnico</button>
+                <button id="tab-stock" class="tab" type="button">Stock</button>
+                <button id="tab-solicitudes" class="tab" type="button">Solicitudes</button>
+            </div>
+            <details class="tab-group-secondary">
+                <summary>Más módulos</summary>
+                <div class="tab-stack">
+                    <button id="tab-archivo" class="tab" type="button">Archivo</button>
+                    <button id="tab-clientes" class="tab" type="button">Clientes</button>
+                    <button id="tab-tareas" class="tab" type="button">Tareas</button>
+                    <button id="tab-proveedores" class="tab" type="button">Proveedores</button>
+                    <button id="tab-compras" class="tab" type="button">Compras</button>
+                    <button id="tab-gastos" class="tab" type="button">Gastos</button>
+                    <button id="tab-finanzas" class="tab" type="button">Finanzas</button>
+                    <button id="tab-reportes" class="tab" type="button">Reportes</button>
+                    <button id="tab-sucursales" class="tab" type="button">Sucursales</button>
+                    <button id="tab-seguridad" class="tab" type="button">Seguridad</button>
+                </div>
+            </details>
         </nav>
   </aside>
   <div class="wrap">
@@ -630,11 +822,84 @@
             </div>
             <div class="workspace-actions">
                 <span id="workspace-role" class="role-pill">Sin sesión</span>
-                <span id="workspace-current-module" class="module-pill">Módulo activo</span>
+                <span id="workspace-current-module" class="module-pill" style="display:none;">Módulo activo</span>
+                <div id="hub-quick-actions" class="hub-quick-actions">
+                    <button id="hub-refresh-btn" class="hub-quick-btn" type="button">Actualizar</button>
+                    <button id="hub-open-operativo" class="hub-quick-btn" type="button">Recepción</button>
+                    <button id="hub-open-tecnico" class="hub-quick-btn" type="button">Técnico</button>
+                </div>
                 <button id="btn-shell-logout" type="button" class="ghost-btn">Cerrar sesión</button>
             </div>
         </div>
         <div class="frame-shell">
+        <section id="panel-dashboard" class="panel" aria-label="Dashboard HUB">
+            <div class="hub-console">
+                <div class="hub-kpi-grid">
+                    <article class="hub-kpi-card">
+                        <p class="hub-kpi-title">Ingresos Totales</p>
+                        <p id="hub-kpi-ingresos" class="hub-kpi-number">--</p>
+                        <div class="hub-kpi-sub">Facturación del periodo</div>
+                        <div id="hub-kpi-ingresos-meta" class="hub-kpi-meta">Margen --</div>
+                    </article>
+                    <article class="hub-kpi-card">
+                        <p class="hub-kpi-title">Utilidad Neta</p>
+                        <p id="hub-kpi-utilidad" class="hub-kpi-number">--</p>
+                        <div class="hub-kpi-sub">Resultado operativo</div>
+                        <div id="hub-kpi-utilidad-meta" class="hub-kpi-meta">Sin referencia</div>
+                    </article>
+                    <article class="hub-kpi-card">
+                        <p class="hub-kpi-title">Solicitudes</p>
+                        <p id="hub-kpi-solicitudes" class="hub-kpi-number">--</p>
+                        <div class="hub-kpi-sub">Ingresos de servicio</div>
+                        <div id="hub-kpi-solicitudes-meta" class="hub-kpi-meta">Nuevas --</div>
+                    </article>
+                    <article class="hub-kpi-card">
+                        <p class="hub-kpi-title">Órdenes Entregadas</p>
+                        <p id="hub-kpi-entregadas" class="hub-kpi-number">--</p>
+                        <div class="hub-kpi-sub">Servicios finalizados</div>
+                        <div id="hub-kpi-entregadas-meta" class="hub-kpi-meta">Urgentes --</div>
+                    </article>
+                </div>
+                <div class="hub-main-grid">
+                    <article class="hub-block">
+                        <div class="hub-block-head">Semáforo Operativo</div>
+                        <div class="hub-block-body">
+                            <div class="hub-mini-stat rojo"><span>Urgentes</span><strong id="hub-sem-rojo">--</strong></div>
+                            <div class="hub-mini-stat amarillo"><span>En atención</span><strong id="hub-sem-amarillo">--</strong></div>
+                            <div class="hub-mini-stat verde"><span>A tiempo</span><strong id="hub-sem-verde">--</strong></div>
+                        </div>
+                    </article>
+                    <article class="hub-block">
+                        <div class="hub-block-head">Alertas de Stock</div>
+                        <div class="hub-block-body">
+                            <div class="hub-mini-stat rojo"><span>Stock crítico</span><strong id="hub-stock-critico">--</strong></div>
+                            <div class="hub-mini-stat amarillo"><span>Stock bajo</span><strong id="hub-stock-bajo">--</strong></div>
+                            <div class="hub-mini-stat azul"><span>Total alertas</span><strong id="hub-stock-total">--</strong></div>
+                        </div>
+                    </article>
+                </div>
+                <article class="hub-block">
+                    <div class="hub-block-head">Órdenes Prioritarias</div>
+                    <div class="hub-block-body">
+                        <div class="hub-table-wrap">
+                            <table class="hub-table">
+                                <thead>
+                                    <tr>
+                                        <th>Folio</th>
+                                        <th>Técnico</th>
+                                        <th>Días Restantes</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="hub-ordenes-list">
+                                    <tr><td colspan="4">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </section>
         <section id="panel-operativo" class="panel" aria-label="Módulo Recepción">
             <iframe id="frame-operativo" title="Modulo Recepción" src="about:blank"></iframe>
         </section>
@@ -699,6 +964,7 @@
     </div>
 
     <script>
+        const PANEL_DA = document.getElementById('panel-dashboard');
         const PANEL_OP = document.getElementById('panel-operativo');
         const PANEL_TE = document.getElementById('panel-tecnico');
         const PANEL_SO = document.getElementById('panel-solicitudes');
@@ -713,6 +979,7 @@
         const PANEL_RE = document.getElementById('panel-reportes');
         const PANEL_SU = document.getElementById('panel-sucursales');
         const PANEL_SG = document.getElementById('panel-seguridad');
+        const BTN_DA = document.getElementById('tab-dashboard');
         const BTN_OP = document.getElementById('tab-operativo');
         const BTN_TE = document.getElementById('tab-tecnico');
         const BTN_SO = document.getElementById('tab-solicitudes');
@@ -756,10 +1023,12 @@
         const WORKSPACE_SUBTITLE = document.getElementById('workspace-subtitle');
         const WORKSPACE_ROLE = document.getElementById('workspace-role');
         const WORKSPACE_MODULE = document.getElementById('workspace-current-module');
+        const HUB_QUICK_ACTIONS = document.getElementById('hub-quick-actions');
         const BTN_SHELL_LOGOUT = document.getElementById('btn-shell-logout');
         const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxH1zD8_14TvCajstFhtEpLNODwG9GZXkLoCXOb1IBNm0JIRmpCwS6SRsuGhZETK88z/exec';
-        const APP_BUILD = '20260413b';
+        const APP_BUILD = '20260414a';
         const MODULE_META = {
+            dashboard: { title: 'Dashboard HUB', subtitle: 'Métricas consolidadas para operación, técnico y cliente.' },
             operativo: { title: 'Recepción', subtitle: 'Recepción, captura y seguimiento de ingreso de equipos.' },
             tecnico: { title: 'Técnico', subtitle: 'Semáforo, diagnóstico, avances y cierre técnico del taller.' },
             solicitudes: { title: 'Solicitudes', subtitle: 'Entrada de cotizaciones y trazabilidad inicial del cliente.' },
@@ -792,6 +1061,27 @@
             seguridad: './panel-seguridad.html'
         };
 
+        async function postBackend(body, timeoutMs = 15000) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const res = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(body || {}),
+                    cache: 'no-store',
+                    signal: controller.signal
+                });
+                let data = null;
+                try { data = await res.json(); } catch (e) {}
+                if (!res.ok) {
+                    throw new Error((data && data.error) || `HTTP ${res.status}`);
+                }
+                return data || {};
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
         function buildFrameUrl(path) {
             const url = new URL(path, window.location.href);
             url.searchParams.set('v', APP_BUILD);
@@ -800,6 +1090,7 @@
         }
 
         function asegurarCargaIframe(modulo) {
+            if (modulo === 'dashboard') return;
             if (modulo === 'operativo' && FRAME_OP.src === 'about:blank') {
                 FRAME_OP.src = buildFrameUrl(FRAME_SRC.operativo);
             }
@@ -849,9 +1140,10 @@
             let current = null;
             try { current = userRaw ? JSON.parse(userRaw) : null; } catch (e) {}
             const allowed = getAllowedModules(current);
-            const requested = ['operativo', 'tecnico', 'solicitudes', 'archivo', 'clientes', 'tareas', 'stock', 'proveedores', 'compras', 'gastos', 'finanzas', 'reportes', 'sucursales', 'seguridad'].includes(modulo) ? modulo : 'operativo';
-            const actual = allowed.includes(requested) ? requested : 'operativo';
+            const requested = ['dashboard', 'operativo', 'tecnico', 'solicitudes', 'archivo', 'clientes', 'tareas', 'stock', 'proveedores', 'compras', 'gastos', 'finanzas', 'reportes', 'sucursales', 'seguridad'].includes(modulo) ? modulo : 'dashboard';
+            const actual = allowed.includes(requested) ? requested : 'dashboard';
             asegurarCargaIframe(actual);
+            PANEL_DA.classList.toggle('active', actual === 'dashboard');
             PANEL_OP.classList.toggle('active', actual === 'operativo');
             PANEL_TE.classList.toggle('active', actual === 'tecnico');
             PANEL_SO.classList.toggle('active', actual === 'solicitudes');
@@ -866,6 +1158,7 @@
             PANEL_RE.classList.toggle('active', actual === 'reportes');
             PANEL_SU.classList.toggle('active', actual === 'sucursales');
             PANEL_SG.classList.toggle('active', actual === 'seguridad');
+            BTN_DA.classList.toggle('active', actual === 'dashboard');
             BTN_OP.classList.toggle('active', actual === 'operativo');
             BTN_TE.classList.toggle('active', actual === 'tecnico');
             BTN_SO.classList.toggle('active', actual === 'solicitudes');
@@ -884,12 +1177,15 @@
             WORKSPACE_TITLE.textContent = meta.title;
             WORKSPACE_SUBTITLE.textContent = meta.subtitle;
             WORKSPACE_MODULE.textContent = `Modulo activo: ${meta.title}`;
+            HUB_QUICK_ACTIONS.style.display = actual === 'dashboard' ? 'inline-flex' : 'none';
+            if (actual === 'dashboard') cargarHubDashboard().catch(() => {});
 
             const url = new URL(window.location.href);
             url.searchParams.set('modulo', actual);
             window.history.replaceState({}, '', url);
         }
 
+        BTN_DA.addEventListener('click', () => mostrarModulo('dashboard'));
         BTN_OP.addEventListener('click', () => mostrarModulo('operativo'));
         BTN_TE.addEventListener('click', () => mostrarModulo('tecnico'));
         BTN_SO.addEventListener('click', () => mostrarModulo('solicitudes'));
@@ -907,8 +1203,7 @@
 
         async function cargarSucursales() {
             try {
-                const res = await fetch(BACKEND_URL, { method: 'POST', body: JSON.stringify({ action: 'listar_sucursales', soloActivas: '1', page: 1, pageSize: 100 }) });
-                const data = await res.json();
+                const data = await postBackend({ action: 'listar_sucursales', soloActivas: '1', page: 1, pageSize: 100 }, 15000);
                 const actual = localStorage.getItem('srfix_sucursal_activa') || 'GLOBAL';
                 SELECTOR_SUCURSAL.innerHTML = '<option value="GLOBAL">Todas las sucursales</option>';
                 (data.sucursales || []).forEach(item => {
@@ -929,6 +1224,9 @@
                     frame.src = buildFrameUrl(`./${cleanPath}`);
                 }
             });
+            if (PANEL_DA.classList.contains('active')) {
+                cargarHubDashboard().catch(() => {});
+            }
         });
 
         function persistAuth(user, remember) {
@@ -990,15 +1288,17 @@
             }
             const role = String(user && user.ROL || '').toLowerCase();
             if (role === 'admin') {
-                return ['operativo', 'tecnico', 'solicitudes', 'archivo', 'clientes', 'tareas', 'stock', 'proveedores', 'compras', 'gastos', 'finanzas', 'reportes', 'sucursales', 'seguridad'];
+                return ['dashboard', 'operativo', 'tecnico', 'solicitudes', 'archivo', 'clientes', 'tareas', 'stock', 'proveedores', 'compras', 'gastos', 'finanzas', 'reportes', 'sucursales', 'seguridad'];
             }
-            return ['operativo', 'tecnico', 'solicitudes', 'archivo', 'tareas', 'stock'];
+            return ['dashboard', 'operativo', 'tecnico', 'solicitudes', 'archivo', 'tareas', 'stock'];
         }
 
         function aplicarRolUI(user) {
             const allowed = getAllowedModules(user);
             const role = String(user && user.ROL || '').toLowerCase();
+            const userName = String(user && (user.NOMBRE || user.USUARIO) || '').trim();
             const tabs = {
+                dashboard: BTN_DA,
                 operativo: BTN_OP,
                 tecnico: BTN_TE,
                 solicitudes: BTN_SO,
@@ -1018,7 +1318,7 @@
                 if (!tabs[key]) return;
                 tabs[key].style.display = allowed.includes(key) ? '' : 'none';
             });
-            WORKSPACE_ROLE.textContent = user ? `Rol: ${role || 'usuario'}` : 'Sin sesión';
+            WORKSPACE_ROLE.textContent = user ? `${userName || 'Usuario'} · ${role || 'usuario'}` : 'Sin sesión';
             PANEL_SG.classList.toggle('active', false);
         }
 
@@ -1031,8 +1331,8 @@
             mostrarIntegrador();
             cargarSucursales();
             const modulo = new URLSearchParams(window.location.search).get('modulo');
-            const solicitado = modulo || 'operativo';
-            mostrarModulo(allowed.includes(solicitado) ? solicitado : 'operativo');
+            const solicitado = modulo || 'dashboard';
+            mostrarModulo(allowed.includes(solicitado) ? solicitado : 'dashboard');
         }
 
         function setLoginLoading(isLoading, label = 'Entrar') {
@@ -1043,29 +1343,16 @@
                 : label;
         }
 
-        async function fetchLoginInternoConRetry(usuario, pass, maxAttempts = 2) {
+        async function fetchLoginInternoConRetry(usuario, pass, maxAttempts = 3) {
             let lastError = null;
             for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
                 try {
-                    const controller = new AbortController();
-                    const timer = setTimeout(() => controller.abort(), 12000);
-                    let res;
-                    try {
-                        res = await fetch(BACKEND_URL, {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                action: 'login_interno',
-                                usuario: usuario,
-                                password: pass
-                            }),
-                            signal: controller.signal
-                        });
-                    } finally {
-                        clearTimeout(timer);
-                    }
-                    let data = null;
-                    try { data = await res.json(); } catch (e) {}
-                    if (!res.ok || !data || !data.success) {
+                    const data = await postBackend({
+                        action: 'login_interno',
+                        usuario: usuario,
+                        password: pass
+                    }, 18000);
+                    if (!data || !data.success) {
                         const backendErr = (data && data.error) || 'Credenciales inválidas';
                         if (/credenciales/i.test(backendErr)) {
                             throw new Error(backendErr);
@@ -1079,7 +1366,7 @@
                     const esCredencial = /credenciales|usuario|contrase/i.test(msg);
                     if (esCredencial) throw e;
                     if (attempt < maxAttempts) {
-                        await new Promise(r => setTimeout(r, 350));
+                        await new Promise(r => setTimeout(r, 500 * attempt));
                     }
                 }
             }
@@ -1117,6 +1404,71 @@
             if (e.key === 'Enter') validarMaster();
         });
         BTN_SHELL_LOGOUT.addEventListener('click', cerrarSesionGlobal);
+        document.getElementById('hub-refresh-btn').addEventListener('click', () => cargarHubDashboard().catch(() => {}));
+        document.getElementById('hub-open-operativo').addEventListener('click', () => mostrarModulo('operativo'));
+        document.getElementById('hub-open-tecnico').addEventListener('click', () => mostrarModulo('tecnico'));
+
+        async function hubFetch(action, payload = {}) {
+            return await postBackend({ action, ...payload }, 15000);
+        }
+
+        function formatMoneyMx(value) {
+            const n = Number(value || 0);
+            return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(isFinite(n) ? n : 0);
+        }
+
+        async function cargarHubDashboard() {
+            const sucursalId = localStorage.getItem('srfix_sucursal_activa') || 'GLOBAL';
+            const [summaryResp, operResp] = await Promise.all([
+                hubFetch('hub_dashboard_summary', { sucursalId }),
+                hubFetch('hub_operational_panel', { sucursalId })
+            ]);
+            const summaryData = summaryResp && summaryResp.data ? summaryResp.data : {};
+            const operData = operResp && operResp.data ? operResp.data : {};
+            const s = summaryData.summary || {};
+            const sem = summaryData.semaforo || {};
+            const leads = Number(s.leads || 0);
+            const solicitudes = Number(s.cotizaciones || 0);
+            const cotizaciones = Number(s.cotizaciones || 0);
+            const ingresos = Number(s.ingresos || 0);
+            const utilidad = Number(s.utilidad || 0);
+            const urgentes = Number(s.urgentes || 0);
+            const conversion = leads > 0 ? ((cotizaciones / leads) * 100) : 0;
+            const margen = ingresos > 0 ? ((utilidad / ingresos) * 100) : 0;
+            document.getElementById('hub-kpi-ingresos').textContent = formatMoneyMx(s.ingresos || 0);
+            document.getElementById('hub-kpi-utilidad').textContent = formatMoneyMx(s.utilidad || 0);
+            document.getElementById('hub-kpi-solicitudes').textContent = String(solicitudes);
+            document.getElementById('hub-kpi-entregadas').textContent = String(Number(s.ordenesEntregadas || 0));
+            document.getElementById('hub-kpi-ingresos-meta').textContent = `Margen ${margen.toFixed(1)}%`;
+            document.getElementById('hub-kpi-utilidad-meta').textContent = `Gasto ${formatMoneyMx(s.gastos || 0)}`;
+            document.getElementById('hub-kpi-solicitudes-meta').textContent = `Conversión ${conversion.toFixed(1)}%`;
+            document.getElementById('hub-kpi-entregadas-meta').textContent = `Urgentes ${urgentes}`;
+            document.getElementById('hub-sem-rojo').textContent = String(Number(sem.urgentes || 0));
+            document.getElementById('hub-sem-amarillo').textContent = String(Number(sem.atencion || 0));
+            document.getElementById('hub-sem-verde').textContent = String(Number(sem.aTiempo || 0));
+            document.getElementById('hub-stock-critico').textContent = String(Number((operData.alertas && operData.alertas.stockCritico) || 0));
+            document.getElementById('hub-stock-bajo').textContent = String(Number((operData.alertas && operData.alertas.stockBajo) || 0));
+            document.getElementById('hub-stock-total').textContent = String(Number((operData.conteos && operData.conteos.totalAlertasStock) || 0));
+
+            const ordenes = Array.isArray(operData.ordenes) ? operData.ordenes.slice(0, 8) : [];
+            const list = document.getElementById('hub-ordenes-list');
+            if (!ordenes.length) {
+                list.innerHTML = '<tr><td colspan="4">Sin órdenes activas</td></tr>';
+                return;
+            }
+            list.innerHTML = ordenes.map((ord) => {
+                const color = String(ord.color || 'verde');
+                const folio = String(ord.FOLIO || '');
+                const tecnico = String(ord.TECNICO_ASIGNADO || 'No asignado');
+                const dias = Number(ord.diasRestantes || 0);
+                return `<tr>
+                    <td class="hub-folio">${folio}</td>
+                    <td>${tecnico}</td>
+                    <td>${dias}D_REM</td>
+                    <td><span class="hub-status-dot ${color}"></span>${color.toUpperCase()}</td>
+                </tr>`;
+            }).join('');
+        }
 
         function aplicarPerfilDispositivo() {
             const isMobile = window.matchMedia('(max-width: 900px)').matches
@@ -1158,6 +1510,6 @@
         }
         catch (e) {}
     </script>
-    <script src="./pwa-init.js"></script>
+    <script src="./pwa-init.js?v=20260414a"></script>
 </body>
 </html>

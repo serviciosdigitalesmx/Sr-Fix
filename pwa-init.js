@@ -1,6 +1,7 @@
 (function () {
-    const MANIFEST_PATH = './manifest.webmanifest';
-    const SW_PATH = './sw.js';
+    const PWA_BUILD = '20260414a';
+    const MANIFEST_PATH = `./manifest.webmanifest?v=${PWA_BUILD}`;
+    const SW_PATH = `./sw.js?v=${PWA_BUILD}`;
     let deferredPrompt = null;
 
     function ensureMeta(name, content, attr = 'name') {

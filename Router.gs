@@ -44,25 +44,18 @@ function Router_getGetRoutes() {
       required: [],
       handler: function(params) {
         const pag = Router_getPagination(params);
-        return listarTareas({
-          texto: params.texto || '',
-          estado: params.estado || '',
-          prioridad: params.prioridad || '',
-          responsable: params.responsable || '',
-          fechaDesde: params.fechaDesde || '',
-          fechaHasta: params.fechaHasta || '',
-          sucursalId: params.sucursalId || '',
-          tipoRelacion: params.tipoRelacion || '',
-          page: pag.page,
-          pageSize: pag.pageSize
-        });
+        return Service_listarTareas(Object.assign({}, params || {}, { page: pag.page, pageSize: pag.pageSize }));
       }
+    },
+    tarea: {
+      required: ['folio'],
+      handler: function(params) { return Service_getTareaByFolio(params.folio); }
     },
     listar_productos: {
       required: [],
       handler: function(params) {
         const pag = Router_getPagination(params);
-        return listarProductos({
+        return Service_listarProductos({
           texto: params.texto || '',
           categoria: params.categoria || '',
           marca: params.marca || '',
@@ -79,7 +72,7 @@ function Router_getGetRoutes() {
       required: [],
       handler: function(params) {
         const pag = Router_getPagination(params);
-        return obtenerAlertasStock({
+        return Service_obtenerAlertasStock({
           texto: params.texto || '',
           categoria: params.categoria || '',
           marca: params.marca || '',
@@ -95,20 +88,18 @@ function Router_getGetRoutes() {
       required: [],
       handler: function(params) {
         const pag = Router_getPagination(params);
-        return listarProveedores({
-          texto: params.texto || '',
-          estatus: params.estatus || '',
-          categoria: params.categoria || '',
-          page: pag.page,
-          pageSize: pag.pageSize
-        });
+        return Service_listarProveedores(Object.assign({}, params || {}, { page: pag.page, pageSize: pag.pageSize }));
       }
+    },
+    proveedor: {
+      required: ['id'],
+      handler: function(params) { return Service_getProveedorById(params.id); }
     },
     listar_gastos: {
       required: [],
       handler: function(params) {
         const pag = Router_getPagination(params);
-        return listarGastos({
+        return Service_listarGastos({
           fechaDesde: params.fechaDesde || '',
           fechaHasta: params.fechaHasta || '',
           tipo: params.tipo || '',
@@ -123,7 +114,7 @@ function Router_getGetRoutes() {
     resumen_gastos: {
       required: [],
       handler: function(params) {
-        return resumenGastos({
+        return Service_resumenGastos({
           fechaDesde: params.fechaDesde || '',
           fechaHasta: params.fechaHasta || '',
           sucursalId: params.sucursalId || ''
@@ -133,7 +124,7 @@ function Router_getGetRoutes() {
     resumen_finanzas: {
       required: [],
       handler: function(params) {
-        return resumenFinanzas({
+        return Service_resumenFinanzas({
           fechaDesde: params.fechaDesde || '',
           fechaHasta: params.fechaHasta || '',
           sucursalId: params.sucursalId || ''
@@ -144,7 +135,7 @@ function Router_getGetRoutes() {
       required: [],
       handler: function(params) {
         const pag = Router_getPagination(params);
-        return listarClientes({
+        return Service_listarClientes({
           texto: params.texto || '',
           page: pag.page,
           pageSize: pag.pageSize
@@ -153,7 +144,7 @@ function Router_getGetRoutes() {
     },
     cliente: {
       required: ['id'],
-      handler: function(params) { return getClienteById(params.id); }
+      handler: function(params) { return Service_getClienteById(params.id); }
     },
     hub_dashboard_summary: {
       required: [],
@@ -190,39 +181,43 @@ function Router_getPostRoutes() {
     },
     crear_tarea: {
       required: [],
-      handler: function(data) { return crearTarea(data || {}); }
+      handler: function(data) { return Service_crearTarea(data || {}); }
     },
     actualizar_tarea: {
       required: ['folio'],
-      handler: function(data) { return actualizarTarea(data || {}); }
+      handler: function(data) { return Service_actualizarTarea(data || {}); }
+    },
+    tarea: {
+      required: ['folio'],
+      handler: function(data) { return Service_getTareaByFolio(data.folio); }
     },
     guardar_producto: {
       required: [],
-      handler: function(data) { return guardarProducto(data || {}); }
+      handler: function(data) { return Service_guardarProducto(data || {}); }
     },
     eliminar_producto: {
       required: ['sku'],
-      handler: function(data) { return eliminarProducto(data || {}); }
+      handler: function(data) { return Service_eliminarProducto(data || {}); }
     },
     guardar_proveedor: {
       required: [],
-      handler: function(data) { return guardarProveedor(data || {}); }
+      handler: function(data) { return Service_guardarProveedor(data || {}); }
     },
     eliminar_proveedor: {
       required: ['id'],
-      handler: function(data) { return eliminarProveedor(data || {}); }
+      handler: function(data) { return Service_eliminarProveedor(data || {}); }
     },
     guardar_gasto: {
       required: [],
-      handler: function(data) { return guardarGasto(data || {}); }
+      handler: function(data) { return Service_guardarGasto(data || {}); }
     },
     eliminar_gasto: {
       required: ['id'],
-      handler: function(data) { return eliminarGasto(data || {}); }
+      handler: function(data) { return Service_eliminarGasto(data || {}); }
     },
     guardar_cliente: {
       required: [],
-      handler: function(data) { return guardarCliente(data || {}); }
+      handler: function(data) { return Service_guardarCliente(data || {}); }
     },
     listar_sucursales: {
       required: [],
@@ -255,55 +250,59 @@ function Router_getPostRoutes() {
       required: [],
       handler: function(data) {
         const pag = Router_getPagination(data);
-        return listarTareas(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
+        return Service_listarTareas(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
       }
     },
     listar_productos: {
       required: [],
       handler: function(data) {
         const pag = Router_getPagination(data);
-        return listarProductos(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
+        return Service_listarProductos(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
       }
     },
     obtener_alertas_stock: {
       required: [],
       handler: function(data) {
         const pag = Router_getPagination(data);
-        return obtenerAlertasStock(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
+        return Service_obtenerAlertasStock(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
       }
     },
     listar_proveedores: {
       required: [],
       handler: function(data) {
         const pag = Router_getPagination(data);
-        return listarProveedores(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
+        return Service_listarProveedores(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
       }
+    },
+    proveedor: {
+      required: ['id'],
+      handler: function(data) { return Service_getProveedorById(data.id); }
     },
     listar_gastos: {
       required: [],
       handler: function(data) {
         const pag = Router_getPagination(data);
-        return listarGastos(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
+        return Service_listarGastos(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
       }
     },
     resumen_gastos: {
       required: [],
-      handler: function(data) { return resumenGastos(data || {}); }
+      handler: function(data) { return Service_resumenGastos(data || {}); }
     },
     resumen_finanzas: {
       required: [],
-      handler: function(data) { return resumenFinanzas(data || {}); }
+      handler: function(data) { return Service_resumenFinanzas(data || {}); }
     },
     listar_clientes: {
       required: [],
       handler: function(data) {
         const pag = Router_getPagination(data);
-        return listarClientes(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
+        return Service_listarClientes(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
       }
     },
     cliente: {
       required: ['id'],
-      handler: function(data) { return getClienteById(data.id); }
+      handler: function(data) { return Service_getClienteById(data.id); }
     },
     hub_dashboard_summary: {
       required: [],

@@ -1,5 +1,5 @@
 const CONFIG = {
-    BACKEND_URL: 'https://script.google.com/macros/s/AKfycbyKv77a5864czQIJYEmFbAIYl4dAufoxP3ynPZhSoyZSiGYpFRrOBxr-B_2-rdcfRO0/exec'
+    BACKEND_URL: 'https://script.google.com/macros/s/AKfycby7ImB8qOFGJbB9OYASi_pysQi9KvWHgzeRm_JPdEMR69RPHNREgB-T_K_Km_HojrAw/exec'
 };
 
 const elGrid = document.getElementById('grid');

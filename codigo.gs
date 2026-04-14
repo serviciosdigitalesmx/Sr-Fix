@@ -218,7 +218,12 @@ function registrarBitacoraSeguridad(entry) {
       String(entry && entry.detalle || '').trim(),
       String(entry && entry.origen || '').trim()
     ]), 'registrarBitacoraSeguridad.append');
-  } catch (e) {}
+  } catch (e) {
+    logError('registrarBitacoraSeguridad', e, {
+      accion: entry && entry.accion ? String(entry.accion) : '',
+      usuario: entry && entry.usuario ? String(entry.usuario) : ''
+    });
+  }
 }
 
 function normalizarUsuarioInternoForApi(rowObj) {
@@ -825,7 +830,7 @@ function recalcularStockGlobalProducto(ss, sku) {
 // API REST
 // ==========================================
 
-function doGet(e) {
+function doGetLegacy(e) {
   const action = e.parameter.action || 'status';
 
   try {
@@ -1000,7 +1005,7 @@ function doGet(e) {
   }
 }
 
-function doPost(e) {
+function doPostLegacy(e) {
   try {
     const data = parsePostData(e);
     const action = data.action;
@@ -1121,6 +1126,30 @@ function doPost(e) {
   }
 }
 
+function doGet(e) {
+  try {
+    if (typeof Router_dispatchGet === 'function') {
+      return Router_dispatchGet(e, doGetLegacy);
+    }
+    return doGetLegacy(e);
+  } catch (error) {
+    logError('doGet.entrypoint', error, { params: e && e.parameter ? e.parameter : {} });
+    return jsonResponse({ error: error.toString() });
+  }
+}
+
+function doPost(e) {
+  try {
+    if (typeof Router_dispatchPost === 'function') {
+      return Router_dispatchPost(e, doPostLegacy);
+    }
+    return doPostLegacy(e);
+  } catch (error) {
+    logError('doPost.entrypoint', error, {});
+    return jsonResponse({ error: error.toString() });
+  }
+}
+
 function parsePostData(e) {
   if (!e) return {};
   const raw = e.postData && typeof e.postData.contents === 'string' ? e.postData.contents : '';
@@ -1217,7 +1246,24 @@ function withRetry(fn, contexto) {
 
 function withDocumentLock(fn, timeoutMs) {
   const lock = LockService.getDocumentLock();
-  lock.waitLock(timeoutMs || 10000);
+  const maxWait = Math.max(1000, Number(timeoutMs || 10000));
+  const start = Date.now();
+  let intento = 0;
+  let locked = false;
+
+  while (!locked && (Date.now() - start) < maxWait) {
+    intento += 1;
+    locked = lock.tryLock(250);
+    if (locked) break;
+    const sleepMs = Math.min(600, 80 * intento) + Math.floor(Math.random() * 60);
+    Utilities.sleep(sleepMs);
+  }
+
+  if (!locked) {
+    const err = new Error('No se pudo adquirir lock de documento');
+    logError('withDocumentLock.timeout', err, { timeoutMs: maxWait, intentos: intento });
+    throw err;
+  }
   try {
     return fn();
   } finally {
@@ -1453,10 +1499,24 @@ function mapearFilaEquipo(headers, row) {
     if (h) eq[h] = row[i];
   });
 
-  // Fallbacks por índice para hojas viejas sin encabezados nuevos.
-  if (!eq.FOTO_RECEPCION && row[19]) eq.FOTO_RECEPCION = row[19];
-  if (!eq.SEGUIMIENTO_CLIENTE && row[20]) eq.SEGUIMIENTO_CLIENTE = row[20];
-  if (!eq.SEGUIMIENTO_FOTOS && row[21]) eq.SEGUIMIENTO_FOTOS = row[21];
+  // Fallback por alias de encabezados para evitar dependencia en índices fijos.
+  const aliases = {
+    FOTO_RECEPCION: ['FOTO_RECEPCION', 'FOTO RECEPCION', 'FOTO_RECEP'],
+    SEGUIMIENTO_CLIENTE: ['SEGUIMIENTO_CLIENTE', 'SEGUIMIENTO CLIENTE', 'COMENTARIO_CLIENTE'],
+    SEGUIMIENTO_FOTOS: ['SEGUIMIENTO_FOTOS', 'SEGUIMIENTO FOTOS', 'FOTOS_SEGUIMIENTO']
+  };
+  Object.keys(aliases).forEach(campo => {
+    if (eq[campo]) return;
+    const options = aliases[campo];
+    for (let i = 0; i < options.length; i++) {
+      const alias = options[i];
+      const idx = headers.indexOf(alias);
+      if (idx >= 0 && row[idx]) {
+        eq[campo] = row[idx];
+        return;
+      }
+    }
+  });
 
   return eq;
 }

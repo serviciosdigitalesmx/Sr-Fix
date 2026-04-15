@@ -1,5 +1,5 @@
 const CONFIG = {
-    BACKEND_URL: (window.SRFIX_BACKEND_URL || localStorage.getItem('srfix_backend_url') || 'https://script.google.com/macros/s/AKfycby7ImB8qOFGJbB9OYASi_pysQi9KvWHgzeRm_JPdEMR69RPHNREgB-T_K_Km_HojrAw/exec')
+    BACKEND_URL: (window.SRFIX_BACKEND_URL || localStorage.getItem('srfix_backend_url') || 'https://script.google.com/macros/s/AKfycbw49B0GeqyZ2Yr0a-IZNqUhrhUBH0yldSO274EDHBU9gT5SPrXSs2ixIhwD5BRmg-6W/exec')
 };
 
 const PAGE_SIZE = 100;

@@ -9,6 +9,8 @@ const CORE_SHEETS = {
   TAREAS: 'Tareas',
   PRODUCTOS: 'Productos',
   PROVEEDORES: 'Proveedores',
+  ORDENES_COMPRA: 'OrdenesCompra',
+  ORDENES_COMPRA_ITEMS: 'OrdenesCompraItems',
   GASTOS: 'Gastos',
   CLIENTES: 'Clientes'
 };

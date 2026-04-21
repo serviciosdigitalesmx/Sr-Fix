@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#1F7EDC">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>SRFIX - Panel Técnico Profesional</title>
     <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" href="./favicon.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/srfix-shared.css">
@@ -181,12 +183,26 @@
                 <div id="section-detalles" class="tab-section space-y-5">
                     <div class="grid md:grid-cols-2 gap-4">
                         <div>
-                            <label class="text-xs text-[#8A8F95] uppercase">Cliente</label>
+                            <div class="flex items-center justify-between gap-2">
+                                <label class="text-xs text-[#8A8F95] uppercase">Cliente</label>
+                                <button type="button" class="inline-flex items-center gap-1 rounded-md border border-[#1F7EDC]/40 bg-[#1E1E1E] px-2 py-1 text-[11px] font-semibold text-[#7EC8FF] hover:bg-[#1F7EDC]/15 hover:text-white" onclick="toggleEditField('cliente')" title="Editar cliente">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                    <span>Editar</span>
+                                </button>
+                            </div>
                             <p id="modal-cliente" class="text-[#F2F2F2] font-medium"></p>
+                            <input id="modal-cliente-input" type="text" class="hidden w-full input-tech rounded-lg p-2 mt-2" placeholder="Nombre del cliente">
                         </div>
                         <div>
-                            <label class="text-xs text-[#8A8F95] uppercase">Teléfono</label>
+                            <div class="flex items-center justify-between gap-2">
+                                <label class="text-xs text-[#8A8F95] uppercase">Teléfono</label>
+                                <button type="button" class="inline-flex items-center gap-1 rounded-md border border-[#1F7EDC]/40 bg-[#1E1E1E] px-2 py-1 text-[11px] font-semibold text-[#7EC8FF] hover:bg-[#1F7EDC]/15 hover:text-white" onclick="toggleEditField('telefono')" title="Editar teléfono">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                    <span>Editar</span>
+                                </button>
+                            </div>
                             <p id="modal-telefono" class="text-[#F2F2F2]"></p>
+                            <input id="modal-telefono-input" type="tel" class="hidden w-full input-tech rounded-lg p-2 mt-2" placeholder="Número de teléfono">
                             <a id="modal-wa-btn" href="#" target="_blank" rel="noopener" class="inline-flex items-center gap-2 mt-2 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-semibold">
                                 <i class="fa-brands fa-whatsapp"></i> WhatsApp cliente
                             </a>
@@ -195,19 +211,49 @@
 
                     <div class="grid md:grid-cols-2 gap-4">
                         <div>
-                            <label class="text-xs text-[#8A8F95] uppercase">Equipo</label>
+                            <div class="flex items-center justify-between gap-2">
+                                <label class="text-xs text-[#8A8F95] uppercase">Equipo</label>
+                                <button type="button" class="inline-flex items-center gap-1 rounded-md border border-[#1F7EDC]/40 bg-[#1E1E1E] px-2 py-1 text-[11px] font-semibold text-[#7EC8FF] hover:bg-[#1F7EDC]/15 hover:text-white" onclick="toggleEditField('equipo')" title="Editar equipo">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                    <span>Editar</span>
+                                </button>
+                            </div>
                             <p id="modal-equipo" class="text-[#F2F2F2]"></p>
+                            <div id="modal-equipo-edit" class="hidden grid md:grid-cols-2 gap-2 mt-2">
+                                <div>
+                                    <label class="text-[11px] text-[#8A8F95] uppercase">Dispositivo</label>
+                                    <input id="modal-equipo-dispositivo" type="text" class="w-full input-tech rounded-lg p-2 mt-1" placeholder="Ej: Laptop / Control / Celular">
+                                </div>
+                                <div>
+                                    <label class="text-[11px] text-[#8A8F95] uppercase">Modelo</label>
+                                    <input id="modal-equipo-modelo" type="text" class="w-full input-tech rounded-lg p-2 mt-1" placeholder="Ej: Dell XPS 15 9520">
+                                </div>
+                            </div>
                         </div>
                         <div>
-                            <label class="text-xs text-[#8A8F95] uppercase">Fecha promesa</label>
+                            <div class="flex items-center justify-between gap-2">
+                                <label class="text-xs text-[#8A8F95] uppercase">Fecha promesa</label>
+                                <button type="button" class="inline-flex items-center gap-1 rounded-md border border-[#1F7EDC]/40 bg-[#1E1E1E] px-2 py-1 text-[11px] font-semibold text-[#7EC8FF] hover:bg-[#1F7EDC]/15 hover:text-white" onclick="toggleEditField('fecha-promesa')" title="Editar fecha promesa">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                    <span>Editar</span>
+                                </button>
+                            </div>
                             <p id="modal-fecha-promesa" class="text-[#F2F2F2]"></p>
+                            <input id="modal-fecha-promesa-input" type="date" class="hidden w-full input-tech rounded-lg p-2 mt-2">
                         </div>
                     </div>
 
                     <div class="grid md:grid-cols-2 gap-4">
                         <div>
-                            <label class="text-xs text-[#8A8F95] uppercase">Precio / costo estimado</label>
+                            <div class="flex items-center justify-between gap-2">
+                                <label class="text-xs text-[#8A8F95] uppercase">Precio / costo estimado</label>
+                                <button type="button" class="inline-flex items-center gap-1 rounded-md border border-[#1F7EDC]/40 bg-[#1E1E1E] px-2 py-1 text-[11px] font-semibold text-[#7EC8FF] hover:bg-[#1F7EDC]/15 hover:text-white" onclick="toggleEditField('costo')" title="Editar precio">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                    <span>Editar</span>
+                                </button>
+                            </div>
                             <p id="modal-costo" class="text-[#F2F2F2] font-semibold"></p>
+                            <input id="modal-costo-input" type="number" min="0" step="0.01" class="hidden w-full input-tech rounded-lg p-2 mt-2" placeholder="0.00">
                         </div>
                         <div>
                             <label class="text-xs text-[#8A8F95] uppercase">Folio</label>
@@ -301,7 +347,9 @@
         <span id="toast-message">Mensaje</span>
     </div>
     
-    <script src="js/pwa-init.js"></script>
-    <script src="js/panel-tecnico.js"></script>
+    <script src="config.js?v=2026.04.19.1"></script>
+    <script src="js/pwa-init.js?v=2026.04.21.1"></script>
+    <script src="js/security-guard.js?v=2026.04.21.2"></script>
+    <script src="js/panel-tecnico.js?v=2026.04.21.4"></script>
 </body>
 </html>

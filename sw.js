@@ -1,4 +1,4 @@
-const CACHE_NAME = 'srfix-static-v3-20260413';
+const CACHE_NAME = 'srfix-static-v5-20260421-1';
 const STATIC_ASSETS = [
   './',
   './integrador.html',
@@ -13,15 +13,14 @@ const STATIC_ASSETS = [
   './panel-finanzas.html',
   './panel-tareas.html',
   './panel-sucursales.html',
-  './srfix-shared.css',
-  './panel-operativo.css',
-  './panel-tecnico.css',
-  './portal-cliente.css',
-  './pwa-mobile.css',
-  './pwa-init.js',
+  './css/srfix-shared.css',
+  './css/panel-operativo.css',
+  './css/panel-tecnico.css',
+  './css/portal-cliente.css',
+  './css/pwa-mobile.css',
+  './js/pwa-init.js',
   './manifest.webmanifest',
-  './logo.webp',
-  './logo.webp',
+  './favicon.png',
   './assets/icons/icon-192x192.png',
   './assets/icons/icon-512x512.png'
 ];

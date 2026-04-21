@@ -123,8 +123,16 @@
                         </div>
 
                         <div class="mt-4 rounded-2xl border border-[#1F7EDC]/20 bg-[#161616] p-4">
-                            <h4 class="text-sm font-semibold uppercase tracking-[0.18em] text-[#8A8F95]">JSON / Datos completos</h4>
-                            <pre id="detalle-raw" class="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-black/30 p-4 text-xs text-[#C9D4E6]"></pre>
+                            <h4 class="text-sm font-semibold uppercase tracking-[0.18em] text-[#8A8F95]">Campos completos</h4>
+                            <div id="detalle-campos" class="mt-3 grid gap-3 sm:grid-cols-2"></div>
+                            <details class="mt-4 rounded-xl border border-[#1F7EDC]/15 bg-black/20">
+                                <summary class="cursor-pointer select-none px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#7EC8FF]">
+                                    Ver JSON crudo
+                                </summary>
+                                <div class="px-4 pb-4">
+                                    <pre id="detalle-raw" class="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-black/30 p-4 text-xs text-[#C9D4E6]"></pre>
+                                </div>
+                            </details>
                         </div>
                     </section>
 
@@ -146,6 +154,6 @@
     </div>
 
     <script src="config.js?v=2026.04.19.1"></script>
-    <script src="js/panel-archivo.js?v=2026.04.21.3"></script>
+    <script src="js/panel-archivo.js?v=2026.04.21.4"></script>
 </body>
 </html>

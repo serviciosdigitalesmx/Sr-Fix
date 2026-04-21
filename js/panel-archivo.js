@@ -25,6 +25,7 @@
     const elDetalleEmail = requireElement('detalle-email');
     const elDetalleOperativo = requireElement('detalle-operativo');
     const elDetalleNotas = requireElement('detalle-notas');
+    const elDetalleCampos = requireElement('detalle-campos');
     const elDetalleRaw = requireElement('detalle-raw');
     const elDetalleAviso = requireElement('detalle-aviso');
     const btnDetalleCerrar = requireElement('btn-detalle-cerrar');
@@ -130,6 +131,88 @@
             ].join('\n'));
         }
         return partes.filter(Boolean).join('\n\n');
+    }
+    function formatFieldLabel(key) {
+        return String(key || '')
+            .replace(/_/g, ' ')
+            .toLowerCase()
+            .replace(/\b\w/g, (char) => char.toUpperCase());
+    }
+    function formatFieldValue(value) {
+        if (value === undefined || value === null)
+            return '---';
+        if (typeof value === 'number') {
+            return Number.isFinite(value) ? String(value) : '---';
+        }
+        const text = String(value).trim();
+        return text || '---';
+    }
+    function buildDetalleCampos(registro, raw) {
+        const source = raw && Object.keys(raw).length ? raw : registro;
+        const preferredOrder = [
+            'TIPO_ARCHIVO',
+            'FECHA_ARCHIVO',
+            'FECHA_SOLICITUD',
+            'FECHA_COTIZACION',
+            'FECHA_INGRESO',
+            'FECHA_ENTREGA',
+            'ESTADO',
+            'CLIENTE',
+            'CLIENTE_NOMBRE',
+            'TELEFONO',
+            'CLIENTE_TELEFONO',
+            'EMAIL',
+            'CLIENTE_EMAIL',
+            'DISPOSITIVO',
+            'MODELO',
+            'DETALLE',
+            'DESCRIPCION',
+            'PROBLEMAS',
+            'FALLA_REPORTADA',
+            'URGENCIA',
+            'TOTAL',
+            'COSTO_ESTIMADO',
+            'TECNICO_ASIGNADO',
+            'SEGUIMIENTO_CLIENTE',
+            'CASO_RESOLUCION_TECNICA',
+            'NOTAS',
+            'NOTAS_INTERNAS',
+            'CHECK_CARGADOR',
+            'CHECK_PANTALLA',
+            'CHECK_PRENDE',
+            'CHECK_RESPALDO'
+        ];
+        const rendered = new Set();
+        const items = [];
+        preferredOrder.forEach((key) => {
+            if (!(key in source))
+                return;
+            const formatted = formatFieldValue(source[key]);
+            if (formatted === '---')
+                return;
+            items.push({ key, value: formatted });
+            rendered.add(key);
+        });
+        Object.keys(source).forEach((key) => {
+            if (rendered.has(key))
+                return;
+            const value = source[key];
+            if (typeof value === 'object')
+                return;
+            const formatted = formatFieldValue(value);
+            if (formatted === '---')
+                return;
+            items.push({ key, value: formatted });
+        });
+        if (!items.length) {
+            return '<div class="rounded-xl border border-[#1F7EDC]/15 bg-black/20 px-4 py-3 text-sm text-[#8A8F95] sm:col-span-2">Sin datos adicionales</div>';
+        }
+        return items.map((item) => `
+      <div class="rounded-xl border border-[#1F7EDC]/15 bg-black/20 px-4 py-3">
+        <div class="text-[11px] uppercase tracking-[0.14em] text-[#8A8F95]">${escapeHtml(formatFieldLabel(item.key))}</div>
+        <div class="mt-2 break-words text-sm font-medium text-[#F2F2F2]">${escapeHtml(item.value)}</div>
+      </div>
+    `).join('');
     }
     function parseCotizacionJson(raw) {
         const text = String(raw ?? '').trim();
@@ -241,6 +324,7 @@
         elDetalleEmail.textContent = String(registro.EMAIL || '---');
         elDetalleOperativo.innerHTML = formatMultiline(archivoDetalleTexto(registro));
         elDetalleNotas.innerHTML = formatMultiline(archivoNotasTexto(registro));
+        elDetalleCampos.innerHTML = buildDetalleCampos(registro, raw);
         elDetalleRaw.textContent = JSON.stringify(raw || registro, null, 2);
         elDetalleAviso.textContent = reabrible
             ? 'Este registro puede reabrirse para volver a editarlo en el flujo operativo.'

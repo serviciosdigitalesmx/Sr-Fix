@@ -19,7 +19,7 @@ interface InternalUserRecord {
   [key: string]: unknown;
 }
 
-const API_URL = String(CONFIG.API_URL || '').trim();
+const operativoBackend = window.SRFIXBackend as SrFix.BackendClient;
 const FRONT_PASSWORD = String(CONFIG.FRONT_PASSWORD || 'Admin1').trim();
 const OPERATIVO_IVA_RATE = 0.16;
 const DEFAULT_LOGIN_BUTTON_HTML = '<span>INGRESAR</span>';
@@ -88,44 +88,6 @@ function operativoRequireElement<T extends HTMLElement>(id: string): T {
   return el as T;
 }
 
-function operativoGetBackendUrl(): string {
-  return API_URL;
-}
-
-function operativoBuildGetUrl(action: string, payload: Record<string, unknown> = {}): string {
-  const params = new URLSearchParams();
-  params.set('action', action);
-  params.set('t', String(Date.now()));
-  Object.entries(payload).forEach(([key, value]) => {
-    if (value === undefined || value === null) return;
-    if (typeof value === 'object') {
-      params.set(key, JSON.stringify(value));
-      return;
-    }
-    params.set(key, String(value));
-  });
-  return `${operativoGetBackendUrl()}?${params.toString()}`;
-}
-
-async function operativoReadJson<T>(response: Response): Promise<T> {
-  const text = await response.text();
-  if (!text.trim()) {
-    throw new Error(`Respuesta vacía (${response.status})`);
-  }
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-  }
-}
-
-function backendErrorMessage(data: OperativoBackendEnvelope): string {
-  const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-  if (errorText) return errorText;
-  if (data.success === false) return 'La operación fue rechazada';
-  return '';
-}
-
 function operativoCanRetryAsGet(action: string): boolean {
   return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(String(action || '').trim().toLowerCase());
 }
@@ -135,29 +97,11 @@ async function operativoRequestBackend<T, P extends object = Record<string, unkn
   payload: P = {} as P,
   method: OperativoRequestMethod = 'POST'
 ): Promise<T> {
-  const requestGet = (): Promise<Response> => fetch(operativoBuildGetUrl(action, payload as Record<string, unknown>), { method: 'GET' });
-  const requestPost = (): Promise<Response> => fetch(operativoGetBackendUrl(), {
-    method: 'POST',
-    body: JSON.stringify({ action, ...(payload as Record<string, unknown>) })
-  });
-
   try {
-    const response = method === 'GET' ? await requestGet() : await requestPost();
-    const data = await operativoReadJson<T & OperativoBackendEnvelope>(response);
-    const errorText = backendErrorMessage(data);
-    if (errorText) {
-      throw new Error(errorText);
-    }
-    return data as T;
+    return await operativoBackend.request<T>(action, payload as Record<string, unknown>, { method });
   } catch (error) {
     if (method !== 'POST' || !operativoCanRetryAsGet(action)) throw error;
-    const response = await requestGet();
-    const data = await operativoReadJson<T & OperativoBackendEnvelope>(response);
-    const errorText = backendErrorMessage(data);
-    if (errorText) {
-      throw new Error(errorText);
-    }
-    return data as T;
+    return await operativoBackend.request<T>(action, payload as Record<string, unknown>, { method: 'GET' });
   }
 }
 
@@ -587,21 +531,6 @@ async function guardarOrden(): Promise<void> {
   }
 
   const costoOrden = Number(elCosto.value || 0);
-  let adminPasswordActual = '';
-  if (costoOrden > 0) {
-    const guard = window.SRFXSecurityGuard;
-    if (!guard || typeof guard.ensureAdminPassword !== 'function') {
-      mostrarToast('No se pudo validar la clave admin', 'error');
-      setGuardarButtonLoading(false);
-      return;
-    }
-    const auth = await guard.ensureAdminPassword('registrar una orden con costo estimado');
-    if (!auth.ok) {
-      setGuardarButtonLoading(false);
-      return;
-    }
-    adminPasswordActual = auth.password || '';
-  }
 
   const payload: SrFix.OperativoOrdenInput = {
     sucursalId: localStorage.getItem('srfix_sucursal_activa') || 'GLOBAL',
@@ -616,8 +545,7 @@ async function guardarOrden(): Promise<void> {
     notas: elNotasExtra.value.trim() || '',
     checks: getOperacionChecks(),
     fotoRecepcion: fotoRecepcionBase64 || '',
-    folioSolicitudOrigen: folioSolicitudOrigen || String(elFolioCotizacionInput.value || '').trim().toUpperCase(),
-    adminPasswordActual
+    folioSolicitudOrigen: folioSolicitudOrigen || String(elFolioCotizacionInput.value || '').trim().toUpperCase()
   };
 
   try {

@@ -1,5 +1,5 @@
 "use strict";
-const API_URL = String(CONFIG.API_URL || '').trim();
+const operativoBackend = window.SRFIXBackend;
 const FRONT_PASSWORD = String(CONFIG.FRONT_PASSWORD || 'Admin1').trim();
 const OPERATIVO_IVA_RATE = 0.16;
 const DEFAULT_LOGIN_BUTTON_HTML = '<span>INGRESAR</span>';
@@ -64,72 +64,17 @@ function operativoRequireElement(id) {
     }
     return el;
 }
-function operativoGetBackendUrl() {
-    return API_URL;
-}
-function operativoBuildGetUrl(action, payload = {}) {
-    const params = new URLSearchParams();
-    params.set('action', action);
-    params.set('t', String(Date.now()));
-    Object.entries(payload).forEach(([key, value]) => {
-        if (value === undefined || value === null)
-            return;
-        if (typeof value === 'object') {
-            params.set(key, JSON.stringify(value));
-            return;
-        }
-        params.set(key, String(value));
-    });
-    return `${operativoGetBackendUrl()}?${params.toString()}`;
-}
-async function operativoReadJson(response) {
-    const text = await response.text();
-    if (!text.trim()) {
-        throw new Error(`Respuesta vacía (${response.status})`);
-    }
-    try {
-        return JSON.parse(text);
-    }
-    catch {
-        throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-    }
-}
-function backendErrorMessage(data) {
-    const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-    if (errorText)
-        return errorText;
-    if (data.success === false)
-        return 'La operación fue rechazada';
-    return '';
-}
 function operativoCanRetryAsGet(action) {
     return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(String(action || '').trim().toLowerCase());
 }
 async function operativoRequestBackend(action, payload = {}, method = 'POST') {
-    const requestGet = () => fetch(operativoBuildGetUrl(action, payload), { method: 'GET' });
-    const requestPost = () => fetch(operativoGetBackendUrl(), {
-        method: 'POST',
-        body: JSON.stringify({ action, ...payload })
-    });
     try {
-        const response = method === 'GET' ? await requestGet() : await requestPost();
-        const data = await operativoReadJson(response);
-        const errorText = backendErrorMessage(data);
-        if (errorText) {
-            throw new Error(errorText);
-        }
-        return data;
+        return await operativoBackend.request(action, payload, { method });
     }
     catch (error) {
         if (method !== 'POST' || !operativoCanRetryAsGet(action))
             throw error;
-        const response = await requestGet();
-        const data = await operativoReadJson(response);
-        const errorText = backendErrorMessage(data);
-        if (errorText) {
-            throw new Error(errorText);
-        }
-        return data;
+        return await operativoBackend.request(action, payload, { method: 'GET' });
     }
 }
 async function operativoRequestBackendWithRetry(action, payload = {}, method = 'POST', maxAttempts = 2) {
@@ -549,21 +494,6 @@ async function guardarOrden() {
         return;
     }
     const costoOrden = Number(elCosto.value || 0);
-    let adminPasswordActual = '';
-    if (costoOrden > 0) {
-        const guard = window.SRFXSecurityGuard;
-        if (!guard || typeof guard.ensureAdminPassword !== 'function') {
-            mostrarToast('No se pudo validar la clave admin', 'error');
-            setGuardarButtonLoading(false);
-            return;
-        }
-        const auth = await guard.ensureAdminPassword('registrar una orden con costo estimado');
-        if (!auth.ok) {
-            setGuardarButtonLoading(false);
-            return;
-        }
-        adminPasswordActual = auth.password || '';
-    }
     const payload = {
         sucursalId: localStorage.getItem('srfix_sucursal_activa') || 'GLOBAL',
         clienteNombre: elClienteNombre.value.trim(),
@@ -577,8 +507,7 @@ async function guardarOrden() {
         notas: elNotasExtra.value.trim() || '',
         checks: getOperacionChecks(),
         fotoRecepcion: fotoRecepcionBase64 || '',
-        folioSolicitudOrigen: folioSolicitudOrigen || String(elFolioCotizacionInput.value || '').trim().toUpperCase(),
-        adminPasswordActual
+        folioSolicitudOrigen: folioSolicitudOrigen || String(elFolioCotizacionInput.value || '').trim().toUpperCase()
     };
     try {
         const result = await operativoRequestBackendWithRetry('crear_equipo', payload, 'POST', 2);

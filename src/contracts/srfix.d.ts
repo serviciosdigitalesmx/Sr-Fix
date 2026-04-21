@@ -5,6 +5,7 @@ declare global {
     API_URL: string;
     APP_URL?: string;
     FRONT_PASSWORD?: string;
+    WHATSAPP?: string;
   };
 
   namespace SrFix {
@@ -111,6 +112,16 @@ declare global {
       attachAdminPassword(payload?: Record<string, unknown>, reason?: string, options?: SecurityGuardOptions): Promise<Record<string, unknown> | null>;
       clearAdminPassword(): void;
       hasAdminPassword(): boolean;
+    }
+
+    interface BackendRequestOptions {
+      method?: 'GET' | 'POST';
+      timeoutMs?: number;
+    }
+
+    interface BackendClient {
+      request<T>(action: string, payload?: object, options?: BackendRequestOptions): Promise<T>;
+      buildGetUrl(action: string, payload?: object): string;
     }
 
     interface ModuleMeta {
@@ -791,7 +802,7 @@ declare global {
       checks: ReceptionChecklist;
       fotoRecepcion: string;
       folioSolicitudOrigen: Folio | '';
-      adminPasswordActual: string;
+      adminPasswordActual?: string;
     }
 
     interface OperativoOrdenRegistrada {
@@ -849,6 +860,24 @@ declare global {
       SUGGESTIONS_KEY: string;
     }
 
+    interface LandingCotizacionInput {
+      nombre: string;
+      telefono: string;
+      email?: string;
+      dispositivo: string;
+      modelo?: string;
+      problemas: string[];
+      descripcion?: string;
+      urgencia: 'baja' | 'media' | 'alta' | string;
+      solicitud_origen_ip?: string;
+    }
+
+    interface LandingSolicitudResponse {
+      success?: boolean;
+      folio?: Folio;
+      error?: string;
+    }
+
     type AllowedModule =
       | 'operativo'
       | 'tecnico'
@@ -867,10 +896,10 @@ declare global {
   }
 
   interface Window {
-    SRFIX_BACKEND_URL?: string;
     SRFIX_API_URL?: string;
     SRFIX_APP_URL?: string;
     SRFXSecurityGuard?: SrFix.SecurityGuardApi;
+    SRFIXBackend?: SrFix.BackendClient;
     srfixBuildPortalUrl?: (folio: SrFix.Folio) => string;
   }
 

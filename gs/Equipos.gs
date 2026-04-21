@@ -316,10 +316,6 @@ function Service_crearEquipo(data) {
     const check = validarPayloadEquipo(data || {}, false);
     if (!check.ok) return jsonResponse({ error: check.error });
     const payload = check.payload;
-    if (_toMoney(payload.costo) > 0) {
-      const auth = Security_requireAdminPassword(data || {}, 'Registrar equipo con costo');
-      if (!auth.ok) return jsonResponse({ error: auth.error });
-    }
     const table = Repository_readEquiposTable();
     const now = new Date().toISOString();
     const folio = obtenerSiguienteFolio(CONFIG.SCRIPT_PROP_KEYS.FOLIO_EQUIPO_SEQ || 'FOLIO_EQUIPO_SEQ', 'SRF-');

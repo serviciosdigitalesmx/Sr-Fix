@@ -229,25 +229,42 @@
     }
   }
 
+  function canRetryAsGet(action: string): boolean {
+    const normalized = String(action || '').trim().toLowerCase();
+    return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(normalized);
+  }
+
   async function requestBackend<T>(
     action: string,
     payload: Record<string, unknown> = {},
     method: StockRequestMethod = 'POST',
   ): Promise<T> {
-    const response = method === 'GET'
-      ? await fetch(buildGetUrl(action, payload), { method: 'GET' })
-      : await fetch(getBackendUrl(), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action, ...payload })
-        });
-    const data = await readJson<T & StockBackendEnvelope>(response);
-    const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-    if (errorText) throw new Error(errorText);
-    if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-      throw new Error(errorText || `La operación ${action} fue rechazada`);
+    const requestGet = (): Promise<Response> => fetch(buildGetUrl(action, payload), { method: 'GET' });
+    const requestPost = (): Promise<Response> => fetch(getBackendUrl(), {
+      method: 'POST',
+      body: JSON.stringify({ action, ...payload })
+    });
+
+    try {
+      const response = method === 'GET' ? await requestGet() : await requestPost();
+      const data = await readJson<T & StockBackendEnvelope>(response);
+      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
+      if (errorText) throw new Error(errorText);
+      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
+        throw new Error(errorText || `La operación ${action} fue rechazada`);
+      }
+      return data as T;
+    } catch (error) {
+      if (method !== 'POST' || !canRetryAsGet(action)) throw error;
+      const response = await requestGet();
+      const data = await readJson<T & StockBackendEnvelope>(response);
+      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
+      if (errorText) throw new Error(errorText);
+      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
+        throw new Error(errorText || `La operación ${action} fue rechazada`);
+      }
+      return data as T;
     }
-    return data as T;
   }
 
   async function cargarFoliosRelacion(): Promise<void> {

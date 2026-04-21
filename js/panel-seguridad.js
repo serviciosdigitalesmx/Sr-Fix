@@ -102,21 +102,36 @@
         }
     }
     async function requestBackend(action, payload = {}, method = 'POST') {
-        const response = method === 'GET'
-            ? await fetch(buildGetUrl(action, payload), { method: 'GET' })
-            : await fetch(BACKEND_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action, ...payload })
-            });
-        const data = await readJson(response);
-        const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-        if (errorText)
-            throw new Error(errorText);
-        if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-            throw new Error(errorText || `La operación ${action} fue rechazada`);
+        const canRetryAsGet = !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(String(action || '').trim().toLowerCase());
+        const requestGet = () => fetch(buildGetUrl(action, payload), { method: 'GET' });
+        const requestPost = () => fetch(BACKEND_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action, ...payload })
+        });
+        try {
+            const response = method === 'GET' ? await requestGet() : await requestPost();
+            const data = await readJson(response);
+            const errorText = typeof data.error === 'string' ? data.error.trim() : '';
+            if (errorText)
+                throw new Error(errorText);
+            if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
+                throw new Error(errorText || `La operación ${action} fue rechazada`);
+            }
+            return data;
         }
-        return data;
+        catch (error) {
+            if (method !== 'POST' || !canRetryAsGet)
+                throw error;
+            const response = await requestGet();
+            const data = await readJson(response);
+            const errorText = typeof data.error === 'string' ? data.error.trim() : '';
+            if (errorText)
+                throw new Error(errorText);
+            if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
+                throw new Error(errorText || `La operación ${action} fue rechazada`);
+            }
+            return data;
+        }
     }
     function setStatus(msg, type = 'muted') {
         elSaveStatus.className = 'text-sm min-h-[20px]';

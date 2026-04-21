@@ -102,20 +102,35 @@ function backendErrorMessage(data) {
         return 'La operación fue rechazada';
     return '';
 }
+function operativoCanRetryAsGet(action) {
+    return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(String(action || '').trim().toLowerCase());
+}
 async function operativoRequestBackend(action, payload = {}, method = 'POST') {
-    const response = method === 'GET'
-        ? await fetch(operativoBuildGetUrl(action, payload), { method: 'GET' })
-        : await fetch(operativoGetBackendUrl(), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action, ...payload })
-        });
-    const data = await operativoReadJson(response);
-    const errorText = backendErrorMessage(data);
-    if (errorText) {
-        throw new Error(errorText);
+    const requestGet = () => fetch(operativoBuildGetUrl(action, payload), { method: 'GET' });
+    const requestPost = () => fetch(operativoGetBackendUrl(), {
+        method: 'POST',
+        body: JSON.stringify({ action, ...payload })
+    });
+    try {
+        const response = method === 'GET' ? await requestGet() : await requestPost();
+        const data = await operativoReadJson(response);
+        const errorText = backendErrorMessage(data);
+        if (errorText) {
+            throw new Error(errorText);
+        }
+        return data;
     }
-    return data;
+    catch (error) {
+        if (method !== 'POST' || !operativoCanRetryAsGet(action))
+            throw error;
+        const response = await requestGet();
+        const data = await operativoReadJson(response);
+        const errorText = backendErrorMessage(data);
+        if (errorText) {
+            throw new Error(errorText);
+        }
+        return data;
+    }
 }
 async function operativoRequestBackendWithRetry(action, payload = {}, method = 'POST', maxAttempts = 2) {
     let lastError = null;

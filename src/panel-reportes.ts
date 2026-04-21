@@ -101,25 +101,41 @@
     }
   }
 
+  function canRetryAsGet(action: string): boolean {
+    return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(String(action || '').trim().toLowerCase());
+  }
+
   async function requestBackend<T>(
     action: string,
     payload: Record<string, unknown> = {},
     method: RequestMethod = 'POST',
   ): Promise<T> {
-    const response = method === 'GET'
-      ? await fetch(buildGetUrl(action, payload), { method: 'GET' })
-      : await fetch(BACKEND_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action, ...payload })
-        });
-    const data = await readJson<T & BackendEnvelope>(response);
-    const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-    if (errorText) throw new Error(errorText);
-    if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-      throw new Error(errorText || `La operación ${action} fue rechazada`);
+    const requestGet = (): Promise<Response> => fetch(buildGetUrl(action, payload), { method: 'GET' });
+    const requestPost = (): Promise<Response> => fetch(BACKEND_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action, ...payload })
+    });
+
+    try {
+      const response = method === 'GET' ? await requestGet() : await requestPost();
+      const data = await readJson<T & BackendEnvelope>(response);
+      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
+      if (errorText) throw new Error(errorText);
+      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
+        throw new Error(errorText || `La operación ${action} fue rechazada`);
+      }
+      return data as T;
+    } catch (error) {
+      if (method !== 'POST' || !canRetryAsGet(action)) throw error;
+      const response = await requestGet();
+      const data = await readJson<T & BackendEnvelope>(response);
+      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
+      if (errorText) throw new Error(errorText);
+      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
+        throw new Error(errorText || `La operación ${action} fue rechazada`);
+      }
+      return data as T;
     }
-    return data as T;
   }
 
   function renderList<T>(

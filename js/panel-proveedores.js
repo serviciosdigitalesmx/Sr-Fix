@@ -87,22 +87,40 @@
             throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
         }
     }
+    function canRetryAsGet(action) {
+        const normalized = String(action || '').trim().toLowerCase();
+        return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(normalized);
+    }
     async function requestBackend(action, payload = {}, method = 'POST') {
-        const response = method === 'GET'
-            ? await fetch(buildGetUrl(action, payload), { method: 'GET' })
-            : await fetch(getBackendUrl(), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action, ...payload })
-            });
-        const data = await readJson(response);
-        const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-        if (errorText)
-            throw new Error(errorText);
-        if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-            throw new Error(errorText || `La operación ${action} fue rechazada`);
+        const requestGet = () => fetch(buildGetUrl(action, payload), { method: 'GET' });
+        const requestPost = () => fetch(getBackendUrl(), {
+            method: 'POST',
+            body: JSON.stringify({ action, ...payload })
+        });
+        try {
+            const response = method === 'GET' ? await requestGet() : await requestPost();
+            const data = await readJson(response);
+            const errorText = typeof data.error === 'string' ? data.error.trim() : '';
+            if (errorText)
+                throw new Error(errorText);
+            if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
+                throw new Error(errorText || `La operación ${action} fue rechazada`);
+            }
+            return data;
         }
-        return data;
+        catch (error) {
+            if (method !== 'POST' || !canRetryAsGet(action))
+                throw error;
+            const response = await requestGet();
+            const data = await readJson(response);
+            const errorText = typeof data.error === 'string' ? data.error.trim() : '';
+            if (errorText)
+                throw new Error(errorText);
+            if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
+                throw new Error(errorText || `La operación ${action} fue rechazada`);
+            }
+            return data;
+        }
     }
     function renderRows(items, append = false) {
         if (!append)

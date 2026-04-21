@@ -126,25 +126,39 @@ function backendErrorMessage(data: OperativoBackendEnvelope): string {
   return '';
 }
 
+function operativoCanRetryAsGet(action: string): boolean {
+  return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(String(action || '').trim().toLowerCase());
+}
+
 async function operativoRequestBackend<T, P extends object = Record<string, unknown>>(
   action: string,
   payload: P = {} as P,
   method: OperativoRequestMethod = 'POST'
 ): Promise<T> {
-  const response = method === 'GET'
-    ? await fetch(operativoBuildGetUrl(action, payload as Record<string, unknown>), { method: 'GET' })
-    : await fetch(operativoGetBackendUrl(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...(payload as Record<string, unknown>) })
-      });
+  const requestGet = (): Promise<Response> => fetch(operativoBuildGetUrl(action, payload as Record<string, unknown>), { method: 'GET' });
+  const requestPost = (): Promise<Response> => fetch(operativoGetBackendUrl(), {
+    method: 'POST',
+    body: JSON.stringify({ action, ...(payload as Record<string, unknown>) })
+  });
 
-  const data = await operativoReadJson<T & OperativoBackendEnvelope>(response);
-  const errorText = backendErrorMessage(data);
-  if (errorText) {
-    throw new Error(errorText);
+  try {
+    const response = method === 'GET' ? await requestGet() : await requestPost();
+    const data = await operativoReadJson<T & OperativoBackendEnvelope>(response);
+    const errorText = backendErrorMessage(data);
+    if (errorText) {
+      throw new Error(errorText);
+    }
+    return data as T;
+  } catch (error) {
+    if (method !== 'POST' || !operativoCanRetryAsGet(action)) throw error;
+    const response = await requestGet();
+    const data = await operativoReadJson<T & OperativoBackendEnvelope>(response);
+    const errorText = backendErrorMessage(data);
+    if (errorText) {
+      throw new Error(errorText);
+    }
+    return data as T;
   }
-  return data as T;
 }
 
 async function operativoRequestBackendWithRetry<T, P extends object = Record<string, unknown>>(

@@ -623,11 +623,15 @@ function tecnicoGetElement(id: string): any {
                 const tieneDias = Number.isFinite(diasValor) && String(eq.FECHA_PROMESA || '').trim() !== '';
 
                 const card = document.createElement('div');
-                card.className = `card-${eq.color} rounded-xl p-5 cursor-pointer hover:scale-[1.02] transition-all ${inactivoClase}`;
+                card.className = `card-${eq.color} tecnico-ticket rounded-xl p-5 cursor-pointer hover:scale-[1.01] transition-all ${inactivoClase}`;
                 card.onclick = () => abrirModal(eq);
 
                 const dotClass = eq.color === 'rojo' ? 'bg-red-500 animate-pulse-red' : eq.color === 'amarillo' ? 'bg-yellow-500' : 'bg-green-500';
                 const diasClase = !tieneDias ? 'text-[#8A8F95]' : diasValor <= 2 ? 'text-red-500 font-bold' : diasValor <= 4 ? 'text-yellow-500' : 'text-[#8A8F95]';
+                const equipoTexto = `${String(eq.DISPOSITIVO || '').trim()} ${String(eq.MODELO || '').trim()}`.trim() || 'Equipo sin identificar';
+                const fallaTexto = String(eq.FALLA_REPORTADA || 'Sin descripción').trim();
+                const tecnicoTexto = String(eq.TECNICO_ASIGNADO || '').trim() || 'Por asignar';
+                const precioTexto = Number(eq.COSTO_ESTIMADO || 0) > 0 ? formatMoney(eq.COSTO_ESTIMADO || 0) : 'Sin cotizar';
 
                 let badgeClass = '';
                 switch (eq.ESTADO) {
@@ -641,36 +645,58 @@ function tecnicoGetElement(id: string): any {
                 }
 
                 card.innerHTML = `
-                    <div class="flex justify-between items-start mb-3">
-                        <div class="flex items-center gap-2">
-                            <div class="w-3 h-3 rounded-full ${dotClass}"></div>
-                            <span class="font-mono font-bold text-[#F2F2F2]">${escapeHtml(eq.FOLIO)}</span>
-                            ${esInactivo && eq.ESTADO !== 'Entregado' ? '<span class="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded animate-pulse">SIN AVANCE</span>' : ''}
-                        </div>
-                        <span class="text-xs ${diasClase} bg-[#1E1E1E] px-2 py-1 rounded-full">${tieneDias ? `${diasValor} días` : 'Sin fecha'}</span>
-                    </div>
-                    <h3 class="font-semibold text-[#F2F2F2] mb-1 truncate" title="${escapeHtml(eq.CLIENTE_NOMBRE)}">${escapeHtml(eq.CLIENTE_NOMBRE)}</h3>
-                    <p class="text-[#8A8F95] text-sm mb-1 truncate">${escapeHtml(eq.DISPOSITIVO)} ${escapeHtml(eq.MODELO || '')}</p>
-                    <div class="mt-3 rounded-xl border border-[#1F7EDC]/20 bg-[#1E1E1E]/90 p-3 space-y-2">
-                        <div class="flex items-start gap-2">
-                            <i class="fa-solid fa-triangle-exclamation text-[#FF6A2A] mt-0.5"></i>
-                            <div class="min-w-0">
-                                <div class="text-[11px] uppercase tracking-wider text-[#8A8F95]">Falla reportada</div>
-                                <p class="text-xs text-[#F2F2F2] leading-5 break-words" title="${escapeHtml(eq.FALLA_REPORTADA || 'Sin descripción')}">${escapeHtml(eq.FALLA_REPORTADA || 'Sin descripción')}</p>
+                    <div class="flex items-start justify-between gap-3 mb-4">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <div class="w-2.5 h-2.5 rounded-full shrink-0 ${dotClass}"></div>
+                                <span class="font-mono text-sm font-bold tracking-wide text-[#EAF2FF]">${escapeHtml(eq.FOLIO)}</span>
+                                ${esInactivo && eq.ESTADO !== 'Entregado' ? '<span class="tecnico-ticket-alerta">Sin avance</span>' : ''}
                             </div>
+                            <h3 class="mt-3 text-lg font-semibold leading-tight text-[#F8FAFC] break-words" title="${escapeHtml(eq.CLIENTE_NOMBRE)}">${escapeHtml(eq.CLIENTE_NOMBRE)}</h3>
+                            <p class="mt-1 text-sm text-[#94A3B8] truncate" title="${escapeHtml(equipoTexto)}">${escapeHtml(equipoTexto)}</p>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <i class="fa-solid fa-sack-dollar text-[#1F7EDC]"></i>
-                            <div>
-                                <div class="text-[11px] uppercase tracking-wider text-[#8A8F95]">Precio</div>
-                                <p class="text-xs text-[#F2F2F2] font-semibold">${formatMoney(eq.COSTO_ESTIMADO || 0)}</p>
-                            </div>
+                        <div class="tecnico-ticket-days ${tieneDias ? '' : 'is-muted'}">
+                            <div class="text-[10px] uppercase tracking-[0.2em] text-[#8A8F95]">Promesa</div>
+                            <div class="mt-1 text-sm ${diasClase}">${tieneDias ? `${diasValor} días` : 'Sin fecha'}</div>
                         </div>
                     </div>
-                    <p class="text-[10px] text-[#8A8F95] mb-2 uppercase tracking-wider">Recibido: ${formatDateWords(eq.FECHA_INGRESO)}</p>
-                    <div class="flex flex-wrap gap-2 items-center justify-between mt-3">
-                        <span class="badge-estado ${badgeClass} text-xs">${escapeHtml(eq.ESTADO)}</span>
-                        <span class="text-xs text-[#1F7EDC] flex items-center gap-1"><i class="fa-regular fa-eye"></i> Ver detalles</span>
+
+                    <div class="tecnico-ticket-body">
+                        <div class="tecnico-ticket-field">
+                            <div class="tecnico-ticket-label">
+                                <i class="fa-solid fa-triangle-exclamation text-[#FF6A2A]"></i>
+                                <span>Falla reportada</span>
+                            </div>
+                            <p class="tecnico-ticket-copy" title="${escapeHtml(fallaTexto)}">${escapeHtml(fallaTexto)}</p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="tecnico-ticket-metric">
+                                <div class="tecnico-ticket-label">
+                                    <i class="fa-solid fa-sack-dollar text-[#1F7EDC]"></i>
+                                    <span>Precio</span>
+                                </div>
+                                <p class="tecnico-ticket-value">${escapeHtml(precioTexto)}</p>
+                            </div>
+                            <div class="tecnico-ticket-metric">
+                                <div class="tecnico-ticket-label">
+                                    <i class="fa-solid fa-user-gear text-[#7EC8FF]"></i>
+                                    <span>Técnico</span>
+                                </div>
+                                <p class="tecnico-ticket-value truncate" title="${escapeHtml(tecnicoTexto)}">${escapeHtml(tecnicoTexto)}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex items-center justify-between gap-3 border-t border-white/6 pt-4">
+                        <div class="min-w-0">
+                            <p class="text-[10px] uppercase tracking-[0.18em] text-[#8A8F95]">Recibido</p>
+                            <p class="mt-1 text-xs text-[#CBD5E1]">${formatDateWords(eq.FECHA_INGRESO)}</p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="badge-estado ${badgeClass} text-xs">${escapeHtml(eq.ESTADO)}</span>
+                            <span class="tecnico-ticket-link"><i class="fa-regular fa-eye"></i> Detalle</span>
+                        </div>
                     </div>
                 `;
                 grid.appendChild(card);

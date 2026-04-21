@@ -74,6 +74,105 @@
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
 }
 
+.tecnico-ticket {
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+.tecnico-ticket::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 26%),
+    radial-gradient(circle at top right, rgba(31, 126, 220, 0.1) 0%, transparent 28%);
+}
+
+.tecnico-ticket-alerta {
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  background: rgba(127, 29, 29, 0.85);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tecnico-ticket-days {
+  min-width: 88px;
+  padding: 0.7rem 0.8rem;
+  border-radius: 1rem;
+  background: rgba(10, 16, 30, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  text-align: right;
+}
+
+.tecnico-ticket-days.is-muted {
+  opacity: 0.86;
+}
+
+.tecnico-ticket-body {
+  display: grid;
+  gap: 0.85rem;
+  position: relative;
+  z-index: 1;
+}
+
+.tecnico-ticket-field,
+.tecnico-ticket-metric {
+  border-radius: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(8, 15, 30, 0.58);
+  padding: 0.9rem 0.95rem;
+}
+
+.tecnico-ticket-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.tecnico-ticket-copy {
+  margin-top: 0.55rem;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: #f8fafc;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tecnico-ticket-value {
+  margin-top: 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.tecnico-ticket-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid rgba(31, 126, 220, 0.24);
+  background: rgba(31, 126, 220, 0.08);
+  color: #7ec8ff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
 @keyframes pulse-red {
   0% {
     box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
@@ -190,6 +289,11 @@
   .card-verde {
     border-radius: 1rem;
   }
+
+  .tecnico-ticket-days {
+    min-width: 76px;
+    padding: 0.65rem 0.7rem;
+  }
 }
 
 @media (max-width: 560px) {
@@ -218,6 +322,19 @@
   .tecnico-kpi-card .text-3xl {
     font-size: 1.55rem !important;
     line-height: 1.1;
+  }
+
+  .tecnico-ticket {
+    padding: 1rem !important;
+  }
+
+  .tecnico-ticket-days {
+    min-width: 70px;
+    padding: 0.6rem 0.65rem;
+  }
+
+  .tecnico-ticket-body .grid.grid-cols-2 {
+    grid-template-columns: 1fr !important;
   }
 
   .tecnico-toolbar .flex.flex-col.md\\:flex-row {

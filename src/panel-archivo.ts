@@ -48,6 +48,7 @@
   let hasMore = false;
   let isLoading = false;
   let detalleActual: ArchivoRecord | null = null;
+  const archivoCache = new Map<string, ArchivoRecord>();
 
   function requireElement<T extends HTMLElement>(id: string): T {
     const el = document.getElementById(id);
@@ -94,6 +95,10 @@
     return escapeHtml(text).replace(/\n/g, '<br>');
   }
 
+  function getArchivoCacheKey(tipo: unknown, folio: unknown): string {
+    return `${String(tipo || '').trim().toLowerCase()}::${String(folio || '').trim().toUpperCase()}`;
+  }
+
   function archivoBadgeLabel(tipo: string | undefined): string {
     const normalized = String(tipo || '').toLowerCase();
     if (normalized === 'solicitud') return 'Solicitud archivada';
@@ -128,6 +133,96 @@
       ].join('\n'));
     }
     return partes.filter(Boolean).join('\n\n');
+  }
+
+  function parseCotizacionJson(raw: unknown): Record<string, unknown> | null {
+    const text = String(raw ?? '').trim();
+    if (!text) return null;
+    try {
+      const parsed = JSON.parse(text) as Record<string, unknown>;
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function mapSolicitudToArchivoRecord(solicitud: Record<string, unknown>): ArchivoRecord {
+    const cotizacionJson = String(solicitud.COTIZACION_JSON ?? '').trim();
+    const cotizacion = parseCotizacionJson(cotizacionJson);
+    const fechaCotizacion = String(solicitud.FECHA_COTIZACION ?? '').trim();
+    const tipoArchivo = fechaCotizacion || cotizacionJson || Number(solicitud.COTIZACION_TOTAL || cotizacion?.total || 0) > 0
+      ? 'cotizacion'
+      : 'solicitud';
+
+    return {
+      TIPO_ARCHIVO: tipoArchivo,
+      FECHA_ARCHIVO: String(fechaCotizacion || solicitud.FECHA_SOLICITUD || '').trim(),
+      FOLIO: String(solicitud.FOLIO_COTIZACION ?? '').trim().toUpperCase(),
+      CLIENTE: String(solicitud.NOMBRE ?? '').trim(),
+      TELEFONO: String(solicitud.TELEFONO ?? '').trim(),
+      EMAIL: String(solicitud.EMAIL ?? '').trim(),
+      DETALLE: String(solicitud.DESCRIPCION || solicitud.PROBLEMAS || solicitud.URGENCIA || '').trim(),
+      TOTAL: Number(solicitud.COTIZACION_TOTAL || cotizacion?.total || 0),
+      ESTADO: String(solicitud.ESTADO ?? '').trim(),
+      NOTAS: String((cotizacion && cotizacion.notas) || '').trim(),
+      DESCRIPCION: String(solicitud.DESCRIPCION ?? '').trim(),
+      PROBLEMAS: String(solicitud.PROBLEMAS ?? '').trim(),
+      URGENCIA: String(solicitud.URGENCIA ?? '').trim(),
+      FECHA_SOLICITUD: String(solicitud.FECHA_SOLICITUD ?? '').trim(),
+      FECHA_COTIZACION: fechaCotizacion,
+      COTIZACION_JSON: cotizacionJson,
+      FOLIO_COTIZACION_MANUAL: String(solicitud.FOLIO_COTIZACION_MANUAL ?? '').trim().toUpperCase()
+    };
+  }
+
+  function mapEquipoToArchivoRecord(equipo: Record<string, unknown>): ArchivoRecord {
+    return {
+      TIPO_ARCHIVO: 'equipos',
+      FECHA_ARCHIVO: String(equipo.FECHA_ENTREGA || equipo.FECHA_ULTIMA_ACTUALIZACION || equipo.FECHA_INGRESO || '').trim(),
+      FOLIO: String(equipo.FOLIO ?? '').trim().toUpperCase(),
+      CLIENTE: String(equipo.CLIENTE_NOMBRE ?? '').trim(),
+      TELEFONO: String(equipo.CLIENTE_TELEFONO ?? '').trim(),
+      EMAIL: String(equipo.CLIENTE_EMAIL ?? '').trim(),
+      DETALLE: String(equipo.DISPOSITIVO || '').trim() || String(equipo.FALLA_REPORTADA || '').trim(),
+      TOTAL: Number(equipo.COSTO_ESTIMADO || 0),
+      ESTADO: String(equipo.ESTADO ?? '').trim(),
+      NOTAS: String(equipo.NOTAS_INTERNAS ?? '').trim(),
+      DESCRIPCION: String(equipo.FALLA_REPORTADA ?? '').trim(),
+      PROBLEMAS: String(equipo.FALLA_REPORTADA ?? '').trim(),
+      DISPOSITIVO: String(equipo.DISPOSITIVO ?? '').trim(),
+      MODELO: String(equipo.MODELO ?? '').trim(),
+      FECHA_INGRESO: String(equipo.FECHA_INGRESO ?? '').trim(),
+      FECHA_ENTREGA: String(equipo.FECHA_ENTREGA ?? '').trim(),
+      FECHA_ULTIMA_ACTUALIZACION: String(equipo.FECHA_ULTIMA_ACTUALIZACION ?? '').trim(),
+      SEGUIMIENTO_CLIENTE: String(equipo.SEGUIMIENTO_CLIENTE ?? '').trim(),
+      CASO_RESOLUCION_TECNICA: String(equipo.CASO_RESOLUCION_TECNICA ?? '').trim(),
+      FOTO_RECEPCION: String(equipo.FOTO_RECEPCION ?? '').trim(),
+      CHECK_CARGADOR: String(equipo.CHECK_CARGADOR ?? '').trim(),
+      CHECK_PANTALLA: String(equipo.CHECK_PANTALLA ?? '').trim(),
+      CHECK_PRENDE: String(equipo.CHECK_PRENDE ?? '').trim(),
+      CHECK_RESPALDO: String(equipo.CHECK_RESPALDO ?? '').trim()
+    };
+  }
+
+  async function requestDetalleLegado(tipo: string, folio: string): Promise<{ registro: ArchivoRecord; raw: Record<string, unknown> | null; reabrible: boolean } | null> {
+    if (tipo === 'equipos') {
+      const data = await requestBackend<{ equipo?: Record<string, unknown>; error?: string }>('equipo', { folio }, 'GET');
+      if (!data || !data.equipo) return null;
+      return {
+        registro: mapEquipoToArchivoRecord(data.equipo),
+        raw: data.equipo,
+        reabrible: false
+      };
+    }
+
+    const data = await requestBackend<{ solicitud?: Record<string, unknown>; error?: string }>('solicitud', { folio }, 'GET');
+    if (!data || !data.solicitud) return null;
+    const registro = mapSolicitudToArchivoRecord(data.solicitud);
+    return {
+      registro,
+      raw: data.solicitud,
+      reabrible: ['solicitud', 'cotizacion'].includes(String(registro.TIPO_ARCHIVO || '').toLowerCase())
+    };
   }
 
   function abrirModalDetalle(): void {
@@ -307,6 +402,10 @@
       const total = Number(data.total || 0);
       hasMore = !!data.hasMore;
 
+      archivo.forEach((item) => {
+        archivoCache.set(getArchivoCacheKey(item.TIPO_ARCHIVO, item.FOLIO), item);
+      });
+
       elCount.textContent = String(total);
       elPageInfo.textContent = `Página ${Number(data.page || currentPage)} · ${archivo.length} por carga`;
       elLoading.classList.add('hidden');
@@ -336,20 +435,44 @@
     const folioNormalizado = String(folio || '').trim().toUpperCase();
     if (!tipoNormalizado || !folioNormalizado) return;
 
+    const cacheKey = getArchivoCacheKey(tipoNormalizado, folioNormalizado);
+    const registroBase = archivoCache.get(cacheKey) || null;
+
     elDetalleAviso.textContent = 'Cargando detalle...';
     elDetalleRaw.textContent = '';
-    abrirModalDetalle();
+    if (registroBase) {
+      renderDetalleRegistro(registroBase, registroBase as unknown as Record<string, unknown>, ['solicitud', 'cotizacion'].includes(tipoNormalizado));
+      elDetalleAviso.textContent = 'Cargando detalle completo...';
+    } else {
+      abrirModalDetalle();
+    }
 
     try {
       const data = await requestBackend<ArchivoDetalleResponse>('detalle_archivo', { tipo: tipoNormalizado, folio: folioNormalizado }, 'GET');
       if (!data || !data.registro) {
         throw new Error('No se obtuvo el detalle del archivo');
       }
+      archivoCache.set(cacheKey, data.registro);
       renderDetalleRegistro(data.registro, data.raw || null, !!data.reabrible);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      elDetalleAviso.textContent = `No se pudo cargar el detalle: ${message}`;
-      btnDetalleReabrir.classList.add('hidden');
+      try {
+        const fallback = await requestDetalleLegado(tipoNormalizado, folioNormalizado);
+        if (!fallback || !fallback.registro) {
+          throw error;
+        }
+        archivoCache.set(cacheKey, fallback.registro);
+        renderDetalleRegistro(fallback.registro, fallback.raw, fallback.reabrible);
+        elDetalleAviso.textContent = 'Detalle cargado con compatibilidad legacy.';
+      } catch (fallbackError) {
+        const message = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+        if (registroBase) {
+          renderDetalleRegistro(registroBase, registroBase as unknown as Record<string, unknown>, ['solicitud', 'cotizacion'].includes(tipoNormalizado));
+          elDetalleAviso.textContent = `Se mostró el resumen disponible. El detalle completo no cargó: ${message}`;
+        } else {
+          elDetalleAviso.textContent = `No se pudo cargar el detalle: ${message}`;
+          btnDetalleReabrir.classList.add('hidden');
+        }
+      }
     }
   }
 

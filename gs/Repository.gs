@@ -166,6 +166,47 @@ function Repository_updateSolicitudEstado(folio, nuevoEstado) {
   return true;
 }
 
+function Repository_updateSolicitudCotizacion(folio, cotizacionPayload, folioCotizacionManual) {
+  const target = String(folio || '').trim().toUpperCase();
+  if (!target) return false;
+  const hoja = Repository_getSolicitudesSheet();
+  const data = withRetry(function() {
+    return hoja.getDataRange().getValues();
+  }, 'Repository_updateSolicitudCotizacion.read');
+  if (!data || data.length < 2) return false;
+
+  const headers = data[0];
+  const idxFolio = headers.indexOf('FOLIO_COTIZACION');
+  const idxEstado = headers.indexOf('ESTADO');
+  const idxFechaCotizacion = headers.indexOf('FECHA_COTIZACION');
+  const idxCotizacionJson = headers.indexOf('COTIZACION_JSON');
+  const idxCotizacionTotal = headers.indexOf('COTIZACION_TOTAL');
+  const idxFolioCotizacionManual = headers.indexOf('FOLIO_COTIZACION_MANUAL');
+  if (idxFolio < 0 || idxEstado < 0 || idxFechaCotizacion < 0 || idxCotizacionJson < 0 || idxCotizacionTotal < 0 || idxFolioCotizacionManual < 0) {
+    return false;
+  }
+
+  const rowIndex = data.findIndex(function(row, i) {
+    return i > 0 && String(row[idxFolio] || '').trim().toUpperCase() === target;
+  });
+  if (rowIndex < 1) return false;
+
+  const cotizacion = cotizacionPayload && typeof cotizacionPayload === 'object' ? cotizacionPayload : {};
+  const cotizacionTotal = Number(cotizacion.total || 0);
+  const fechaCotizacion = new Date().toISOString();
+  const manual = String(folioCotizacionManual || '').trim().toUpperCase();
+
+  withRetry(function() {
+    hoja.getRange(rowIndex + 1, idxEstado + 1).setValue('archivado');
+    hoja.getRange(rowIndex + 1, idxFechaCotizacion + 1).setValue(fechaCotizacion);
+    hoja.getRange(rowIndex + 1, idxCotizacionJson + 1).setValue(JSON.stringify(cotizacion));
+    hoja.getRange(rowIndex + 1, idxCotizacionTotal + 1).setValue(cotizacionTotal);
+    hoja.getRange(rowIndex + 1, idxFolioCotizacionManual + 1).setValue(manual);
+    return true;
+  }, 'Repository_updateSolicitudCotizacion.write');
+  return true;
+}
+
 function Repository_getTareasSheet() {
   const ss = Core_getSpreadsheet();
   return obtenerHojaTareas(ss);
@@ -283,6 +324,142 @@ function Repository_updateProveedorById(id, nextRowValues) {
     hoja.getRange(rowIndex + 1, 1, 1, nextRowValues.length).setValues([nextRowValues]);
     return true;
   }, 'Repository_updateProveedorById.write');
+  return true;
+}
+
+function Repository_getOrdenesCompraSheet() {
+  const ss = Core_getSpreadsheet();
+  return obtenerHojaOrdenesCompra(ss);
+}
+
+function Repository_getOrdenesCompraItemsSheet() {
+  const ss = Core_getSpreadsheet();
+  return obtenerHojaOrdenesCompraItems(ss);
+}
+
+function Repository_readOrdenesCompraTable() {
+  const hoja = Repository_getOrdenesCompraSheet();
+  const data = withRetry(function() {
+    return hoja.getDataRange().getValues();
+  }, 'Repository_readOrdenesCompraTable');
+  if (!data || data.length < 1) return { headers: [], rows: [] };
+  return {
+    headers: data[0] || [],
+    rows: data.slice(1)
+  };
+}
+
+function Repository_readOrdenesCompraItemsTable() {
+  const hoja = Repository_getOrdenesCompraItemsSheet();
+  const data = withRetry(function() {
+    return hoja.getDataRange().getValues();
+  }, 'Repository_readOrdenesCompraItemsTable');
+  if (!data || data.length < 1) return { headers: [], rows: [] };
+  return {
+    headers: data[0] || [],
+    rows: data.slice(1)
+  };
+}
+
+function Repository_findOrdenCompraByFolio(folio) {
+  const target = String(folio || '').trim().toUpperCase();
+  if (!target) return null;
+  const table = Repository_readOrdenesCompraTable();
+  const headers = table.headers || [];
+  const idxFolio = headers.indexOf('FOLIO_OC');
+  if (idxFolio < 0) return null;
+  const row = (table.rows || []).find(function(r) {
+    return String(r[idxFolio] || '').trim().toUpperCase() === target;
+  });
+  return row ? mapearFila(headers, row) : null;
+}
+
+function Repository_appendOrdenCompra(rowValues) {
+  const hoja = Repository_getOrdenesCompraSheet();
+  return withRetry(function() {
+    hoja.appendRow(rowValues || []);
+    return true;
+  }, 'Repository_appendOrdenCompra');
+}
+
+function Repository_appendOrdenCompraItem(rowValues) {
+  const hoja = Repository_getOrdenesCompraItemsSheet();
+  return withRetry(function() {
+    hoja.appendRow(rowValues || []);
+    return true;
+  }, 'Repository_appendOrdenCompraItem');
+}
+
+function Repository_updateOrdenCompraByFolio(folio, nextRowValues) {
+  const target = String(folio || '').trim().toUpperCase();
+  if (!target) return false;
+  const hoja = Repository_getOrdenesCompraSheet();
+  const data = withRetry(function() {
+    return hoja.getDataRange().getValues();
+  }, 'Repository_updateOrdenCompraByFolio.read');
+  if (!data || data.length < 2) return false;
+  const headers = data[0];
+  const idxFolio = headers.indexOf('FOLIO_OC');
+  if (idxFolio < 0) return false;
+  const rowIndex = data.findIndex(function(row, i) {
+    return i > 0 && String(row[idxFolio] || '').trim().toUpperCase() === target;
+  });
+  if (rowIndex < 1) return false;
+  withRetry(function() {
+    hoja.getRange(rowIndex + 1, 1, 1, nextRowValues.length).setValues([nextRowValues]);
+    return true;
+  }, 'Repository_updateOrdenCompraByFolio.write');
+  return true;
+}
+
+function Repository_readOrdenCompraItemsByFolio(folio) {
+  const target = String(folio || '').trim().toUpperCase();
+  if (!target) return [];
+  const table = Repository_readOrdenesCompraItemsTable();
+  const headers = table.headers || [];
+  const idxFolio = headers.indexOf('FOLIO_OC');
+  if (idxFolio < 0) return [];
+  return (table.rows || [])
+    .filter(function(r) {
+      return String(r[idxFolio] || '').trim().toUpperCase() === target;
+    })
+    .map(function(row) {
+      return mapearFila(headers, row);
+    });
+}
+
+function Repository_replaceOrdenCompraItemsByFolio(folio, items) {
+  const target = String(folio || '').trim().toUpperCase();
+  if (!target) return false;
+  const hoja = Repository_getOrdenesCompraItemsSheet();
+  const data = withRetry(function() {
+    return hoja.getDataRange().getValues();
+  }, 'Repository_replaceOrdenCompraItemsByFolio.read');
+  if (data && data.length > 1) {
+    const headers = data[0] || [];
+    const idxFolio = headers.indexOf('FOLIO_OC');
+    if (idxFolio >= 0) {
+      const rowsToDelete = [];
+      data.forEach(function(row, idx) {
+        if (idx > 0 && String(row[idxFolio] || '').trim().toUpperCase() === target) {
+          rowsToDelete.push(idx + 1);
+        }
+      });
+      rowsToDelete.sort(function(a, b) { return b - a; }).forEach(function(rowIndex) {
+        withRetry(function() {
+          hoja.deleteRow(rowIndex);
+          return true;
+        }, 'Repository_replaceOrdenCompraItemsByFolio.delete');
+      });
+    }
+  }
+
+  (items || []).forEach(function(item) {
+    withRetry(function() {
+      hoja.appendRow(item);
+      return true;
+    }, 'Repository_replaceOrdenCompraItemsByFolio.append');
+  });
   return true;
 }
 

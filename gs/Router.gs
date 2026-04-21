@@ -13,6 +13,18 @@ function Router_getGetRoutes() {
       required: [],
       handler: function() { return Utils_ok(Service_getStatus()); }
     },
+    obtener_config_seguridad: {
+      required: [],
+      handler: function() { return Service_obtenerConfigSeguridad(); }
+    },
+    listar_usuarios_internos: {
+      required: [],
+      handler: function() { return Service_listarUsuariosInternos(); }
+    },
+    validar_admin_password: {
+      required: [],
+      handler: function(params) { return Service_validarAdminPassword(params || {}); }
+    },
     semaforo: {
       required: [],
       handler: function(params) { return getSemaforoData(Router_getPagination(params)); }
@@ -27,6 +39,10 @@ function Router_getGetRoutes() {
     solicitud: {
       required: ['folio'],
       handler: function(params) { return Service_getSolicitudByFolio(params.folio); }
+    },
+    equipo: {
+      required: ['folio'],
+      handler: function(params) { return Service_getEquipoByFolio(params.folio); }
     },
     listar_sucursales: {
       required: [],
@@ -95,6 +111,32 @@ function Router_getGetRoutes() {
       required: ['id'],
       handler: function(params) { return Service_getProveedorById(params.id); }
     },
+    listar_nombres_proveedores: {
+      required: [],
+      handler: function() { return Service_listarNombresProveedores(); }
+    },
+    listar_folios_relacion: {
+      required: [],
+      handler: function() { return Service_listarFoliosRelacion(); }
+    },
+    listar_ordenes_compra: {
+      required: [],
+      handler: function(params) {
+        const pag = Router_getPagination(params);
+        return Service_listarOrdenesCompra(Object.assign({}, params || {}, { page: pag.page, pageSize: pag.pageSize }));
+      }
+    },
+    listar_compras: {
+      required: [],
+      handler: function(params) {
+        const pag = Router_getPagination(params);
+        return Service_listarCompras(Object.assign({}, params || {}, { page: pag.page, pageSize: pag.pageSize }));
+      }
+    },
+    orden_compra: {
+      required: ['folio'],
+      handler: function(params) { return Service_getOrdenCompraByFolio(params.folio); }
+    },
     listar_gastos: {
       required: [],
       handler: function(params) {
@@ -146,6 +188,23 @@ function Router_getGetRoutes() {
       required: ['id'],
       handler: function(params) { return Service_getClienteById(params.id); }
     },
+    listar_archivo: {
+      required: [],
+      handler: function(params) {
+        const pag = Router_getPagination(params);
+        return Service_listarArchivo({
+          tipo: params.tipo || 'todos',
+          from: params.from || params.fechaDesde || '',
+          to: params.to || params.fechaHasta || '',
+          page: pag.page,
+          pageSize: pag.pageSize
+        });
+      }
+    },
+    detalle_archivo: {
+      required: ['tipo', 'folio'],
+      handler: function(params) { return Service_getArchivoDetalle(params || {}); }
+    },
     hub_dashboard_summary: {
       required: [],
       handler: function(params) { return jsonResponse(Service_getDashboardSummary(params || {})); }
@@ -171,6 +230,26 @@ function Router_getPostRoutes() {
       required: ['usuario', 'password'],
       handler: function(data) { return Service_loginInterno(data || {}); }
     },
+    obtener_config_seguridad: {
+      required: [],
+      handler: function(data) { return Service_obtenerConfigSeguridad(); }
+    },
+    listar_usuarios_internos: {
+      required: [],
+      handler: function(data) { return Service_listarUsuariosInternos(); }
+    },
+    guardar_config_seguridad: {
+      required: ['adminPasswordActual'],
+      handler: function(data) { return Service_guardarConfigSeguridad(data || {}); }
+    },
+    guardar_usuario_interno: {
+      required: ['adminPasswordActual', 'usuario'],
+      handler: function(data) { return Service_guardarUsuarioInterno(data || {}); }
+    },
+    validar_admin_password: {
+      required: [],
+      handler: function(data) { return Service_validarAdminPassword(data || {}); }
+    },
     crear_solicitud: {
       required: [],
       handler: function(data) { return Service_crearSolicitud(data || {}); }
@@ -178,6 +257,14 @@ function Router_getPostRoutes() {
     archivar_solicitud: {
       required: ['folio'],
       handler: function(data) { return Service_archivarSolicitud(data || {}); }
+    },
+    archivar_cotizacion: {
+      required: ['folio'],
+      handler: function(data) { return Service_archivarCotizacion(data || {}); }
+    },
+    reabrir_archivo: {
+      required: ['tipo', 'folio', 'adminPasswordActual'],
+      handler: function(data) { return Service_reabrirArchivo(data || {}); }
     },
     crear_tarea: {
       required: [],
@@ -246,6 +333,14 @@ function Router_getPostRoutes() {
       required: ['folio'],
       handler: function(data) { return Service_getSolicitudByFolio(data.folio); }
     },
+    crear_equipo: {
+      required: [],
+      handler: function(data) { return Service_crearEquipo(data || {}); }
+    },
+    actualizar_equipo: {
+      required: ['folio'],
+      handler: function(data) { return Service_actualizarEquipo(data || {}); }
+    },
     listar_tareas: {
       required: [],
       handler: function(data) {
@@ -277,6 +372,32 @@ function Router_getPostRoutes() {
     proveedor: {
       required: ['id'],
       handler: function(data) { return Service_getProveedorById(data.id); }
+    },
+    listar_nombres_proveedores: {
+      required: [],
+      handler: function() { return Service_listarNombresProveedores(); }
+    },
+    listar_folios_relacion: {
+      required: [],
+      handler: function() { return Service_listarFoliosRelacion(); }
+    },
+    listar_ordenes_compra: {
+      required: [],
+      handler: function(data) {
+        const pag = Router_getPagination(data);
+        return Service_listarOrdenesCompra(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
+      }
+    },
+    listar_compras: {
+      required: [],
+      handler: function(data) {
+        const pag = Router_getPagination(data);
+        return Service_listarCompras(Object.assign({}, data || {}, { page: pag.page, pageSize: pag.pageSize }));
+      }
+    },
+    orden_compra: {
+      required: ['folio'],
+      handler: function(data) { return Service_getOrdenCompraByFolio(data.folio); }
     },
     listar_gastos: {
       required: [],

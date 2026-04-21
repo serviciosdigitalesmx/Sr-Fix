@@ -1,13 +1,32 @@
-const CONFIG = {
-    BACKEND_URL: (window.SRFIX_BACKEND_URL || localStorage.getItem('srfix_backend_url') || 'https://script.google.com/macros/s/AKfycbw49B0GeqyZ2Yr0a-IZNqUhrhUBH0yldSO274EDHBU9gT5SPrXSs2ixIhwD5BRmg-6W/exec')
-};
-
-const elList = document.getElementById('list');
-const elLoading = document.getElementById('loading');
-const elEmpty = document.getElementById('empty');
-const elCount = document.getElementById('count');
-const elModal = document.getElementById('cotizacion-modal');
-const elCotItems = document.getElementById('cot-items');
+"use strict";
+const BACKEND_URL = CONFIG.API_URL;
+const IVA_RATE = 0.16;
+const elList = requireElement('list');
+const elLoading = requireElement('loading');
+const elEmpty = requireElement('empty');
+const elCount = requireElement('count');
+const elModal = requireElement('cotizacion-modal');
+const elCotItems = requireElement('cot-items');
+const elCotFolio = requireElement('cot-folio');
+const elCotCliente = requireElement('cot-cliente');
+const elCotTelefono = requireElement('cot-telefono');
+const elCotEquipo = requireElement('cot-equipo');
+const elCotProblema = requireElement('cot-problema');
+const elCotUrgencia = requireElement('cot-urgencia');
+const elCotNotas = requireElement('cot-notas');
+const elCotAnticipo = requireElement('cot-anticipo');
+const elCotAplicaIva = requireElement('cot-aplica-iva');
+const elCotSubtotal = requireElement('cot-subtotal');
+const elCotIvaLabel = requireElement('cot-iva-label');
+const elCotIva = requireElement('cot-iva');
+const elCotTotal = requireElement('cot-total');
+const elCotSaldo = requireElement('cot-saldo');
+const btnRefresh = requireElement('btn-refresh');
+const btnCotizacionCerrar = requireElement('btn-cotizacion-cerrar');
+const btnCotizacionPdf = requireElement('btn-cotizacion-pdf');
+const btnCotizacionWa = requireElement('btn-cotizacion-wa');
+const btnCotizacionArchivar = requireElement('btn-cotizacion-archivar');
+const btnCotItemAdd = requireElement('btn-cot-item-add');
 let solicitudesCache = [];
 let solicitudActual = null;
 let cotizacionItems = [];
@@ -17,43 +36,50 @@ let conteoSolicitudesPrevio = 0;
 let primeraCargaSolicitudes = true;
 let cotizacionEditando = false;
 let cotizacionDirty = false;
-const IVA_RATE = 0.16;
-
-function escapeHtml(v) {
-    return String(v || '')
+function requireElement(id) {
+    const el = document.getElementById(id);
+    if (!el) {
+        throw new Error(`Elemento no encontrado: ${id}`);
+    }
+    return el;
+}
+function escapeHtml(value) {
+    return String(value ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
-
 function formatoFecha(iso) {
-    if (!iso) return '---';
+    if (!iso)
+        return '---';
     const raw = String(iso).trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-    const d = new Date(raw);
-    if (Number.isNaN(d.getTime())) return raw;
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw))
+        return raw;
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime()))
+        return raw;
+    return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
 }
-
 function normalizarTelefono(telefono) {
-    const digits = String(telefono || '').replace(/\D/g, '');
+    const digits = String(telefono ?? '').replace(/\D/g, '');
     return digits.length === 10 ? digits : '';
 }
-
 function getAudioCtx() {
-    if (!audioCtx) {
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        if (!Ctx) return null;
-        audioCtx = new Ctx();
-    }
+    if (audioCtx)
+        return audioCtx;
+    const mediaWindow = window;
+    const Ctx = window.AudioContext || mediaWindow.webkitAudioContext;
+    if (!Ctx)
+        return null;
+    audioCtx = new Ctx();
     return audioCtx;
 }
-
 function beep(freq = 880, duration = 0.08, delay = 0) {
     const ctx = getAudioCtx();
-    if (!ctx) return;
+    if (!ctx)
+        return;
     const t0 = ctx.currentTime + delay;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -67,127 +93,127 @@ function beep(freq = 880, duration = 0.08, delay = 0) {
     osc.start(t0);
     osc.stop(t0 + duration + 0.01);
 }
-
 function sonidoNuevaSolicitud() {
     beep(950, 0.07, 0);
     beep(1250, 0.09, 0.12);
 }
-
-function enviarWhatsApp(telefono, folio) {
-    const tel = normalizarTelefono(telefono);
-    const mensaje = `Hola, te contactamos de SrFix respecto a tu solicitud de cotización ${folio}.`;
-    const url = `https://wa.me/52${tel}?text=${encodeURIComponent(mensaje)}`;
-    window.open(url, '_blank');
-}
-
-function abrirCotizacion(folio) {
-    const s = solicitudesCache.find(x => String(x.FOLIO_COTIZACION) === String(folio));
-    if (!s) {
-        alert('No se encontró la solicitud');
-        return;
-    }
-    solicitudActual = s;
-    document.getElementById('cot-folio').textContent = s.FOLIO_COTIZACION || '---';
-    document.getElementById('cot-cliente').textContent = s.NOMBRE || '---';
-    document.getElementById('cot-telefono').textContent = s.TELEFONO || '---';
-    document.getElementById('cot-equipo').textContent = `${s.DISPOSITIVO || ''} ${s.MODELO || ''}`.trim() || '---';
-    document.getElementById('cot-problema').textContent = s.DESCRIPCION || s.PROBLEMAS || '---';
-    document.getElementById('cot-urgencia').textContent = s.URGENCIA || '---';
-    document.getElementById('cot-notas').value = '';
-    document.getElementById('cot-anticipo').value = '0';
-    document.getElementById('cot-aplica-iva').checked = false;
-    cotizacionItems = [{
-        concepto: s.PROBLEMAS || s.DESCRIPCION || 'Diagnóstico y reparación',
-        cantidad: 1,
-        precio: 0
-    }];
-    cotizacionEditando = true;
-    cotizacionDirty = false;
-    renderCotizacionItems();
-    elModal.classList.remove('hidden');
-}
-
-function cerrarCotizacion() {
-    cotizacionEditando = false;
-    cotizacionDirty = false;
-    elModal.classList.add('hidden');
-}
-
-function formatMoney(n) {
-    const val = Number(n || 0);
+function formatMoney(value) {
+    const val = Number(value ?? 0);
     return `$${val.toFixed(2)}`;
 }
-
-function crearItemCotizacion() {
-    cotizacionItems.push({ concepto: '', cantidad: 1, precio: 0 });
-    cotizacionDirty = true;
-    renderCotizacionItems();
+function getSolicitudesBackendUrl() {
+    return String(BACKEND_URL || '').trim();
 }
-
-function eliminarItemCotizacion(idx) {
-    cotizacionItems.splice(idx, 1);
-    if (!cotizacionItems.length) cotizacionItems.push({ concepto: '', cantidad: 1, precio: 0 });
-    renderCotizacionItems();
+function buildGetUrl(action, payload = {}) {
+    const params = new URLSearchParams();
+    params.set('action', action);
+    params.set('t', String(Date.now()));
+    Object.entries(payload).forEach(([key, raw]) => {
+        if (raw === undefined || raw === null)
+            return;
+        if (typeof raw === 'object') {
+            params.set(key, JSON.stringify(raw));
+            return;
+        }
+        params.set(key, String(raw));
+    });
+    return `${getSolicitudesBackendUrl()}?${params.toString()}`;
 }
-
-function recalcularTotalesCotizacion() {
-    const subtotal = cotizacionItems.reduce((acc, it) => acc + (Number(it.cantidad || 0) * Number(it.precio || 0)), 0);
-    const aplicaIva = !!document.getElementById('cot-aplica-iva').checked;
+async function readJson(response) {
+    const text = await response.text();
+    if (!text.trim()) {
+        throw new Error(`Respuesta vacía (${response.status})`);
+    }
+    try {
+        return JSON.parse(text);
+    }
+    catch (error) {
+        throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
+    }
+}
+async function requestBackend(action, payload = {}, method = 'POST') {
+    const response = method === 'GET'
+        ? await fetch(buildGetUrl(action, payload), { method: 'GET' })
+        : await fetch(getSolicitudesBackendUrl(), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, ...payload })
+        });
+    const data = await readJson(response);
+    const errorText = typeof data.error === 'string' ? data.error.trim() : '';
+    if (errorText)
+        throw new Error(errorText);
+    if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
+        throw new Error(errorText || `La operación ${action} fue rechazada`);
+    }
+    return data;
+}
+function makeCotizacionItem() {
+    return { concepto: '', cantidad: 1, precio: 0 };
+}
+function prepararDatosCotizacion() {
+    const subtotal = cotizacionItems.reduce((acc, item) => acc + (Number(item.cantidad || 0) * Number(item.precio || 0)), 0);
+    const aplicaIva = !!elCotAplicaIva.checked;
     const iva = aplicaIva ? subtotal * IVA_RATE : 0;
     const total = subtotal + iva;
-    const anticipo = Number(document.getElementById('cot-anticipo').value || 0);
+    const anticipo = Number(elCotAnticipo.value || 0);
     const saldo = Math.max(0, total - anticipo);
-    document.getElementById('cot-iva-label').textContent = aplicaIva ? 'IVA (16%)' : 'IVA (No aplicado)';
-    document.getElementById('cot-subtotal').textContent = formatMoney(subtotal);
-    document.getElementById('cot-iva').textContent = formatMoney(iva);
-    document.getElementById('cot-total').textContent = formatMoney(total);
-    document.getElementById('cot-saldo').textContent = formatMoney(saldo);
-    return { subtotal, iva, total, anticipo, saldo, aplicaIva, ivaRate: IVA_RATE };
-}
-
-function prepararDatosCotizacion() {
-    const resumen = recalcularTotalesCotizacion();
-    const items = cotizacionItems
-        .filter(it => (it.concepto || '').trim())
-        .map(it => {
-            const cantidad = Number(it.cantidad || 0);
-            const precio = Number(it.precio || 0);
+    const notas = elCotNotas.value.trim();
+    return {
+        resumen: {
+            subtotal,
+            iva,
+            total,
+            anticipo,
+            saldo,
+            aplicaIva,
+            ivaRate: IVA_RATE
+        },
+        items: cotizacionItems
+            .filter(item => String(item.concepto || '').trim())
+            .map(item => {
+            const cantidad = Number(item.cantidad || 0);
+            const precio = Number(item.precio || 0);
             return {
-                concepto: String(it.concepto || '').trim(),
-                cantidad: cantidad,
-                precio: precio,
+                concepto: String(item.concepto || '').trim(),
+                cantidad,
+                precio,
                 total: cantidad * precio
             };
-        });
-    const notas = document.getElementById('cot-notas').value.trim();
-    return { resumen, items, notas };
+        }),
+        notas
+    };
 }
-
 function validarItemsCotizacion(items) {
     if (!Array.isArray(items) || !items.length) {
         return { ok: false, error: 'Agrega al menos un concepto para cotizar.' };
     }
-    for (let i = 0; i < items.length; i++) {
-        const it = items[i];
-        const concepto = String(it.concepto || '').trim();
-        const cantidad = Number(it.cantidad || 0);
-        const precio = Number(it.precio || 0);
-        if (!concepto) return { ok: false, error: `El concepto #${i + 1} está vacío.` };
-        if (!Number.isFinite(cantidad) || cantidad <= 0) return { ok: false, error: `Cantidad inválida en concepto #${i + 1}.` };
-        if (!Number.isFinite(precio) || precio <= 0) return { ok: false, error: `Precio inválido en concepto #${i + 1}.` };
+    for (let i = 0; i < items.length; i += 1) {
+        const item = items[i];
+        if (!item) {
+            return { ok: false, error: `El concepto #${i + 1} está incompleto.` };
+        }
+        const concepto = String(item.concepto || '').trim();
+        const cantidad = Number(item.cantidad || 0);
+        const precio = Number(item.precio || 0);
+        if (!concepto)
+            return { ok: false, error: `El concepto #${i + 1} está vacío.` };
+        if (!Number.isFinite(cantidad) || cantidad <= 0)
+            return { ok: false, error: `Cantidad inválida en concepto #${i + 1}.` };
+        if (!Number.isFinite(precio) || precio <= 0)
+            return { ok: false, error: `Precio inválido en concepto #${i + 1}.` };
     }
     return { ok: true };
 }
-
 function construirCotizacionPayload(resumen, items, notas) {
     return {
         version: '1.0',
         moneda: 'MXN',
-        items: items.map(it => ({
-            concepto: String(it.concepto || '').trim(),
-            cantidad: Number(it.cantidad || 0),
-            precio: Number(it.precio || 0),
-            total: Number((Number(it.cantidad || 0) * Number(it.precio || 0)).toFixed(2))
+        items: items.map(item => ({
+            concepto: String(item.concepto || '').trim(),
+            cantidad: Number(item.cantidad || 0),
+            precio: Number(item.precio || 0),
+            total: Number((Number(item.cantidad || 0) * Number(item.precio || 0)).toFixed(2))
         })),
         notas: String(notas || '').trim(),
         aplicaIva: !!resumen.aplicaIva,
@@ -199,258 +225,302 @@ function construirCotizacionPayload(resumen, items, notas) {
         saldo: Number(Number(resumen.saldo || 0).toFixed(2))
     };
 }
-
 function renderCotizacionItems() {
     elCotItems.innerHTML = '';
-    cotizacionItems.forEach((it, idx) => {
+    cotizacionItems.forEach((item, idx) => {
         const row = document.createElement('div');
         row.className = 'grid grid-cols-12 gap-2 items-center';
         row.innerHTML = `
-            <input data-field="concepto" data-idx="${idx}" class="col-span-6 rounded bg-[#0f0f0f] border border-[#1F7EDC]/30 px-2 py-2 text-sm" placeholder="Concepto" value="${escapeHtml(it.concepto || '')}">
-            <input data-field="cantidad" data-idx="${idx}" type="number" min="1" step="1" class="col-span-2 rounded bg-[#0f0f0f] border border-[#1F7EDC]/30 px-2 py-2 text-sm text-right" value="${Number(it.cantidad || 1)}">
-            <input data-field="precio" data-idx="${idx}" type="number" min="0" step="0.01" class="col-span-3 rounded bg-[#0f0f0f] border border-[#1F7EDC]/30 px-2 py-2 text-sm text-right" value="${Number(it.precio || 0)}">
-            <button data-del="${idx}" class="col-span-1 rounded bg-red-600 hover:bg-red-500 py-2 text-xs"><i class="fa-solid fa-trash"></i></button>
-        `;
+      <input data-field="concepto" data-idx="${idx}" class="col-span-6 rounded bg-[#0f0f0f] border border-[#1F7EDC]/30 px-2 py-2 text-sm" placeholder="Concepto" value="${escapeHtml(item.concepto || '')}">
+      <input data-field="cantidad" data-idx="${idx}" type="number" min="1" step="1" class="col-span-2 rounded bg-[#0f0f0f] border border-[#1F7EDC]/30 px-2 py-2 text-sm text-right" value="${Number(item.cantidad || 1)}">
+      <input data-field="precio" data-idx="${idx}" type="number" min="0" step="0.01" class="col-span-3 rounded bg-[#0f0f0f] border border-[#1F7EDC]/30 px-2 py-2 text-sm text-right" value="${Number(item.precio || 0)}">
+      <button data-del="${idx}" class="col-span-1 rounded bg-red-600 hover:bg-red-500 py-2 text-xs"><i class="fa-solid fa-trash"></i></button>
+    `;
         elCotItems.appendChild(row);
     });
-    recalcularTotalesCotizacion();
+    const { resumen } = prepararDatosCotizacion();
+    elCotIvaLabel.textContent = resumen.aplicaIva ? 'IVA (16%)' : 'IVA (No aplicado)';
+    elCotSubtotal.textContent = formatMoney(resumen.subtotal);
+    elCotIva.textContent = formatMoney(resumen.iva);
+    elCotTotal.textContent = formatMoney(resumen.total);
+    elCotSaldo.textContent = formatMoney(resumen.saldo);
 }
-
+function abrirCotizacion(folio) {
+    const solicitud = solicitudesCache.find(item => String(item.FOLIO_COTIZACION) === String(folio));
+    if (!solicitud) {
+        alert('No se encontró la solicitud');
+        return;
+    }
+    solicitudActual = solicitud;
+    elCotFolio.textContent = solicitud.FOLIO_COTIZACION || '---';
+    elCotCliente.textContent = solicitud.NOMBRE || '---';
+    elCotTelefono.textContent = solicitud.TELEFONO || '---';
+    elCotEquipo.textContent = `${solicitud.DISPOSITIVO || ''} ${solicitud.MODELO || ''}`.trim() || '---';
+    elCotProblema.textContent = solicitud.DESCRIPCION || solicitud.PROBLEMAS || '---';
+    elCotUrgencia.textContent = solicitud.URGENCIA || '---';
+    elCotNotas.value = '';
+    elCotAnticipo.value = '0';
+    elCotAplicaIva.checked = false;
+    cotizacionItems = [{
+            concepto: solicitud.PROBLEMAS || solicitud.DESCRIPCION || 'Diagnóstico y reparación',
+            cantidad: 1,
+            precio: 0
+        }];
+    cotizacionEditando = true;
+    cotizacionDirty = false;
+    renderCotizacionItems();
+    elModal.classList.remove('hidden');
+}
+function cerrarCotizacion() {
+    cotizacionEditando = false;
+    cotizacionDirty = false;
+    elModal.classList.add('hidden');
+}
+function crearItemCotizacion() {
+    cotizacionItems.push(makeCotizacionItem());
+    cotizacionDirty = true;
+    renderCotizacionItems();
+}
+function eliminarItemCotizacion(idx) {
+    cotizacionItems.splice(idx, 1);
+    if (!cotizacionItems.length)
+        cotizacionItems.push(makeCotizacionItem());
+    cotizacionDirty = true;
+    renderCotizacionItems();
+}
 function descargarCotizacionPDF() {
-    if (!solicitudActual) return;
-    const s = solicitudActual;
+    if (!solicitudActual)
+        return;
+    const solicitud = solicitudActual;
     const { resumen, items: filas, notas } = prepararDatosCotizacion();
-    const validacion = validarItemsCotizacion(filas);
-    if (!validacion.ok) return alert(validacion.error);
+    const validacion = validarItemsCotizacion(cotizacionItems);
+    if (!validacion.ok) {
+        alert(validacion.error);
+        return;
+    }
     const html = `
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-            <meta charset="utf-8">
-            <title>Cotización ${s.FOLIO_COTIZACION}</title>
-            <link rel="preconnect" href="https://fonts.googleapis.com">
-            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-            <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body { font-family: 'Inter', sans-serif; background: #f4f7fc; padding: 30px; color: #1e293b; }
-                .container { max-width: 960px; margin: 0 auto; background: #fff; border-radius: 24px; box-shadow: 0 20px 40px -10px rgba(0,20,50,.15); overflow: hidden; border: 1px solid #e2e8f0; }
-                .header { background: linear-gradient(135deg, #0F4C81 0%, #1F7EDC 100%); color: #fff; padding: 28px 34px; display: flex; justify-content: space-between; align-items: center; }
-                .header h1 { font-size: 30px; font-weight: 800; letter-spacing: 1px; }
-                .header h1 span { color: #FF6A2A; }
-                .folio { background: rgba(255,255,255,.15); padding: 9px 20px; border-radius: 999px; border: 1px solid rgba(255,255,255,.28); font-weight: 700; }
-                .content { padding: 32px; }
-                .pillbar { display: flex; justify-content: space-between; gap: 12px; background: #f1f5f9; padding: 12px 16px; border-radius: 999px; margin-bottom: 22px; font-size: 14px; }
-                .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-                .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; }
-                .card h3 { font-size: 15px; color: #1F7EDC; margin-bottom: 10px; border-bottom: 2px solid #FF6A2A; padding-bottom: 6px; }
-                .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed #cbd5e1; }
-                .row:last-child { border-bottom: 0; }
-                .k { color: #475569; font-weight: 600; }
-                .v { color: #0f172a; font-weight: 500; text-align: right; max-width: 62%; }
-                .desc { margin-top: 18px; background: #fff7ed; border-left: 6px solid #FF6A2A; padding: 16px; border-radius: 12px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 13px; }
-                th, td { border: 1px solid #d8dee8; padding: 8px; }
-                th { background: #eef4ff; text-align: left; }
-                td.num { text-align: right; }
-                .footer { background: #f1f5f9; padding: 14px 24px; text-align: center; color: #64748b; font-size: 13px; border-top: 1px solid #cbd5e1; }
-                @media print { body { background: #fff; padding: 0; } .container { box-shadow: none; } }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>SR<span>FIX</span> - Cotización</h1>
-                    <div class="folio">${escapeHtml(s.FOLIO_COTIZACION || '---')}</div>
-                </div>
-                <div class="content">
-                    <div class="pillbar">
-                        <span><strong>Fecha:</strong> ${escapeHtml(formatoFecha(s.FECHA_SOLICITUD))}</span>
-                        <span><strong>Urgencia:</strong> ${escapeHtml(s.URGENCIA || '---')}</span>
-                    </div>
-                    <div class="grid">
-                        <div class="card">
-                            <h3>Cliente</h3>
-                            <div class="row"><div class="k">Nombre</div><div class="v">${escapeHtml(s.NOMBRE)}</div></div>
-                            <div class="row"><div class="k">Teléfono</div><div class="v">${escapeHtml(s.TELEFONO)}</div></div>
-                            <div class="row"><div class="k">Email</div><div class="v">${escapeHtml(s.EMAIL)}</div></div>
-                        </div>
-                        <div class="card">
-                            <h3>Equipo</h3>
-                            <div class="row"><div class="k">Dispositivo</div><div class="v">${escapeHtml(s.DISPOSITIVO)}</div></div>
-                            <div class="row"><div class="k">Modelo</div><div class="v">${escapeHtml(s.MODELO)}</div></div>
-                            <div class="row"><div class="k">Problemas</div><div class="v">${escapeHtml(s.PROBLEMAS)}</div></div>
-                        </div>
-                    </div>
-                    <div class="desc">
-                        <strong>Descripción:</strong>
-                        <div style="margin-top:6px; line-height:1.5;">${escapeHtml(s.DESCRIPCION || '---')}</div>
-                    </div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Concepto</th>
-                                <th style="width:80px">Cant.</th>
-                                <th style="width:120px">Precio</th>
-                                <th style="width:120px">Importe</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${filas.map(f => `<tr><td>${escapeHtml(f.concepto)}</td><td class="num">${f.cantidad}</td><td class="num">${formatMoney(f.precio)}</td><td class="num">${formatMoney(f.total)}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
-                    <div style="margin-top:12px; text-align:right; font-size:13px; line-height:1.8;">
-                        <div><strong>Subtotal:</strong> ${formatMoney(resumen.subtotal)}</div>
-                        <div><strong>${resumen.aplicaIva ? 'IVA (16%)' : 'IVA (No aplicado)'}:</strong> ${formatMoney(resumen.iva)}</div>
-                        <div style="font-size:16px;"><strong>Total:</strong> ${formatMoney(resumen.total)}</div>
-                        <div><strong>Anticipo:</strong> ${formatMoney(resumen.anticipo)}</div>
-                        <div><strong>Saldo:</strong> ${formatMoney(resumen.saldo)}</div>
-                    </div>
-                    <div class="desc" style="margin-top:12px;">
-                        <strong>Notas de cotización:</strong>
-                        <div style="margin-top:6px; line-height:1.5;">${escapeHtml(notas || 'Sin notas adicionales')}</div>
-                    </div>
-                </div>
-                <div class="footer">SrFix Oficial · Plaza Chapultepec · 81 1700 6536</div>
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="utf-8">
+      <title>Cotización ${escapeHtml(solicitud.FOLIO_COTIZACION)}</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #f4f7fc; padding: 30px; color: #1e293b; }
+        .container { max-width: 960px; margin: 0 auto; background: #fff; border-radius: 24px; box-shadow: 0 20px 40px -10px rgba(0,20,50,.15); overflow: hidden; border: 1px solid #e2e8f0; }
+        .header { background: linear-gradient(135deg, #0F4C81 0%, #1F7EDC 100%); color: #fff; padding: 28px 34px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 30px; font-weight: 800; letter-spacing: 1px; }
+        .header h1 span { color: #FF6A2A; }
+        .folio { background: rgba(255,255,255,.15); padding: 9px 20px; border-radius: 999px; border: 1px solid rgba(255,255,255,.28); font-weight: 700; }
+        .content { padding: 32px; }
+        .pillbar { display: flex; justify-content: space-between; gap: 12px; background: #f1f5f9; padding: 12px 16px; border-radius: 999px; margin-bottom: 22px; font-size: 14px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; }
+        .card h3 { font-size: 15px; color: #1F7EDC; margin-bottom: 10px; border-bottom: 2px solid #FF6A2A; padding-bottom: 6px; }
+        .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed #cbd5e1; }
+        .row:last-child { border-bottom: 0; }
+        .k { color: #475569; font-weight: 600; }
+        .v { color: #0f172a; font-weight: 500; text-align: right; max-width: 62%; }
+        .desc { margin-top: 18px; background: #fff7ed; border-left: 6px solid #FF6A2A; padding: 16px; border-radius: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 13px; }
+        th, td { border: 1px solid #d8dee8; padding: 8px; }
+        th { background: #eef4ff; text-align: left; }
+        td.num { text-align: right; }
+        .footer { background: #f1f5f9; padding: 14px 24px; text-align: center; color: #64748b; font-size: 13px; border-top: 1px solid #cbd5e1; }
+        @media print { body { background: #fff; padding: 0; } .container { box-shadow: none; } }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>SR<span>FIX</span> - Cotización</h1>
+          <div class="folio">${escapeHtml(solicitud.FOLIO_COTIZACION || '---')}</div>
+        </div>
+        <div class="content">
+          <div class="pillbar">
+            <span><strong>Fecha:</strong> ${escapeHtml(formatoFecha(solicitud.FECHA_SOLICITUD))}</span>
+            <span><strong>Urgencia:</strong> ${escapeHtml(solicitud.URGENCIA || '---')}</span>
+          </div>
+          <div class="grid">
+            <div class="card">
+              <h3>Cliente</h3>
+              <div class="row"><div class="k">Nombre</div><div class="v">${escapeHtml(solicitud.NOMBRE)}</div></div>
+              <div class="row"><div class="k">Teléfono</div><div class="v">${escapeHtml(solicitud.TELEFONO)}</div></div>
+              <div class="row"><div class="k">Email</div><div class="v">${escapeHtml(solicitud.EMAIL)}</div></div>
             </div>
-            <script>window.onload = () => window.print();<\/script>
-        </body>
-        </html>
-    `;
-    const w = window.open('', '_blank');
-    if (!w) {
+            <div class="card">
+              <h3>Equipo</h3>
+              <div class="row"><div class="k">Dispositivo</div><div class="v">${escapeHtml(solicitud.DISPOSITIVO)}</div></div>
+              <div class="row"><div class="k">Modelo</div><div class="v">${escapeHtml(solicitud.MODELO)}</div></div>
+              <div class="row"><div class="k">Problemas</div><div class="v">${escapeHtml(solicitud.PROBLEMAS)}</div></div>
+            </div>
+          </div>
+          <div class="desc">
+            <strong>Descripción:</strong>
+            <div style="margin-top:6px; line-height:1.5;">${escapeHtml(solicitud.DESCRIPCION || '---')}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Concepto</th>
+                <th style="width:80px">Cant.</th>
+                <th style="width:120px">Precio</th>
+                <th style="width:120px">Importe</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filas.map(item => `<tr><td>${escapeHtml(item.concepto)}</td><td class="num">${item.cantidad}</td><td class="num">${formatMoney(item.precio)}</td><td class="num">${formatMoney(item.total)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+          <div style="margin-top:12px; text-align:right; font-size:13px; line-height:1.8;">
+            <div><strong>Subtotal:</strong> ${formatMoney(resumen.subtotal)}</div>
+            <div><strong>${resumen.aplicaIva ? 'IVA (16%)' : 'IVA (No aplicado)'}:</strong> ${formatMoney(resumen.iva)}</div>
+            <div style="font-size:16px;"><strong>Total:</strong> ${formatMoney(resumen.total)}</div>
+            <div><strong>Anticipo:</strong> ${formatMoney(resumen.anticipo)}</div>
+            <div><strong>Saldo:</strong> ${formatMoney(resumen.saldo)}</div>
+          </div>
+          <div class="desc" style="margin-top:12px;">
+            <strong>Notas de cotización:</strong>
+            <div style="margin-top:6px; line-height:1.5;">${escapeHtml(notas || 'Sin notas adicionales')}</div>
+          </div>
+        </div>
+        <div class="footer">SrFix Oficial · Plaza Chapultepec · 81 1700 6536</div>
+      </div>
+      <script>window.onload = () => window.print();<\/script>
+    </body>
+    </html>
+  `;
+    const popup = window.open('', '_blank');
+    if (!popup) {
         alert('Permite ventanas emergentes para generar PDF.');
         return;
     }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
+    popup.document.open();
+    popup.document.write(html);
+    popup.document.close();
 }
-
 function enviarCotizacionWhatsApp() {
-    if (!solicitudActual) return;
-    const tel = normalizarTelefono(solicitudActual.TELEFONO);
-    if (!tel) return alert('La solicitud no tiene teléfono válido.');
+    if (!solicitudActual)
+        return;
+    const telefono = normalizarTelefono(solicitudActual.TELEFONO);
+    if (!telefono) {
+        alert('La solicitud no tiene teléfono válido.');
+        return;
+    }
     const { resumen, items, notas } = prepararDatosCotizacion();
-    const validacion = validarItemsCotizacion(items);
-    if (!validacion.ok) return alert(validacion.error);
+    const validacion = validarItemsCotizacion(cotizacionItems);
+    if (!validacion.ok) {
+        alert(validacion.error);
+        return;
+    }
     const conceptos = items
-        .map(it => `- ${it.concepto} (${Number(it.cantidad || 0)} x ${formatMoney(it.precio || 0)})`)
+        .map(item => `- ${item.concepto} (${Number(item.cantidad || 0)} x ${formatMoney(item.precio || 0)})`)
         .join('\n');
-    if (!conceptos) return alert('Agrega al menos un concepto antes de enviar por WhatsApp.');
-    let msg = `Hola ${solicitudActual.NOMBRE || ''}, te compartimos tu cotización ${solicitudActual.FOLIO_COTIZACION}:\n\n`;
-    msg += `${conceptos}\n\n`;
+    if (!conceptos) {
+        alert('Agrega al menos un concepto antes de enviar por WhatsApp.');
+        return;
+    }
+    let mensaje = `Hola ${solicitudActual.NOMBRE || ''}, te compartimos tu cotización ${solicitudActual.FOLIO_COTIZACION}:\n\n`;
+    mensaje += `${conceptos}\n\n`;
     const ivaTexto = resumen.aplicaIva ? `IVA (16%): ${formatMoney(resumen.iva)}` : `IVA (No aplicado): ${formatMoney(resumen.iva)}`;
-    msg += `Subtotal: ${formatMoney(resumen.subtotal)}\n${ivaTexto}\nTotal: ${formatMoney(resumen.total)}\nAnticipo: ${formatMoney(resumen.anticipo)}\nSaldo: ${formatMoney(resumen.saldo)}\n`;
-    if (notas) msg += `\nNotas: ${notas}\n`;
-    window.open(`https://wa.me/52${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+    mensaje += `Subtotal: ${formatMoney(resumen.subtotal)}\n${ivaTexto}\nTotal: ${formatMoney(resumen.total)}\nAnticipo: ${formatMoney(resumen.anticipo)}\nSaldo: ${formatMoney(resumen.saldo)}\n`;
+    if (notas)
+        mensaje += `\nNotas: ${notas}\n`;
+    window.open(`https://wa.me/52${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
-
+function enviarWhatsApp(telefono, folio) {
+    const tel = normalizarTelefono(telefono);
+    if (!tel) {
+        alert('El teléfono no es válido.');
+        return;
+    }
+    const mensaje = `Hola, te contactamos de SrFix respecto a tu solicitud de cotización ${folio}.`;
+    window.open(`https://wa.me/52${tel}?text=${encodeURIComponent(mensaje)}`, '_blank');
+}
 async function archivarCotizacionActual() {
-    if (!solicitudActual) return;
+    if (!solicitudActual)
+        return;
     const { resumen, items, notas } = prepararDatosCotizacion();
-    const validacion = validarItemsCotizacion(items);
-    if (!validacion.ok) return alert(validacion.error);
+    const validacion = validarItemsCotizacion(cotizacionItems);
+    if (!validacion.ok) {
+        alert(validacion.error);
+        return;
+    }
     const cotizacionPayload = construirCotizacionPayload(resumen, items, notas);
-
-    const payload = {
-        action: 'archivar_cotizacion',
-        folio: solicitudActual.FOLIO_COTIZACION,
-        cotizacion: cotizacionPayload
-    };
-
     try {
-        let data = null;
-        let res = await fetch(CONFIG.BACKEND_URL, { method: 'POST', body: JSON.stringify(payload) });
-        if (res.ok) {
-            try { data = await res.json(); } catch (e) {}
+        const response = await requestBackend('archivar_cotizacion', {
+            folio: solicitudActual.FOLIO_COTIZACION,
+            cotizacion: cotizacionPayload
+        }, 'POST');
+        if (response.success === false) {
+            throw new Error(response.error || 'No se pudo archivar la cotización');
         }
-        if (!data || data.error) {
-            const q = new URLSearchParams({
-                action: 'archivar_cotizacion',
-                folio: String(solicitudActual.FOLIO_COTIZACION || ''),
-                t: String(Date.now())
-            });
-            res = await fetch(`${CONFIG.BACKEND_URL}?${q.toString()}`);
-            data = await res.json();
-        }
-        if (data.error || !data.success) throw new Error(data.error || 'No se pudo archivar la cotización');
-        const folioManual = String(data.folioCotizacionManual || '').trim();
+        const folioManual = String(response.folioCotizacionManual || '').trim();
         cerrarCotizacion();
         await cargarSolicitudes(true);
-        if (folioManual) {
-            alert(`Cotización archivada correctamente.\nFolio de cotización: ${folioManual}`);
-        } else {
-            alert('Cotización archivada correctamente.');
-        }
-    } catch (e) {
-        alert('Error al archivar cotización: ' + e.message);
+        alert(folioManual
+            ? `Cotización archivada correctamente.\nFolio de cotización: ${folioManual}`
+            : 'Cotización archivada correctamente.');
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'No se pudo archivar la cotización';
+        alert(`Error al archivar cotización: ${message}`);
     }
 }
-
 function render(solicitudes) {
-    elCount.textContent = solicitudes.length;
+    elCount.textContent = String(solicitudes.length);
     elList.innerHTML = '';
     elLoading.classList.add('hidden');
-
     if (!solicitudes.length) {
         elEmpty.classList.remove('hidden');
         return;
     }
     elEmpty.classList.add('hidden');
-
-    solicitudes.forEach(s => {
+    solicitudes.forEach(solicitud => {
         const card = document.createElement('article');
         card.className = 'bg-[#2B2B2B] border border-[#1F7EDC]/40 rounded-xl p-4';
         card.innerHTML = `
-            <div class="flex justify-between items-start gap-2">
-                <div>
-                    <h3 class="font-bold text-[#1F7EDC]">${escapeHtml(s.FOLIO_COTIZACION || 'Sin folio')}</h3>
-                    <p class="text-xs text-[#8A8F95]">${escapeHtml(formatoFecha(s.FECHA_SOLICITUD))}</p>
-                </div>
-                <span class="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-full">Pendiente</span>
-            </div>
-            <div class="mt-3 text-sm space-y-1">
-                <p><span class="text-[#8A8F95]">Nombre:</span> ${escapeHtml(s.NOMBRE)}</p>
-                <p><span class="text-[#8A8F95]">Teléfono:</span> ${escapeHtml(s.TELEFONO)}</p>
-                <p><span class="text-[#8A8F95]">Equipo:</span> ${escapeHtml(s.DISPOSITIVO)} ${escapeHtml(s.MODELO)}</p>
-                <p><span class="text-[#8A8F95]">Problemas:</span> ${escapeHtml(s.PROBLEMAS)}</p>
-                <p><span class="text-[#8A8F95]">Descripción:</span> ${escapeHtml(s.DESCRIPCION)}</p>
-                <p><span class="text-[#8A8F95]">Urgencia:</span> ${escapeHtml(s.URGENCIA)}</p>
-            </div>
-            <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <button class="btn-wa bg-green-600 hover:bg-green-500 text-white rounded-lg py-2 text-sm font-semibold" data-telefono="${escapeHtml(s.TELEFONO)}" data-folio="${escapeHtml(s.FOLIO_COTIZACION)}">
-                    <i class="fa-brands fa-whatsapp"></i> WhatsApp
-                </button>
-                <button class="btn-cotizar bg-[#1F7EDC] hover:bg-blue-500 text-white rounded-lg py-2 text-sm font-semibold" data-folio="${escapeHtml(s.FOLIO_COTIZACION)}">
-                    <i class="fa-solid fa-file-invoice"></i> Cotizar
-                </button>
-                <button class="btn-archivar bg-[#8A8F95] hover:bg-[#747980] text-white rounded-lg py-2 text-sm font-semibold" data-folio="${escapeHtml(s.FOLIO_COTIZACION)}">
-                    <i class="fa-solid fa-box-archive"></i> Archivar
-                </button>
-            </div>
-        `;
+      <div class="flex justify-between items-start gap-2">
+        <div>
+          <h3 class="font-bold text-[#1F7EDC]">${escapeHtml(solicitud.FOLIO_COTIZACION || 'Sin folio')}</h3>
+          <p class="text-xs text-[#8A8F95]">${escapeHtml(formatoFecha(solicitud.FECHA_SOLICITUD))}</p>
+        </div>
+        <span class="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-full">Pendiente</span>
+      </div>
+      <div class="mt-3 text-sm space-y-1">
+        <p><span class="text-[#8A8F95]">Nombre:</span> ${escapeHtml(solicitud.NOMBRE)}</p>
+        <p><span class="text-[#8A8F95]">Teléfono:</span> ${escapeHtml(solicitud.TELEFONO)}</p>
+        <p><span class="text-[#8A8F95]">Equipo:</span> ${escapeHtml(solicitud.DISPOSITIVO)} ${escapeHtml(solicitud.MODELO)}</p>
+        <p><span class="text-[#8A8F95]">Problemas:</span> ${escapeHtml(solicitud.PROBLEMAS)}</p>
+        <p><span class="text-[#8A8F95]">Descripción:</span> ${escapeHtml(solicitud.DESCRIPCION)}</p>
+        <p><span class="text-[#8A8F95]">Urgencia:</span> ${escapeHtml(solicitud.URGENCIA)}</p>
+      </div>
+      <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <button class="btn-wa bg-green-600 hover:bg-green-500 text-white rounded-lg py-2 text-sm font-semibold" data-telefono="${escapeHtml(solicitud.TELEFONO)}" data-folio="${escapeHtml(solicitud.FOLIO_COTIZACION)}">
+          <i class="fa-brands fa-whatsapp"></i> WhatsApp
+        </button>
+        <button class="btn-cotizar bg-[#1F7EDC] hover:bg-blue-500 text-white rounded-lg py-2 text-sm font-semibold" data-folio="${escapeHtml(solicitud.FOLIO_COTIZACION)}">
+          <i class="fa-solid fa-file-invoice"></i> Cotizar
+        </button>
+        <button class="btn-archivar bg-[#8A8F95] hover:bg-[#747980] text-white rounded-lg py-2 text-sm font-semibold" data-folio="${escapeHtml(solicitud.FOLIO_COTIZACION)}">
+          <i class="fa-solid fa-box-archive"></i> Archivar
+        </button>
+      </div>
+    `;
         elList.appendChild(card);
     });
 }
-
 async function cargarSolicitudes(force = false) {
-    if (!force && cotizacionEditando) return;
+    if (!force && cotizacionEditando)
+        return;
     elLoading.classList.remove('hidden');
     elEmpty.classList.add('hidden');
     try {
-        let res = await fetch(CONFIG.BACKEND_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'listar_solicitudes' })
-        });
-        let data = null;
-        try { data = await res.json(); } catch (e) {}
-        if (!data || data.error) {
-            res = await fetch(`${CONFIG.BACKEND_URL}?action=listar_solicitudes&t=${Date.now()}`);
-            data = await res.json();
-        }
-        if (data.error) throw new Error(data.error);
-        solicitudesCache = data.solicitudes || [];
+        const response = await requestBackend('listar_solicitudes', {}, 'GET');
+        solicitudesCache = response.solicitudes || [];
         const conteoActual = solicitudesCache.length;
         if (!primeraCargaSolicitudes && conteoActual > conteoSolicitudesPrevio) {
             sonidoNuevaSolicitud();
@@ -458,95 +528,119 @@ async function cargarSolicitudes(force = false) {
         conteoSolicitudesPrevio = conteoActual;
         primeraCargaSolicitudes = false;
         render(solicitudesCache);
-    } catch (e) {
+    }
+    catch (error) {
         elLoading.classList.add('hidden');
-        alert('No se pudieron cargar solicitudes: ' + e.message);
+        const message = error instanceof Error ? error.message : 'No se pudieron cargar solicitudes';
+        alert(`No se pudieron cargar solicitudes: ${message}`);
     }
 }
-
 async function archivarSolicitud(folio) {
     try {
-        let res = await fetch(CONFIG.BACKEND_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'archivar_solicitud', folio: folio })
-        });
-        let data = null;
-        try { data = await res.json(); } catch (e) {}
-        if (!data || data.error) {
-            res = await fetch(`${CONFIG.BACKEND_URL}?action=archivar_solicitud&folio=${encodeURIComponent(folio)}&t=${Date.now()}`);
-            data = await res.json();
-        }
-        if (data.error || !data.success) throw new Error(data.error || 'No se pudo archivar');
+        const response = await requestBackend('archivar_solicitud', { folio }, 'POST');
+        if (response.success === false)
+            throw new Error(response.error || 'No se pudo archivar');
         await cargarSolicitudes(true);
-    } catch (e) {
-        alert('Error al archivar: ' + e.message);
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'No se pudo archivar';
+        alert(`Error al archivar: ${message}`);
     }
 }
-
-document.getElementById('btn-refresh').addEventListener('click', () => cargarSolicitudes(true));
-document.getElementById('btn-cotizacion-cerrar').addEventListener('click', cerrarCotizacion);
-document.getElementById('btn-cotizacion-pdf').addEventListener('click', descargarCotizacionPDF);
-document.getElementById('btn-cotizacion-wa').addEventListener('click', enviarCotizacionWhatsApp);
-document.getElementById('btn-cotizacion-archivar').addEventListener('click', () => {
-    if (confirm('¿Archivar esta cotización en el módulo Archivo?')) archivarCotizacionActual();
+btnRefresh.addEventListener('click', () => { void cargarSolicitudes(true); });
+btnCotizacionCerrar.addEventListener('click', cerrarCotizacion);
+btnCotizacionPdf.addEventListener('click', descargarCotizacionPDF);
+btnCotizacionWa.addEventListener('click', enviarCotizacionWhatsApp);
+btnCotizacionArchivar.addEventListener('click', () => {
+    if (confirm('¿Archivar esta cotización en el módulo Archivo?')) {
+        void archivarCotizacionActual();
+    }
 });
-document.getElementById('btn-cot-item-add').addEventListener('click', crearItemCotizacion);
-document.getElementById('cot-anticipo').addEventListener('input', recalcularTotalesCotizacion);
-document.getElementById('cot-anticipo').addEventListener('input', () => { cotizacionDirty = true; });
-document.getElementById('cot-aplica-iva').addEventListener('change', () => {
+btnCotItemAdd.addEventListener('click', crearItemCotizacion);
+elCotAnticipo.addEventListener('input', () => {
     cotizacionDirty = true;
-    recalcularTotalesCotizacion();
+    renderCotizacionItems();
 });
-document.getElementById('cot-notas').addEventListener('input', () => { cotizacionDirty = true; });
-elCotItems.addEventListener('input', (e) => {
-    const idx = Number(e.target.getAttribute('data-idx'));
-    const field = e.target.getAttribute('data-field');
-    if (Number.isNaN(idx) || !field || !cotizacionItems[idx]) return;
-    let val = e.target.value;
-    if (field === 'cantidad') val = Math.max(1, Number(val || 1));
-    if (field === 'precio') val = Math.max(0, Number(val || 0));
-    cotizacionItems[idx][field] = val;
+elCotAplicaIva.addEventListener('change', () => {
     cotizacionDirty = true;
-    recalcularTotalesCotizacion();
+    renderCotizacionItems();
 });
-elCotItems.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-del]');
-    if (!btn) return;
-    eliminarItemCotizacion(Number(btn.getAttribute('data-del')));
+elCotNotas.addEventListener('input', () => {
     cotizacionDirty = true;
 });
-elModal.addEventListener('click', (e) => {
-    if (e.target.id !== 'cotizacion-modal') return;
-    if (cotizacionDirty && !confirm('Hay cambios sin guardar en la cotización. ¿Cerrar de todos modos?')) return;
+elCotItems.addEventListener('input', (event) => {
+    const target = event.target;
+    if (!target)
+        return;
+    const idx = Number(target.getAttribute('data-idx'));
+    const field = target.getAttribute('data-field');
+    if (Number.isNaN(idx) || !field || !cotizacionItems[idx])
+        return;
+    const rawValue = target.value;
+    if (field === 'concepto') {
+        cotizacionItems[idx].concepto = rawValue;
+    }
+    else if (field === 'cantidad') {
+        cotizacionItems[idx].cantidad = Math.max(1, Number(rawValue || 1));
+    }
+    else if (field === 'precio') {
+        cotizacionItems[idx].precio = Math.max(0, Number(rawValue || 0));
+    }
+    cotizacionDirty = true;
+    renderCotizacionItems();
+});
+elCotItems.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!target)
+        return;
+    const button = target.closest('[data-del]');
+    if (!button)
+        return;
+    eliminarItemCotizacion(Number(button.getAttribute('data-del')));
+});
+elModal.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!target || target.id !== 'cotizacion-modal')
+        return;
+    if (cotizacionDirty && !confirm('Hay cambios sin guardar en la cotización. ¿Cerrar de todos modos?'))
+        return;
     cerrarCotizacion();
 });
-elList.addEventListener('click', (e) => {
-    const btnWa = e.target.closest('.btn-wa');
-    if (btnWa) {
-        enviarWhatsApp(btnWa.getAttribute('data-telefono'), btnWa.getAttribute('data-folio'));
+elList.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!target)
+        return;
+    const waButton = target.closest('.btn-wa');
+    if (waButton) {
+        enviarWhatsApp(waButton.getAttribute('data-telefono') || '', waButton.getAttribute('data-folio') || '');
         return;
     }
-
-    const btnCotizar = e.target.closest('.btn-cotizar');
-    if (btnCotizar) {
-        abrirCotizacion(btnCotizar.getAttribute('data-folio'));
+    const cotizarButton = target.closest('.btn-cotizar');
+    if (cotizarButton) {
+        abrirCotizacion(cotizarButton.getAttribute('data-folio') || '');
         return;
     }
-
-    const btnArchivar = e.target.closest('.btn-archivar');
-    if (!btnArchivar) return;
-    const folio = btnArchivar.getAttribute('data-folio');
-    if (!folio) return;
-    if (confirm(`¿Archivar solicitud ${folio}?`)) archivarSolicitud(folio);
+    const archivarButton = target.closest('.btn-archivar');
+    if (!archivarButton)
+        return;
+    const folio = archivarButton.getAttribute('data-folio');
+    if (!folio)
+        return;
+    if (confirm(`¿Archivar solicitud ${folio}?`)) {
+        void archivarSolicitud(folio);
+    }
 });
-
-cargarSolicitudes(true);
-if (intervaloSolicitudes) clearInterval(intervaloSolicitudes);
-intervaloSolicitudes = setInterval(() => {
-    if (document.hidden) return;
-    cargarSolicitudes(false);
+void cargarSolicitudes(true);
+if (intervaloSolicitudes)
+    clearInterval(intervaloSolicitudes);
+intervaloSolicitudes = window.setInterval(() => {
+    if (document.hidden)
+        return;
+    void cargarSolicitudes(false);
 }, 30000);
 document.addEventListener('click', () => {
     const ctx = getAudioCtx();
-    if (ctx && ctx.state === 'suspended') ctx.resume();
+    if (ctx && ctx.state === 'suspended') {
+        void ctx.resume();
+    }
 }, { once: true });

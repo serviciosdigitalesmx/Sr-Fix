@@ -11,6 +11,28 @@ function Service_loginInterno(data) {
   return loginInterno(data || {});
 }
 
+function Service_obtenerConfigSeguridad() {
+  return Security_getConfig();
+}
+
+function Service_guardarConfigSeguridad(data) {
+  return Security_saveConfigAction(data || {});
+}
+
+function Service_listarUsuariosInternos() {
+  return Security_listUsers();
+}
+
+function Service_guardarUsuarioInterno(data) {
+  const auth = Security_requireAdminPassword(data || {}, 'Guardar usuario interno');
+  if (!auth.ok) return jsonResponse({ error: auth.error });
+  return Security_upsertUser(data || {});
+}
+
+function Service_validarAdminPassword(data) {
+  return Security_validateAdminPasswordAction(data || {});
+}
+
 function Service_getDashboardSummary(data) {
   if (typeof getDashboardSummary === 'function') return getDashboardSummary(data || {});
   return { error: 'Servicio HUB no disponible' };
@@ -119,6 +141,228 @@ function Service_archivarSolicitud(data) {
     const ok = Repository_updateSolicitudEstado(folio, 'archivado');
     if (!ok) return jsonResponse({ error: 'No encontrada' });
     return jsonResponse({ success: true });
+  }, 12000);
+}
+
+function Service_archivarCotizacion(data) {
+  return withDocumentLock(function() {
+    const folio = String(data && data.folio || '').trim().toUpperCase();
+    if (!folio) return jsonResponse({ error: 'Folio requerido' });
+
+    const cotizacion = data && data.cotizacion && typeof data.cotizacion === 'object' ? data.cotizacion : {};
+    const folioCotizacionManual = String(data && data.folioCotizacionManual || '').trim().toUpperCase();
+    const ok = Repository_updateSolicitudCotizacion(folio, cotizacion, folioCotizacionManual);
+    if (!ok) return jsonResponse({ error: 'No encontrada' });
+    return jsonResponse({
+      success: true,
+      folio: folio,
+      folioCotizacionManual: folioCotizacionManual
+    });
+  }, 12000);
+}
+
+function _archivoParseJson(raw) {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(String(raw));
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function _archivoText(value) {
+  return String(value || '').trim();
+}
+
+function _archivoBuildSolicitudRecord(item) {
+  const cotizacionJson = _archivoText(item.COTIZACION_JSON);
+  const cotizacion = _archivoParseJson(cotizacionJson);
+  const tieneCotizacion = !!cotizacionJson || Number(item.COTIZACION_TOTAL || 0) > 0 || _archivoText(item.FECHA_COTIZACION);
+  const fechaArchivo = _archivoText(item.FECHA_COTIZACION) || _archivoText(item.FECHA_SOLICITUD);
+  const detalle = _archivoText(item.DESCRIPCION) || _archivoText(item.PROBLEMAS) || _archivoText(item.URGENCIA);
+  const notas = cotizacion && cotizacion.notas ? _archivoText(cotizacion.notas) : '';
+  const total = Number(item.COTIZACION_TOTAL || (cotizacion && cotizacion.total) || 0);
+
+  return {
+    TIPO_ARCHIVO: tieneCotizacion ? 'cotizacion' : 'solicitud',
+    FECHA_ARCHIVO: formatearFechaYMDOrEmpty(fechaArchivo),
+    FOLIO: _archivoText(item.FOLIO_COTIZACION).toUpperCase(),
+    CLIENTE: _archivoText(item.NOMBRE),
+    TELEFONO: normalizarTelefono(item.TELEFONO || ''),
+    EMAIL: _archivoText(item.EMAIL),
+    DETALLE: detalle,
+    TOTAL: total,
+    ESTADO: _archivoText(item.ESTADO),
+    NOTAS: notas,
+    DESCRIPCION: _archivoText(item.DESCRIPCION),
+    PROBLEMAS: _archivoText(item.PROBLEMAS),
+    URGENCIA: _archivoText(item.URGENCIA),
+    FECHA_SOLICITUD: formatearFechaYMDOrEmpty(item.FECHA_SOLICITUD || ''),
+    FECHA_COTIZACION: formatearFechaYMDOrEmpty(item.FECHA_COTIZACION || ''),
+    COTIZACION_JSON: cotizacionJson,
+    FOLIO_COTIZACION_MANUAL: _archivoText(item.FOLIO_COTIZACION_MANUAL).toUpperCase(),
+    raw: item
+  };
+}
+
+function _archivoBuildEquipoRecord(item) {
+  const fechaArchivo = _archivoText(item.FECHA_ENTREGA) || _archivoText(item.FECHA_ULTIMA_ACTUALIZACION) || _archivoText(item.FECHA_INGRESO);
+  const detalle = _archivoText(item.DISPOSITIVO) + (_archivoText(item.MODELO) ? ' ' + _archivoText(item.MODELO) : '');
+  return {
+    TIPO_ARCHIVO: 'equipos',
+    FECHA_ARCHIVO: formatearFechaYMDOrEmpty(fechaArchivo),
+    FOLIO: _archivoText(item.FOLIO).toUpperCase(),
+    CLIENTE: _archivoText(item.CLIENTE_NOMBRE),
+    TELEFONO: normalizarTelefono(item.CLIENTE_TELEFONO || ''),
+    EMAIL: _archivoText(item.CLIENTE_EMAIL),
+    DETALLE: detalle.trim() || _archivoText(item.FALLA_REPORTADA),
+    TOTAL: Number(item.COSTO_ESTIMADO || 0),
+    ESTADO: _archivoText(item.ESTADO),
+    NOTAS: _archivoText(item.NOTAS_INTERNAS),
+    DESCRIPCION: _archivoText(item.FALLA_REPORTADA),
+    PROBLEMAS: _archivoText(item.FALLA_REPORTADA),
+    DISPOSITIVO: _archivoText(item.DISPOSITIVO),
+    MODELO: _archivoText(item.MODELO),
+    FECHA_INGRESO: formatearFechaYMDOrEmpty(item.FECHA_INGRESO || ''),
+    FECHA_ENTREGA: formatearFechaYMDOrEmpty(item.FECHA_ENTREGA || ''),
+    FECHA_ULTIMA_ACTUALIZACION: formatearFechaYMDOrEmpty(item.FECHA_ULTIMA_ACTUALIZACION || ''),
+    SEGUIMIENTO_CLIENTE: _archivoText(item.SEGUIMIENTO_CLIENTE),
+    CASO_RESOLUCION_TECNICA: _archivoText(item.CASO_RESOLUCION_TECNICA),
+    FOTO_RECEPCION: _archivoText(item.FOTO_RECEPCION),
+    CHECK_CARGADOR: _archivoText(item.CHECK_CARGADOR),
+    CHECK_PANTALLA: _archivoText(item.CHECK_PANTALLA),
+    CHECK_PRENDE: _archivoText(item.CHECK_PRENDE),
+    CHECK_RESPALDO: _archivoText(item.CHECK_RESPALDO),
+    raw: item
+  };
+}
+
+function _archivoCumpleFiltro(itemTipo, tipoFiltro) {
+  const filtro = String(tipoFiltro || 'todos').trim().toLowerCase();
+  if (!filtro || filtro === 'todos') return true;
+  const tipo = String(itemTipo || '').trim().toLowerCase();
+  if (filtro === 'solicitudes') return tipo === 'solicitud';
+  if (filtro === 'cotizaciones') return tipo === 'cotizacion';
+  if (filtro === 'equipos') return tipo === 'equipos';
+  return tipo === filtro;
+}
+
+function _archivoOrdenar(items) {
+  return (items || []).slice().sort(function(a, b) {
+    return String(b.FECHA_ARCHIVO || b.FECHA_ENTREGA || b.FECHA_ULTIMA_ACTUALIZACION || b.FECHA_COTIZACION || b.FECHA_SOLICITUD || '').localeCompare(String(a.FECHA_ARCHIVO || a.FECHA_ENTREGA || a.FECHA_ULTIMA_ACTUALIZACION || a.FECHA_COTIZACION || a.FECHA_SOLICITUD || ''));
+  });
+}
+
+function Service_listarArchivo(data) {
+  const input = data || {};
+  const p = parsePaginacion(input);
+  const tipo = String(input.tipo || 'todos').trim().toLowerCase();
+  const fechaDesde = parseFechaFiltro(input.from || input.fechaDesde || '');
+  const fechaHasta = parseFechaFiltro(input.to || input.fechaHasta || '');
+  const registros = [];
+
+  const solicitudesTable = Repository_readSolicitudesTable();
+  (solicitudesTable.rows || []).forEach(function(row) {
+    const item = mapearFila(solicitudesTable.headers || [], row);
+    if (String(item.ESTADO || '').trim().toLowerCase() !== 'archivado') return;
+    const registro = _archivoBuildSolicitudRecord(item);
+    if (!_archivoCumpleFiltro(registro.TIPO_ARCHIVO, tipo)) return;
+    const fecha = parseFechaFlexible(registro.FECHA_ARCHIVO || registro.FECHA_COTIZACION || registro.FECHA_SOLICITUD || '');
+    if ((fechaDesde || fechaHasta) && !cumpleRango(fecha, fechaDesde, fechaHasta)) return;
+    registros.push(registro);
+  });
+
+  const equiposTable = Repository_readEquiposTable();
+  (equiposTable.rows || []).forEach(function(row) {
+    const item = mapearFila(equiposTable.headers || [], row);
+    if (String(item.ESTADO || '').trim().toLowerCase() !== 'entregado') return;
+    const registro = _archivoBuildEquipoRecord(item);
+    if (!_archivoCumpleFiltro(registro.TIPO_ARCHIVO, tipo)) return;
+    const fecha = parseFechaFlexible(registro.FECHA_ARCHIVO || registro.FECHA_ENTREGA || registro.FECHA_ULTIMA_ACTUALIZACION || '');
+    if ((fechaDesde || fechaHasta) && !cumpleRango(fecha, fechaDesde, fechaHasta)) return;
+    registros.push(registro);
+  });
+
+  const ordenados = _archivoOrdenar(registros);
+  const paginada = paginarArreglo(ordenados, p.page, p.pageSize);
+
+  return jsonResponse({
+    archivo: paginada.data.map(function(item) {
+      return {
+        TIPO_ARCHIVO: item.TIPO_ARCHIVO,
+        FECHA_ARCHIVO: item.FECHA_ARCHIVO,
+        FOLIO: item.FOLIO,
+        CLIENTE: item.CLIENTE,
+        TELEFONO: item.TELEFONO,
+        DETALLE: item.DETALLE,
+        TOTAL: item.TOTAL,
+        ESTADO: item.ESTADO
+      };
+    }),
+    total: paginada.total,
+    page: paginada.page,
+    pageSize: paginada.pageSize,
+    hasMore: paginada.hasMore
+  });
+}
+
+function Service_getArchivoDetalle(data) {
+  const input = data || {};
+  let tipo = String(input.tipo || '').trim().toLowerCase();
+  const folio = String(input.folio || '').trim().toUpperCase();
+  if (!tipo) return jsonResponse({ error: 'Tipo requerido' });
+  if (!folio) return jsonResponse({ error: 'Folio requerido' });
+
+  if (tipo === 'solicitudes') tipo = 'solicitud';
+  if (tipo === 'cotizaciones') tipo = 'cotizacion';
+  if (tipo === 'equipos entregados') tipo = 'equipos';
+
+  if (tipo === 'equipos') {
+    const equipo = Repository_findEquipoByFolio(folio);
+    if (!equipo || String(equipo.ESTADO || '').trim().toLowerCase() !== 'entregado') {
+      return jsonResponse({ error: 'No encontrado' });
+    }
+    return jsonResponse({
+      registro: _archivoBuildEquipoRecord(normalizarEquipoForApi(equipo)),
+      raw: normalizarEquipoForApi(equipo),
+      reabrible: false
+    });
+  }
+
+  const solicitud = Repository_findSolicitudByFolio(folio);
+  if (!solicitud || String(solicitud.ESTADO || '').trim().toLowerCase() !== 'archivado') {
+    return jsonResponse({ error: 'No encontrada' });
+  }
+  const registro = _archivoBuildSolicitudRecord(solicitud);
+  return jsonResponse({
+    registro: registro,
+    raw: solicitud,
+    reabrible: true
+  });
+}
+
+function Service_reabrirArchivo(data) {
+  return withDocumentLock(function() {
+    const input = data || {};
+    let tipo = String(input.tipo || '').trim().toLowerCase();
+    const folio = String(input.folio || '').trim().toUpperCase();
+    if (!tipo) return jsonResponse({ error: 'Tipo requerido' });
+    if (!folio) return jsonResponse({ error: 'Folio requerido' });
+
+    if (tipo === 'solicitudes') tipo = 'solicitud';
+    if (tipo === 'cotizaciones') tipo = 'cotizacion';
+
+    const auth = Security_requireAdminPassword(input, 'Reabrir archivo');
+    if (!auth.ok) return jsonResponse({ error: auth.error });
+
+    if (tipo === 'equipos') {
+      return jsonResponse({ error: 'Los equipos entregados no se reabren desde archivo' });
+    }
+
+    const ok = Repository_updateSolicitudEstado(folio, 'pendiente');
+    if (!ok) return jsonResponse({ error: 'No encontrada' });
+    return jsonResponse({ success: true, folio: folio });
   }, 12000);
 }
 
@@ -439,6 +683,416 @@ function Service_eliminarProveedor(data) {
   }, 10000);
 }
 
+function _ordenCompraToNumber(value) {
+  const num = Number(value || 0);
+  return isFinite(num) ? num : 0;
+}
+
+function normalizarOrdenCompraForApi(raw) {
+  const obj = raw || {};
+  const folio = String(obj.FOLIO_OC || obj.folio || '').trim().toUpperCase();
+  const estado = String(obj.ESTADO || obj.estado || 'borrador').trim().toLowerCase() || 'borrador';
+  const subtotal = _ordenCompraToNumber(obj.SUBTOTAL || obj.subtotal);
+  const ivaPorcentaje = _ordenCompraToNumber(obj.IVA_PORCENTAJE || obj.ivaPorcentaje);
+  const ivaMonto = _ordenCompraToNumber(obj.IVA_MONTO || obj.ivaMonto);
+  const total = _ordenCompraToNumber(obj.TOTAL || obj.total || subtotal + ivaMonto);
+  return Object.assign({}, obj, {
+    ID: obj.ID,
+    FOLIO_OC: folio,
+    FECHA: formatearFechaYMDOrEmpty(obj.FECHA || obj.fecha),
+    PROVEEDOR: String(obj.PROVEEDOR || obj.proveedor || '').trim(),
+    ESTADO: estado,
+    REFERENCIA: String(obj.REFERENCIA || obj.referencia || '').trim(),
+    CONDICIONES_PAGO: String(obj.CONDICIONES_PAGO || obj.condicionesPago || '').trim(),
+    FECHA_ESTIMADA: formatearFechaYMDOrEmpty(obj.FECHA_ESTIMADA || obj.fechaEstimada),
+    FOLIO_RELACIONADO: String(obj.FOLIO_RELACIONADO || obj.folioRelacionado || '').trim().toUpperCase(),
+    NOTAS: String(obj.NOTAS || obj.notas || '').trim(),
+    SUBTOTAL: subtotal,
+    IVA_PORCENTAJE: ivaPorcentaje,
+    IVA_MONTO: ivaMonto,
+    TOTAL: total,
+    SUCURSAL_ID: normalizarSucursalId(obj.SUCURSAL_ID || obj.sucursalId || 'GLOBAL'),
+    FECHA_CREACION: formatearFechaYMDOrEmpty(obj.FECHA_CREACION || obj.fechaCreacion),
+    FECHA_ACTUALIZACION: formatearFechaYMDOrEmpty(obj.FECHA_ACTUALIZACION || obj.fechaActualizacion),
+    folio: folio,
+    estado: estado,
+    proveedor: String(obj.PROVEEDOR || obj.proveedor || '').trim(),
+    referencia: String(obj.REFERENCIA || obj.referencia || '').trim(),
+    condicionesPago: String(obj.CONDICIONES_PAGO || obj.condicionesPago || '').trim(),
+    fechaEstimada: formatearFechaYMDOrEmpty(obj.FECHA_ESTIMADA || obj.fechaEstimada),
+    folioRelacionado: String(obj.FOLIO_RELACIONADO || obj.folioRelacionado || '').trim().toUpperCase(),
+    notas: String(obj.NOTAS || obj.notas || '').trim(),
+    subtotal: subtotal,
+    ivaPorcentaje: ivaPorcentaje,
+    ivaMonto: ivaMonto,
+    total: total,
+    sucursalId: normalizarSucursalId(obj.SUCURSAL_ID || obj.sucursalId || 'GLOBAL')
+  });
+}
+
+function normalizarOrdenCompraItemForApi(raw) {
+  const obj = raw || {};
+  const cantidadPedida = _ordenCompraToNumber(obj.CANTIDAD_PEDIDA || obj.cantidadPedida);
+  const costoUnitario = _ordenCompraToNumber(obj.COSTO_UNITARIO || obj.costoUnitario);
+  const cantidadRecibida = _ordenCompraToNumber(obj.CANTIDAD_RECIBIDA || obj.cantidadRecibida);
+  const subtotal = _ordenCompraToNumber(obj.SUBTOTAL || (cantidadPedida * costoUnitario));
+  return Object.assign({}, obj, {
+    ID: obj.ID,
+    FOLIO_OC: String(obj.FOLIO_OC || obj.folio || '').trim().toUpperCase(),
+    ITEM_ID: _ordenCompraToNumber(obj.ITEM_ID || obj.itemId),
+    SKU: String(obj.SKU || obj.sku || '').trim().toUpperCase(),
+    PRODUCTO: String(obj.PRODUCTO || obj.producto || '').trim(),
+    CANTIDAD_PEDIDA: cantidadPedida,
+    COSTO_UNITARIO: costoUnitario,
+    CANTIDAD_RECIBIDA: cantidadRecibida,
+    SUBTOTAL: subtotal,
+    FECHA_CREACION: formatearFechaYMDOrEmpty(obj.FECHA_CREACION || obj.fechaCreacion),
+    FECHA_ACTUALIZACION: formatearFechaYMDOrEmpty(obj.FECHA_ACTUALIZACION || obj.fechaActualizacion),
+    folio: String(obj.FOLIO_OC || obj.folio || '').trim().toUpperCase(),
+    itemId: _ordenCompraToNumber(obj.ITEM_ID || obj.itemId),
+    sku: String(obj.SKU || obj.sku || '').trim().toUpperCase(),
+    producto: String(obj.PRODUCTO || obj.producto || '').trim(),
+    cantidadPedida: cantidadPedida,
+    costoUnitario: costoUnitario,
+    cantidadRecibida: cantidadRecibida,
+    subtotal: subtotal
+  });
+}
+
+function _siguienteFolioOrdenCompra(table) {
+  const rows = (table && table.rows) || [];
+  const maxNum = rows.reduce(function(max, row) {
+    const folio = String(row.FOLIO_OC || row.folio || row[1] || '').trim().toUpperCase();
+    const match = folio.match(/^OC-(\d+)$/);
+    const num = match ? Number(match[1]) : 0;
+    return num > max ? num : max;
+  }, 0);
+  return 'OC-' + String(maxNum + 1).padStart(5, '0');
+}
+
+function _uniqueStrings(values) {
+  return (values || []).map(function(v) { return String(v || '').trim(); }).filter(Boolean).filter(function(v, i, arr) { return arr.indexOf(v) === i; }).sort();
+}
+
+function Service_listarNombresProveedores() {
+  const table = Repository_readProveedoresTable();
+  const nombres = _uniqueStrings((table.rows || []).map(function(row) {
+    const prov = mapearFila(table.headers || [], row);
+    return prov.NOMBRE_COMERCIAL || prov.RAZON_SOCIAL || prov.CONTACTO || '';
+  }));
+  return jsonResponse({ proveedores: nombres.map(function(nombre) { return { nombre: nombre }; }) });
+}
+
+function Service_listarFoliosRelacion() {
+  const equiposTable = Repository_readEquiposTable();
+  const solicitudesTable = Repository_readSolicitudesTable ? Repository_readSolicitudesTable() : { headers: [], rows: [] };
+  const foliosEquipos = (equiposTable.rows || []).map(function(row) {
+    const item = mapearFila(equiposTable.headers || [], row);
+    return item.FOLIO || item.FOLIO_EQUIPO || '';
+  });
+  const foliosSolicitudes = (solicitudesTable.rows || []).map(function(row) {
+    const item = mapearFila(solicitudesTable.headers || [], row);
+    return item.FOLIO_COTIZACION || '';
+  });
+  const folios = _uniqueStrings([].concat(foliosEquipos, foliosSolicitudes));
+  return jsonResponse({ folios: folios.map(function(folio) { return { folio: folio }; }) });
+}
+
+function Service_listarOrdenesCompra(data) {
+  const input = data || {};
+  const p = parsePaginacion(input);
+  const texto = String(input.texto || '').trim().toLowerCase();
+  const estado = String(input.estado || '').trim().toLowerCase();
+  const proveedor = String(input.proveedor || '').trim().toLowerCase();
+  const sucursalId = normalizarSucursalId(input.sucursalId || 'GLOBAL');
+  const hasFilters = !!(texto || estado || proveedor || sucursalId !== 'GLOBAL');
+
+  const table = hasFilters ? Repository_readOrdenesCompraTable() : Repository_readPage('OrdenesCompra', p.page, p.pageSize);
+  const headers = table.headers || [];
+  const rows = table.rows || [];
+  if (!headers.length || !rows.length) {
+    return jsonResponse({ ordenes: [], total: 0, page: p.page, pageSize: p.pageSize, hasMore: false, proveedores: [] });
+  }
+
+  const items = rows.map(function(row) {
+    return normalizarOrdenCompraForApi(mapearFila(headers, row));
+  }).filter(function(orden) {
+    if (estado && String(orden.ESTADO || '').toLowerCase() !== estado) return false;
+    if (proveedor && String(orden.PROVEEDOR || '').toLowerCase() !== proveedor) return false;
+    if (sucursalId !== 'GLOBAL' && normalizarSucursalId(orden.SUCURSAL_ID || '') !== sucursalId) return false;
+    if (texto) {
+      const hay = [orden.FOLIO_OC, orden.PROVEEDOR, orden.REFERENCIA, orden.FOLIO_RELACIONADO, orden.NOTAS]
+        .some(function(v) { return String(v || '').toLowerCase().indexOf(texto) >= 0; });
+      if (!hay) return false;
+    }
+    return true;
+  }).sort(function(a, b) {
+    return String(b.FECHA_ACTUALIZACION || b.FECHA_CREACION || '').localeCompare(String(a.FECHA_ACTUALIZACION || a.FECHA_CREACION || ''));
+  });
+
+  const paginada = hasFilters ? paginarArreglo(items, p.page, p.pageSize) : {
+    data: items,
+    total: table.total,
+    page: table.page,
+    pageSize: table.pageSize,
+    hasMore: table.hasMore
+  };
+
+  const proveedores = _uniqueStrings((Repository_readProveedoresTable().rows || []).map(function(row) {
+    const prov = mapearFila(Repository_readProveedoresTable().headers || [], row);
+    return prov.NOMBRE_COMERCIAL || prov.RAZON_SOCIAL || prov.CONTACTO || '';
+  }));
+
+  return jsonResponse({
+    ordenes: paginada.data,
+    total: paginada.total,
+    page: paginada.page,
+    pageSize: paginada.pageSize,
+    hasMore: paginada.hasMore,
+    proveedores: proveedores.map(function(nombre) { return { nombre: nombre }; })
+  });
+}
+
+function Service_listarCompras(data) {
+  return Service_listarOrdenesCompra(data || {});
+}
+
+function Service_getOrdenCompraByFolio(folio) {
+  const target = String(folio || '').trim().toUpperCase();
+  if (!target) return jsonResponse({ error: 'folio requerido' });
+  const orden = Repository_findOrdenCompraByFolio(target);
+  if (!orden) return jsonResponse({ error: 'Orden no encontrada' });
+  const items = Repository_readOrdenCompraItemsByFolio(target).map(normalizarOrdenCompraItemForApi);
+  return jsonResponse({ orden: normalizarOrdenCompraForApi(orden), items: items });
+}
+
+function Service_guardarOrdenCompra(data) {
+  return withDocumentLock(function() {
+    const input = data || {};
+    const table = Repository_readOrdenesCompraTable();
+    const now = new Date().toISOString();
+    const folio = String(input.folio || '').trim().toUpperCase() || _siguienteFolioOrdenCompra(table);
+    const existing = Repository_findOrdenCompraByFolio(folio);
+    const headers = table.headers || [];
+    const existingRows = table.rows || [];
+    const idxFolio = headers.indexOf('FOLIO_OC');
+    const rowIndex = existing ? existingRows.findIndex(function(r) {
+      return idxFolio >= 0 && String(r[idxFolio] || '').trim().toUpperCase() === folio;
+    }) : -1;
+    const itemsInput = Array.isArray(input.items) ? input.items : [];
+    const normalizedItems = itemsInput.map(function(item, index) {
+      const qty = _ordenCompraToNumber(item && (item.cantidadPedida !== undefined ? item.cantidadPedida : item.CANTIDAD_PEDIDA));
+      const cost = _ordenCompraToNumber(item && (item.costoUnitario !== undefined ? item.costoUnitario : item.COSTO_UNITARIO));
+      const received = _ordenCompraToNumber(item && (item.cantidadRecibida !== undefined ? item.cantidadRecibida : item.CANTIDAD_RECIBIDA));
+      return {
+        ID: existing ? (item && item.ID ? item.ID : index + 1) : index + 1,
+        FOLIO_OC: folio,
+        ITEM_ID: item && item.itemId ? Number(item.itemId) : index + 1,
+        SKU: String(item && (item.sku !== undefined ? item.sku : item.SKU) || '').trim().toUpperCase(),
+        PRODUCTO: String(item && (item.producto !== undefined ? item.producto : item.PRODUCTO) || '').trim(),
+        CANTIDAD_PEDIDA: qty,
+        COSTO_UNITARIO: cost,
+        CANTIDAD_RECIBIDA: received,
+        SUBTOTAL: _ordenCompraToNumber(qty * cost),
+        FECHA_CREACION: now,
+        FECHA_ACTUALIZACION: now
+      };
+    });
+    const subtotal = _ordenCompraToNumber(input.subtotal || normalizedItems.reduce(function(acc, item) { return acc + _ordenCompraToNumber(item.SUBTOTAL); }, 0));
+    const ivaPorcentaje = _ordenCompraToNumber(input.ivaPorcentaje || 0);
+    const ivaMonto = _ordenCompraToNumber(input.ivaMonto || (subtotal * (ivaPorcentaje / 100)));
+    const total = _ordenCompraToNumber(input.total || (subtotal + ivaMonto));
+    const payload = {
+      ID: existing && existing.ID ? existing.ID : (rowIndex >= 0 ? Number((existingRows[rowIndex] || [])[0] || 0) : (existingRows.length + 1)),
+      FOLIO_OC: folio,
+      FECHA: formatearFechaYMDOrEmpty(input.fecha || now),
+      PROVEEDOR: String(input.proveedor || '').trim(),
+      ESTADO: String(input.estado || 'borrador').trim().toLowerCase() || 'borrador',
+      REFERENCIA: String(input.referencia || '').trim(),
+      CONDICIONES_PAGO: String(input.condicionesPago || '').trim(),
+      FECHA_ESTIMADA: formatearFechaYMDOrEmpty(input.fechaEstimada || ''),
+      FOLIO_RELACIONADO: String(input.folioRelacionado || '').trim().toUpperCase(),
+      NOTAS: String(input.notas || '').trim(),
+      SUBTOTAL: subtotal,
+      IVA_PORCENTAJE: ivaPorcentaje,
+      IVA_MONTO: ivaMonto,
+      TOTAL: total,
+      SUCURSAL_ID: normalizarSucursalId(input.sucursalId || 'GLOBAL'),
+      FECHA_CREACION: existing && existing.FECHA_CREACION ? existing.FECHA_CREACION : now,
+      FECHA_ACTUALIZACION: now
+    };
+    const rowValues = headers.length ? headers.map(function(header) {
+      return payload[header] !== undefined ? payload[header] : (payload[String(header || '').toUpperCase()] !== undefined ? payload[String(header || '').toUpperCase()] : '');
+    }) : [];
+    if (existing && rowIndex >= 0) {
+      const row = (existingRows[rowIndex] || []).slice();
+      headers.forEach(function(header, i) {
+        const key = String(header || '').trim();
+        if (payload[key] !== undefined) row[i] = payload[key];
+      });
+      Repository_updateOrdenCompraByFolio(folio, row);
+    } else {
+      Repository_appendOrdenCompra(headers.length ? rowValues : [
+        payload.ID,
+        payload.FOLIO_OC,
+        payload.FECHA,
+        payload.PROVEEDOR,
+        payload.ESTADO,
+        payload.REFERENCIA,
+        payload.CONDICIONES_PAGO,
+        payload.FECHA_ESTIMADA,
+        payload.FOLIO_RELACIONADO,
+        payload.NOTAS,
+        payload.SUBTOTAL,
+        payload.IVA_PORCENTAJE,
+        payload.IVA_MONTO,
+        payload.TOTAL,
+        payload.SUCURSAL_ID,
+        payload.FECHA_CREACION,
+        payload.FECHA_ACTUALIZACION
+      ]);
+    }
+
+    const itemsTable = Repository_readOrdenesCompraItemsTable();
+    const itemHeaders = itemsTable.headers || [];
+    const existingItems = itemsTable.rows || [];
+    const idxItemFolio = itemHeaders.indexOf('FOLIO_OC');
+    const deleteIndexes = [];
+    existingItems.forEach(function(row, i) {
+      if (idxItemFolio >= 0 && String(row[idxItemFolio] || '').trim().toUpperCase() === folio) {
+        deleteIndexes.push(i + 1);
+      }
+    });
+    if (deleteIndexes.length) {
+      const hojaItems = Repository_getOrdenesCompraItemsSheet();
+      deleteIndexes.sort(function(a, b) { return b - a; }).forEach(function(rowIndexToDelete) {
+        withRetry(function() {
+          hojaItems.deleteRow(rowIndexToDelete);
+          return true;
+        }, 'Service_guardarOrdenCompra.deleteItems');
+      });
+    }
+    normalizedItems.forEach(function(item) {
+      Repository_appendOrdenCompraItem([
+        item.ID,
+        item.FOLIO_OC,
+        item.ITEM_ID,
+        item.SKU,
+        item.PRODUCTO,
+        item.CANTIDAD_PEDIDA,
+        item.COSTO_UNITARIO,
+        item.CANTIDAD_RECIBIDA,
+        item.SUBTOTAL,
+        item.FECHA_CREACION,
+        item.FECHA_ACTUALIZACION
+      ]);
+    });
+
+    return jsonResponse({ success: true, folio: folio, orden: normalizarOrdenCompraForApi(Object.assign({}, payload, { ID: payload.ID })) });
+  }, 10000);
+}
+
+function Service_cambiarEstadoOrdenCompra(data) {
+  return withDocumentLock(function() {
+    const folio = String(data && data.folio || '').trim().toUpperCase();
+    const estado = String(data && data.estado || '').trim().toLowerCase();
+    if (!folio) return jsonResponse({ error: 'folio requerido' });
+    if (!estado) return jsonResponse({ error: 'estado requerido' });
+    const table = Repository_readOrdenesCompraTable();
+    const headers = table.headers || [];
+    const row = Repository_findOrdenCompraByFolio(folio);
+    if (!row) return jsonResponse({ error: 'Orden no encontrada' });
+    const next = Object.assign({}, row, { ESTADO: estado, FECHA_ACTUALIZACION: new Date().toISOString() });
+    const rowValues = headers.map(function(header) {
+      return next[header] !== undefined ? next[header] : '';
+    });
+    const ok = Repository_updateOrdenCompraByFolio(folio, rowValues);
+    if (!ok) return jsonResponse({ error: 'Orden no encontrada' });
+    return jsonResponse({ success: true, folio: folio, estado: estado });
+  }, 10000);
+}
+
+function Service_recibirOrdenCompra(data) {
+  return withDocumentLock(function() {
+    const folio = String(data && data.folio || '').trim().toUpperCase();
+    const usuario = String(data && data.usuario || '').trim();
+    const itemsInput = Array.isArray(data && data.items) ? data.items : [];
+    if (!folio) return jsonResponse({ error: 'folio requerido' });
+    if (!itemsInput.length) return jsonResponse({ error: 'items requeridos' });
+
+    const order = Repository_findOrdenCompraByFolio(folio);
+    if (!order) return jsonResponse({ error: 'Orden no encontrada' });
+
+    const orderItems = Repository_readOrdenCompraItemsByFolio(folio);
+    if (!orderItems.length) return jsonResponse({ error: 'La orden no tiene items' });
+    const itemMap = {};
+    orderItems.forEach(function(item) {
+      itemMap[String(item.ITEM_ID || '').trim()] = item;
+    });
+
+    let anyPartial = false;
+    let allComplete = true;
+    const now = new Date().toISOString();
+    const updatedItems = orderItems.map(function(item) {
+      const receivedDelta = (itemsInput.find(function(inputItem) {
+        return Number(inputItem && inputItem.itemId) === Number(item.ITEM_ID || 0);
+      }) || {}).cantidadRecibida;
+      const delta = _ordenCompraToNumber(receivedDelta);
+      const nextReceived = _ordenCompraToNumber(item.CANTIDAD_RECIBIDA) + delta;
+      if (delta > 0 && nextReceived < _ordenCompraToNumber(item.CANTIDAD_PEDIDA)) anyPartial = true;
+      if (nextReceived < _ordenCompraToNumber(item.CANTIDAD_PEDIDA)) allComplete = false;
+
+      if (delta > 0 && item.SKU) {
+        const producto = Repository_findProductoBySku(item.SKU);
+        if (producto) {
+          const table = Repository_readProductosTable();
+          const headers = table.headers || [];
+          const rows = table.rows || [];
+          const idxSku = headers.indexOf('SKU');
+          const idxStock = headers.indexOf('STOCK_ACTUAL');
+          const rowIndex = rows.findIndex(function(row) {
+            return String(row[idxSku] || '').trim().toUpperCase() === String(item.SKU || '').trim().toUpperCase();
+          });
+          if (rowIndex >= 0 && idxStock >= 0) {
+            const row = rows[rowIndex].slice();
+            row[idxStock] = _ordenCompraToNumber(row[idxStock]) + delta;
+            const idxActualizacion = headers.indexOf('FECHA_ACTUALIZACION');
+            if (idxActualizacion >= 0) row[idxActualizacion] = now;
+            Repository_updateProductoBySku(String(item.SKU || '').trim().toUpperCase(), row);
+          }
+        }
+      }
+
+      return Object.assign({}, item, {
+        CANTIDAD_RECIBIDA: nextReceived,
+        FECHA_ACTUALIZACION: now
+      });
+    });
+
+    const status = allComplete ? 'recibida' : (anyPartial ? 'parcialmente_recibida' : String(order.ESTADO || 'borrador').toLowerCase());
+    const orderTable = Repository_readOrdenesCompraTable();
+    const headers = orderTable.headers || [];
+    const nextOrder = Object.assign({}, order, { ESTADO: status, FECHA_ACTUALIZACION: now });
+    const orderRowValues = headers.map(function(header) {
+      return nextOrder[header] !== undefined ? nextOrder[header] : '';
+    });
+    const ok = Repository_updateOrdenCompraByFolio(folio, orderRowValues);
+    if (!ok) return jsonResponse({ error: 'Orden no encontrada' });
+
+    const itemsTable = Repository_readOrdenesCompraItemsTable();
+    const itemHeaders = itemsTable.headers || [];
+    const rowsByFolio = [];
+    updatedItems.forEach(function(item) {
+      rowsByFolio.push(itemHeaders.map(function(header) {
+        return item[header] !== undefined ? item[header] : '';
+      }));
+    });
+    Repository_replaceOrdenCompraItemsByFolio(folio, rowsByFolio);
+
+    return jsonResponse({ success: true, folio: folio, estado: status, usuario: usuario });
+  }, 10000);
+}
+
 function Service_guardarProducto(data) {
   try {
     return withDocumentLock(function() {
@@ -451,6 +1105,8 @@ function Service_guardarProducto(data) {
       const rows = table.rows || [];
       const idxSku = headers.indexOf('SKU');
       if (idxSku < 0) throw new Error('Estructura de Productos inválida');
+      const idxCosto = headers.indexOf('COSTO');
+      const idxPrecio = headers.indexOf('PRECIO');
 
       const existingIndex = rows.findIndex(function(r) {
         return String(r[idxSku] || '').trim().toUpperCase() === skuOriginal;
@@ -459,6 +1115,18 @@ function Service_guardarProducto(data) {
         ? rows.findIndex(function(r) { return String(r[idxSku] || '').trim().toUpperCase() === payload.sku; })
         : -1;
       if (duplicateIndex >= 0) throw new Error('Ya existe un producto con ese SKU');
+
+      const costoNuevo = Number(payload.costo || 0);
+      const precioNuevo = Number(payload.precio || 0);
+      const costoActual = existingIndex >= 0 && idxCosto >= 0 ? Number(rows[existingIndex][idxCosto] || 0) : 0;
+      const precioActual = existingIndex >= 0 && idxPrecio >= 0 ? Number(rows[existingIndex][idxPrecio] || 0) : 0;
+      const requiereAuth = existingIndex >= 0
+        ? (costoNuevo !== costoActual || precioNuevo !== precioActual)
+        : (costoNuevo > 0 || precioNuevo > 0);
+      if (requiereAuth) {
+        const auth = Security_requireAdminPassword(input, 'Guardar producto con valor monetario');
+        if (!auth.ok) return jsonResponse({ error: auth.error });
+      }
 
       const ss = Core_getSpreadsheet();
       asegurarEstructuraMultisucursal(ss);
@@ -648,6 +1316,8 @@ function Service_obtenerAlertasStock(data) {
 
 function Service_guardarGasto(data) {
   return withDocumentLock(function() {
+    const auth = Security_requireAdminPassword(data || {}, 'Guardar gasto');
+    if (!auth.ok) return jsonResponse({ error: auth.error });
     const payload = normalizarGastoPayload(data || {}, !!(data && data.id));
     const table = Repository_readGastosTable();
     const headers = table.headers || [];

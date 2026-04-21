@@ -1,214 +1,303 @@
-        const CONFIG = {
-            BACKEND_URL: (window.SRFIX_BACKEND_URL || localStorage.getItem('srfix_backend_url') || 'https://script.google.com/macros/s/AKfycbw49B0GeqyZ2Yr0a-IZNqUhrhUBH0yldSO274EDHBU9gT5SPrXSs2ixIhwD5BRmg-6W/exec'),
-            TIENDA_WHATSAPP: '528117006536',
-            TIENDA_MAPS: 'https://maps.app.goo.gl/WfZYxbunp9XhXHgr5',
-            LOGO_URL: './logo.webp',
-            SUGGESTIONS_KEY: 'srfix_folios_historial'
-        };
-
-        function formatDateYMD(valor) {
-            if (!valor) return '---';
-            const raw = String(valor).trim();
-            if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-            const d = new Date(raw);
-            if (Number.isNaN(d.getTime())) return raw;
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+"use strict";
+;
+(function () {
+    const globalWindow = window;
+    const CONFIG = {
+        BACKEND_URL: String(window.SRFIX_BACKEND_URL || globalWindow.CONFIG?.API_URL || localStorage.getItem('srfix_backend_url') || '').trim(),
+        TIENDA_WHATSAPP: '528117006536',
+        TIENDA_MAPS: 'https://maps.app.goo.gl/WfZYxbunp9XhXHgr5',
+        LOGO_URL: './logo.webp',
+        SUGGESTIONS_KEY: 'srfix_folios_historial'
+    };
+    const portalWindow = window;
+    function formatDateYMD(valor) {
+        if (!valor)
+            return '---';
+        const raw = String(valor).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(raw))
+            return raw;
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime()))
+            return raw;
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+    function requireElement(id) {
+        const el = document.getElementById(id);
+        if (!el) {
+            throw new Error(`Elemento no encontrado: ${id}`);
         }
-
-        (function() {
-            document.getElementById('fecha-header').textContent = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            actualizarSugerenciasFolios();
-            const folioParam = new URLSearchParams(window.location.search).get('folio');
-            if (folioParam) {
-                document.getElementById('folio-input').value = String(folioParam).toUpperCase();
-                buscar();
-            }
-        })();
-
-        async function buscar() {
-            const folio = document.getElementById('folio-input').value.trim().toUpperCase();
-            if (!folio) return;
-
-            const btn = document.getElementById('btn-buscar');
-            btn.disabled = true;
-            btn.innerHTML = '<div class="loading-spinner w-6 h-6"></div> Consultando...';
-            ocultarError();
-
-            try {
-                const res = await fetch(`${CONFIG.BACKEND_URL}?action=equipo&folio=${encodeURIComponent(folio)}&t=${Date.now()}`);
-                const data = await res.json();
-                if (data.error) throw new Error('No encontrado');
-                mostrarResultado(data.equipo);
-                agregarFolioHistorial(folio);
-                mostrarToast('Equipo encontrado', 'success');
-            } catch (e) {
-                mostrarError('Folio no encontrado. Verifica e intenta de nuevo.');
-                mostrarToast('Error en la consulta', 'error');
-            } finally {
-                btn.innerHTML = '<i class="fa-solid fa-circle-arrow-right"></i> Consultar';
-                btn.disabled = false;
-            }
+        return el;
+    }
+    function showEl(id, visible) {
+        const el = document.getElementById(id);
+        if (!el)
+            return;
+        el.classList.toggle('hidden', !visible);
+    }
+    function setText(id, value) {
+        const el = document.getElementById(id);
+        if (!el)
+            return;
+        el.textContent = String(value ?? '---');
+    }
+    function getHistorialFolios() {
+        try {
+            const raw = localStorage.getItem(CONFIG.SUGGESTIONS_KEY);
+            const arr = JSON.parse(raw || '[]');
+            if (!Array.isArray(arr))
+                return [];
+            return arr.map((v) => String(v || '').trim().toUpperCase()).filter(Boolean);
         }
-
-        function mostrarResultado(eq) {
-            document.getElementById('buscador').classList.add('hidden');
-            document.getElementById('resultado').classList.remove('hidden');
-
-            document.getElementById('res-folio').textContent = eq.FOLIO;
-            document.getElementById('res-equipo').textContent = eq.DISPOSITIVO || '---';
-            document.getElementById('res-modelo').textContent = eq.MODELO || '---';
-            document.getElementById('res-falla').textContent = eq.FALLA_REPORTADA || 'No especificada';
-            document.getElementById('res-fecha').textContent = eq.FECHA_PROMESA || 'Por definir';
-            document.getElementById('res-ingreso').textContent = formatDateYMD(eq.FECHA_INGRESO);
-            document.getElementById('res-actualizacion').textContent = formatDateYMD(new Date().toISOString());
-            document.getElementById('res-seguimiento').textContent = eq.SEGUIMIENTO_CLIENTE || 'Sin avances registrados por el momento.';
-            renderizarFotosSeguimiento(eq.SEGUIMIENTO_FOTOS);
-
-            let diasTexto = '---';
-            if (eq.diasRestantes !== undefined) {
-                diasTexto = eq.diasRestantes + ' días';
-                if (eq.diasRestantes < 0) diasTexto = '⚠️ Vencido';
-                else if (eq.diasRestantes === 0) diasTexto = '¡Hoy!';
-            }
-            document.getElementById('res-dias').textContent = diasTexto;
-
-            const estado = eq.ESTADO || 'Recibido';
-            const badge = document.getElementById('estado-badge');
-            badge.textContent = estado;
-            badge.className = `status-badge status-${estado.replace(/ /g, '')}`;
-
-            const mensaje = `Hola, soy el cliente del folio ${eq.FOLIO}. ¿Podrían darme información sobre mi equipo?`;
-            document.getElementById('wa-link').href = `https://wa.me/${CONFIG.TIENDA_WHATSAPP}?text=${encodeURIComponent(mensaje)}`;
-
-            if (eq.YOUTUBE_ID) {
-                document.getElementById('live-cam').classList.remove('hidden');
-                document.getElementById('yt-player').src = `https://www.youtube.com/embed/${eq.YOUTUBE_ID}?autoplay=1&mute=1&rel=0`;
-            } else {
-                document.getElementById('live-cam').classList.add('hidden');
-            }
-        }
-
-        function volver() {
-            document.getElementById('resultado').classList.add('hidden');
-            document.getElementById('buscador').classList.remove('hidden');
-            document.getElementById('folio-input').value = '';
-            ocultarError();
-        }
-
-        function imprimirDetalle() { window.print(); }
-        function mostrarError(mensaje) { document.getElementById('error').textContent = mensaje; document.getElementById('error').classList.remove('hidden'); }
-        function ocultarError() { document.getElementById('error').classList.add('hidden'); }
-
-        function parseSeguimientoFotos(raw) {
-            if (!raw) return [];
-            if (Array.isArray(raw)) return raw.filter(v => typeof v === 'string' && (v.startsWith('data:image/') || /^https?:\/\//.test(v)));
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) {
-                    return parsed.filter(v => typeof v === 'string' && (v.startsWith('data:image/') || /^https?:\/\//.test(v)));
-                }
-            } catch (e) {}
+        catch {
             return [];
         }
-
-        function renderizarFotosSeguimiento(raw) {
-            const fotos = parseSeguimientoFotos(raw);
-            const card = document.getElementById('seguimiento-fotos-card');
-            const cont = document.getElementById('res-seguimiento-fotos');
-            cont.innerHTML = '';
-
-            if (!fotos.length) {
-                card.classList.add('hidden');
-                return;
-            }
-
-            fotos.forEach((src, idx) => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'block rounded-lg overflow-hidden border border-[#1F7EDC] hover:opacity-90 transition';
-                btn.dataset.src = src;
-                btn.dataset.caption = `Avance ${idx + 1}`;
-                btn.innerHTML = `<img src="${src}" alt="Avance ${idx + 1}" class="w-full h-28 object-cover">`;
-                cont.appendChild(btn);
-            });
-
-            card.classList.remove('hidden');
-        }
-
-        function getHistorialFolios() {
+    }
+    function setHistorialFolios(arr) {
+        localStorage.setItem(CONFIG.SUGGESTIONS_KEY, JSON.stringify(arr.slice(0, 20)));
+    }
+    function actualizarSugerenciasFolios() {
+        const datalist = document.getElementById('folio-sugerencias');
+        if (!datalist)
+            return;
+        const folios = getHistorialFolios();
+        datalist.innerHTML = folios.map((folio) => `<option value="${escapeHtml(folio)}"></option>`).join('');
+    }
+    function agregarFolioHistorial(folio) {
+        const clean = String(folio || '').trim().toUpperCase();
+        if (!clean)
+            return;
+        const actuales = getHistorialFolios().filter((x) => x !== clean);
+        actuales.unshift(clean);
+        setHistorialFolios(actuales);
+        actualizarSugerenciasFolios();
+    }
+    function parseSeguimientoFotos(raw) {
+        if (!raw)
+            return [];
+        const isValid = (v) => typeof v === 'string' && (v.startsWith('data:image/') || /^https?:\/\//.test(v));
+        if (Array.isArray(raw))
+            return raw.filter(isValid);
+        if (typeof raw === 'string') {
             try {
-                const raw = localStorage.getItem(CONFIG.SUGGESTIONS_KEY);
-                const arr = JSON.parse(raw || '[]');
-                if (!Array.isArray(arr)) return [];
-                return arr.map(v => String(v || '').trim().toUpperCase()).filter(Boolean);
-            } catch (e) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed))
+                    return parsed.filter(isValid);
+            }
+            catch {
                 return [];
             }
         }
-
-        function setHistorialFolios(arr) {
-            localStorage.setItem(CONFIG.SUGGESTIONS_KEY, JSON.stringify(arr.slice(0, 20)));
+        return [];
+    }
+    function renderizarFotosSeguimiento(raw) {
+        const fotos = parseSeguimientoFotos(raw);
+        const card = requireElement('seguimiento-fotos-card');
+        const cont = requireElement('res-seguimiento-fotos');
+        cont.innerHTML = '';
+        if (!fotos.length) {
+            card.classList.add('hidden');
+            return;
         }
-
-        function agregarFolioHistorial(folio) {
-            const clean = String(folio || '').trim().toUpperCase();
-            if (!clean) return;
-            const actuales = getHistorialFolios().filter(x => x !== clean);
-            actuales.unshift(clean);
-            setHistorialFolios(actuales);
-            actualizarSugerenciasFolios();
-        }
-
-        function actualizarSugerenciasFolios() {
-            const datalist = document.getElementById('folio-sugerencias');
-            if (!datalist) return;
-            const folios = getHistorialFolios();
-            datalist.innerHTML = folios.map(f => `<option value="${f}"></option>`).join('');
-        }
-
-        function abrirLightbox(src, caption) {
-            const lb = document.getElementById('lightbox');
-            const img = document.getElementById('lightbox-img');
-            const cap = document.getElementById('lightbox-caption');
-            img.src = src;
-            cap.textContent = caption || '';
-            lb.classList.remove('hidden');
-        }
-
-        function cerrarLightbox() {
-            const lb = document.getElementById('lightbox');
-            const img = document.getElementById('lightbox-img');
-            lb.classList.add('hidden');
-            img.removeAttribute('src');
-        }
-
-        function mostrarToast(mensaje, tipo = 'success') {
-            const toast = document.getElementById('toast');
-            document.getElementById('toast-message').textContent = mensaje;
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            toast.classList.add('translate-y-0', 'opacity-100');
-            if (tipo === 'error') toast.style.borderLeftColor = '#ef4444';
-            else toast.style.borderLeftColor = '#FF6A2A';
-            setTimeout(() => {
-                toast.classList.add('translate-y-20', 'opacity-0');
-                toast.classList.remove('translate-y-0', 'opacity-100');
-            }, 3000);
-        }
-
-        document.getElementById('folio-input').addEventListener('input', (e) => {
-            e.target.value = String(e.target.value || '').toUpperCase();
+        fotos.forEach((src, idx) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'block rounded-lg overflow-hidden border border-[#1F7EDC] hover:opacity-90 transition';
+            btn.dataset.src = src;
+            btn.dataset.caption = `Avance ${idx + 1}`;
+            btn.innerHTML = `<img src="${src}" alt="Avance ${idx + 1}" class="w-full h-28 object-cover">`;
+            cont.appendChild(btn);
         });
-
-        document.getElementById('res-seguimiento-fotos').addEventListener('click', (e) => {
-            const btn = e.target.closest('button[data-src]');
-            if (!btn) return;
-            abrirLightbox(btn.dataset.src, btn.dataset.caption || '');
+        card.classList.remove('hidden');
+    }
+    function abrirLightbox(src, caption) {
+        const lb = requireElement('lightbox');
+        const img = requireElement('lightbox-img');
+        const cap = requireElement('lightbox-caption');
+        img.src = src;
+        cap.textContent = caption || '';
+        lb.classList.remove('hidden');
+    }
+    function cerrarLightbox() {
+        const lb = requireElement('lightbox');
+        const img = requireElement('lightbox-img');
+        lb.classList.add('hidden');
+        img.removeAttribute('src');
+    }
+    function mostrarToast(mensaje, tipo = 'success') {
+        const toast = requireElement('toast');
+        const message = requireElement('toast-message');
+        message.textContent = mensaje;
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        toast.classList.add('translate-y-0', 'opacity-100');
+        toast.style.borderLeftColor = tipo === 'error' ? '#ef4444' : '#FF6A2A';
+        window.setTimeout(() => {
+            toast.classList.add('translate-y-20', 'opacity-0');
+            toast.classList.remove('translate-y-0', 'opacity-100');
+        }, 3000);
+    }
+    function mostrarError(mensaje) {
+        const el = requireElement('error');
+        el.textContent = mensaje;
+        el.classList.remove('hidden');
+    }
+    function ocultarError() {
+        requireElement('error').classList.add('hidden');
+    }
+    function mostrarResultado(eq) {
+        requireElement('buscador').classList.add('hidden');
+        requireElement('resultado').classList.remove('hidden');
+        setText('res-folio', eq.FOLIO);
+        setText('res-equipo', eq.DISPOSITIVO || '---');
+        setText('res-modelo', eq.MODELO || '---');
+        setText('res-falla', eq.FALLA_REPORTADA || 'No especificada');
+        setText('res-fecha', eq.FECHA_PROMESA || 'Por definir');
+        setText('res-ingreso', formatDateYMD(eq.FECHA_INGRESO));
+        setText('res-actualizacion', formatDateYMD(new Date().toISOString()));
+        setText('res-seguimiento', eq.SEGUIMIENTO_CLIENTE || 'Sin avances registrados por el momento.');
+        renderizarFotosSeguimiento(eq.SEGUIMIENTO_FOTOS);
+        let diasTexto = '---';
+        if (eq.diasRestantes !== undefined) {
+            diasTexto = `${eq.diasRestantes} días`;
+            if (eq.diasRestantes < 0)
+                diasTexto = '⚠️ Vencido';
+            else if (eq.diasRestantes === 0)
+                diasTexto = '¡Hoy!';
+        }
+        setText('res-dias', diasTexto);
+        const estado = eq.ESTADO || 'Recibido';
+        const badge = requireElement('estado-badge');
+        badge.textContent = estado;
+        badge.className = `status-badge status-${String(estado).replace(/ /g, '')}`;
+        const mensaje = `Hola, soy el cliente del folio ${eq.FOLIO}. ¿Podrían darme información sobre mi equipo?`;
+        requireElement('wa-link').href = `https://wa.me/${CONFIG.TIENDA_WHATSAPP}?text=${encodeURIComponent(mensaje)}`;
+        const liveCam = requireElement('live-cam');
+        const ytPlayer = requireElement('yt-player');
+        if (eq.YOUTUBE_ID) {
+            liveCam.classList.remove('hidden');
+            ytPlayer.src = `https://www.youtube.com/embed/${eq.YOUTUBE_ID}?autoplay=1&mute=1&rel=0`;
+        }
+        else {
+            liveCam.classList.add('hidden');
+            ytPlayer.removeAttribute('src');
+        }
+    }
+    function volver() {
+        requireElement('resultado').classList.add('hidden');
+        requireElement('buscador').classList.remove('hidden');
+        requireElement('folio-input').value = '';
+        ocultarError();
+    }
+    function imprimirDetalle() {
+        window.print();
+    }
+    function buildGetUrl(action, payload) {
+        const params = new URLSearchParams();
+        params.set('action', action);
+        params.set('t', String(Date.now()));
+        Object.entries(payload).forEach(([key, raw]) => {
+            if (raw === undefined || raw === null || raw === '')
+                return;
+            if (typeof raw === 'object') {
+                params.set(key, JSON.stringify(raw));
+                return;
+            }
+            params.set(key, String(raw));
         });
-
-        document.getElementById('lightbox-close').addEventListener('click', cerrarLightbox);
-        document.getElementById('lightbox').addEventListener('click', (e) => {
-            if (e.target.id === 'lightbox') cerrarLightbox();
+        return `${CONFIG.BACKEND_URL}?${params.toString()}`;
+    }
+    async function readJson(response) {
+        const text = await response.text();
+        if (!text.trim())
+            throw new Error(`Respuesta vacía (${response.status})`);
+        try {
+            return JSON.parse(text);
+        }
+        catch {
+            throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
+        }
+    }
+    async function requestBackend(action, payload = {}, method = 'GET') {
+        const response = method === 'GET'
+            ? await fetch(buildGetUrl(action, payload), { method: 'GET' })
+            : await fetch(CONFIG.BACKEND_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, ...payload })
+            });
+        const data = await readJson(response);
+        const errorText = typeof data.error === 'string' ? data.error.trim() : '';
+        if (errorText)
+            throw new Error(errorText);
+        if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
+            throw new Error(errorText || `La operación ${action} fue rechazada`);
+        }
+        return data;
+    }
+    async function buscar() {
+        const input = requireElement('folio-input');
+        const folio = input.value.trim().toUpperCase();
+        if (!folio)
+            return;
+        const btn = requireElement('btn-buscar');
+        btn.disabled = true;
+        btn.innerHTML = '<div class="loading-spinner w-6 h-6"></div> Consultando...';
+        ocultarError();
+        try {
+            const data = await requestBackend('equipo', { folio }, 'GET');
+            if (!data.equipo)
+                throw new Error('No encontrado');
+            mostrarResultado(data.equipo);
+            agregarFolioHistorial(folio);
+            mostrarToast('Equipo encontrado', 'success');
+        }
+        catch {
+            mostrarError('Folio no encontrado. Verifica e intenta de nuevo.');
+            mostrarToast('Error en la consulta', 'error');
+        }
+        finally {
+            btn.innerHTML = '<i class="fa-solid fa-circle-arrow-right"></i> Consultar';
+            btn.disabled = false;
+        }
+    }
+    function bindEvents() {
+        requireElement('folio-input').addEventListener('input', (e) => {
+            const target = e.target;
+            target.value = String(target.value || '').toUpperCase();
+        });
+        requireElement('res-seguimiento-fotos').addEventListener('click', (e) => {
+            const target = e.target;
+            const btn = target?.closest('button[data-src]');
+            if (!btn)
+                return;
+            abrirLightbox(btn.dataset.src || '', btn.dataset.caption || '');
+        });
+        requireElement('lightbox-close').addEventListener('click', cerrarLightbox);
+        requireElement('lightbox').addEventListener('click', (e) => {
+            if (e.target === requireElement('lightbox'))
+                cerrarLightbox();
         });
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') cerrarLightbox();
+            if (e.key === 'Escape')
+                cerrarLightbox();
         });
+    }
+    portalWindow.buscar = buscar;
+    portalWindow.volver = volver;
+    portalWindow.imprimirDetalle = imprimirDetalle;
+    requireElement('fecha-header').textContent = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    actualizarSugerenciasFolios();
+    const folioParam = new URLSearchParams(window.location.search).get('folio');
+    if (folioParam) {
+        requireElement('folio-input').value = String(folioParam).toUpperCase();
+        void buscar();
+    }
+    bindEvents();
+})();

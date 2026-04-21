@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#1F7EDC">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>SRFIX - Integrador Interno</title>
     <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" href="./favicon.png" type="image/png">
     <link rel="stylesheet" href="css/pwa-mobile.css">
     <style>
         :root {
@@ -563,7 +565,7 @@
 </style>
 </head>
 <body>
-    <script src="config.js"></script>
+    <script src="config.js?v=2026.04.19.1"></script>
     <div id="login-screen" class="login-screen">
         <div class="login-card">
             <h2>Acceso interno</h2>
@@ -759,7 +761,7 @@
         const WORKSPACE_MODULE = document.getElementById('workspace-current-module');
         const BTN_SHELL_LOGOUT = document.getElementById('btn-shell-logout');
         const BACKEND_URL = (window.SRFIX_BACKEND_URL || localStorage.getItem('srfix_backend_url') || 'https://script.google.com/macros/s/AKfycbw49B0GeqyZ2Yr0a-IZNqUhrhUBH0yldSO274EDHBU9gT5SPrXSs2ixIhwD5BRmg-6W/exec');
-        const APP_BUILD = '20260413b';
+        const APP_BUILD = '20260419d';
         const MODULE_META = {
             operativo: { title: 'Recepción', subtitle: 'Recepción, captura y seguimiento de ingreso de equipos.' },
             tecnico: { title: 'Técnico', subtitle: 'Semáforo, diagnóstico, avances y cierre técnico del taller.' },
@@ -1159,6 +1161,6 @@
         }
         catch (e) {}
     </script>
-    <script src="js/pwa-init.js"></script>
+    <script src="js/pwa-init.js?v=2026.04.21.1"></script>
 </body>
 </html>

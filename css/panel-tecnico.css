@@ -266,6 +266,14 @@
   background-image: radial-gradient(circle at top right, rgba(31, 126, 220, 0.08) 0%, transparent 24%);
 }
 
+.tecnico-modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 12;
+  background: linear-gradient(180deg, rgba(21, 31, 53, 0.88) 0%, rgba(21, 31, 53, 0.98) 100%);
+  backdrop-filter: blur(12px);
+}
+
 @media (max-width: 900px) {
   .tecnico-main {
     padding-top: 0.85rem;

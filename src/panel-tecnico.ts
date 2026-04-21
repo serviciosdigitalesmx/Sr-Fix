@@ -71,7 +71,7 @@ interface TecnicoActualizarEquipoResponse extends TecnicoBackendEnvelope {
 }
 
 ;(function (): void {
-const BACKEND_URL: string = String(CONFIG.API_URL || '').trim();
+const tecnicoBackend = window.SRFIXBackend as SrFix.BackendClient;
 const FRONT_PASSWORD: string = String(CONFIG.FRONT_PASSWORD || 'Admin1').trim();
 const LOGO_URL: string = './logo.webp';
 
@@ -332,38 +332,8 @@ function tecnicoGetElement(id: string): any {
                 .join('||');
         }
 
-        async function fetchJsonConTimeout(url: string, options: RequestInit = {}, timeoutMs: number = 12000): Promise<Response> {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), timeoutMs);
-            try {
-                const res = await fetch(url, { ...options, signal: controller.signal });
-                return res;
-            } finally {
-                clearTimeout(timer);
-            }
-        }
-
         async function obtenerSemaforoData(pageSize: number): Promise<TecnicoSemaforoResponse> {
-            const queryUrl = `${BACKEND_URL}?action=semaforo&page=1&pageSize=${encodeURIComponent(pageSize)}&t=${Date.now()}`;
-            const body = JSON.stringify({
-                action: 'semaforo',
-                page: 1,
-                pageSize: pageSize
-            });
-
-            let data = null;
-            let res = await fetchJsonConTimeout(queryUrl, { method: 'GET' });
-            if (res.ok) {
-                try { data = await res.json(); } catch (e) {}
-            }
-            if (!data || data.error) {
-                res = await fetchJsonConTimeout(BACKEND_URL, { method: 'POST', body: body });
-                if (res.ok) {
-                    try { data = await res.json(); } catch (e) {}
-                }
-            }
-            if (!data || data.error) throw new Error((data && data.error) || 'Error de conexión');
-            return data;
+            return await tecnicoBackend.request<TecnicoSemaforoResponse>('semaforo', { page: 1, pageSize }, { method: 'GET' });
         }
 
         async function cargarDatos(esLogin: boolean = false): Promise<boolean> {
@@ -872,9 +842,7 @@ function tecnicoGetElement(id: string): any {
 
         async function obtenerDetalleEquipo(folio: string): Promise<TecnicoEquipoRecord | null> {
             try {
-                const res = await fetch(`${BACKEND_URL}?action=equipo&folio=${encodeURIComponent(folio)}&t=${Date.now()}`);
-                if (!res.ok) return null;
-                const data = await res.json();
+                const data = await tecnicoBackend.request<TecnicoDetalleEquipoResponse>('equipo', { folio }, { method: 'GET' });
                 return data && data.equipo ? data.equipo : null;
             } catch (e) {
                 return null;
@@ -939,38 +907,18 @@ function tecnicoGetElement(id: string): any {
                 return;
             }
 
-            const requiereAuth = campos.COSTO_ESTIMADO !== undefined || String(campos.ESTADO || '').trim().toLowerCase() === 'entregado';
-            if (requiereAuth) {
-                const guard = window.SRFXSecurityGuard;
-                if (!guard || typeof guard.ensureAdminPassword !== 'function') {
-                    mostrarToast('No se pudo validar la clave admin', 'error');
-                    return;
-                }
-                const auth = await guard.ensureAdminPassword('editar un valor monetario del equipo');
-                if (!auth.ok) return;
-                adminPasswordActual = auth.password ?? '';
-            }
-
             try {
-                const res = await fetch(BACKEND_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'actualizar_equipo',
-                        folio: equipoActual.FOLIO,
-                        campos: campos,
-                        adminPasswordActual: adminPasswordActual
-                    })
-                });
-
-                if (!res.ok) throw new Error('Error de conexión');
-                const data = await res.json();
-
+                const data = await tecnicoBackend.request<TecnicoActualizarEquipoResponse>('actualizar_equipo', {
+                    folio: equipoActual.FOLIO,
+                    campos: campos,
+                    adminPasswordActual: adminPasswordActual
+                }, { method: 'POST' });
                 if (data.success) {
                     mostrarToast('Cambios guardados', 'success');
                     cerrarModal();
                     await cargarDatos();
                 } else {
-                    throw new Error(data.error);
+                    throw new Error(String(data.error || 'Error de conexión'));
                 }
             } catch (e) {
                 mostrarToast('Error: ' + String(e instanceof Error ? e.message : e), 'error');
@@ -994,22 +942,16 @@ function tecnicoGetElement(id: string): any {
             if (!auth.ok) return;
             adminPasswordActual = auth.password ?? '';
             try {
-                const res = await fetch(BACKEND_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'actualizar_equipo',
-                        folio: equipoActual.FOLIO,
-                        campos: campos,
-                        adminPasswordActual: adminPasswordActual
-                    })
-                });
-                if (!res.ok) throw new Error('Error de conexión');
-                const data = await res.json();
+                const data = await tecnicoBackend.request<TecnicoActualizarEquipoResponse>('actualizar_equipo', {
+                    folio: equipoActual.FOLIO,
+                    campos: campos,
+                    adminPasswordActual: adminPasswordActual
+                }, { method: 'POST' });
                 if (data.success) {
                     mostrarToast('Equipo marcado como entregado', 'success');
                     cerrarModal();
                     await cargarDatos();
-                } else throw new Error(data.error);
+                } else throw new Error(String(data.error || 'Error de conexión'));
             } catch (e) {
                 mostrarToast('Error: ' + String(e instanceof Error ? e.message : e), 'error');
             }

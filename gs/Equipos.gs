@@ -440,12 +440,6 @@ function Service_actualizarEquipo(data) {
     const estadoPrevio = String(equipoActual.ESTADO || '').trim();
     const estadoNuevo = String(next.ESTADO || estadoPrevio || 'Recibido').trim();
     const costoDespues = _toMoney(_getField(next, ['COSTO_ESTIMADO'], 0));
-    const costoModificado = costoDespues !== costoAntes;
-    const entregaGeneraIngreso = estadoAntes !== 'entregado' && String(estadoNuevo).toLowerCase() === 'entregado' && costoDespues > 0;
-    if ((costoModificado && (costoAntes > 0 || costoDespues > 0)) || entregaGeneraIngreso) {
-      const auth = Security_requireAdminPassword(data || {}, 'Actualizar valor del equipo');
-      if (!auth.ok) return jsonResponse({ error: auth.error });
-    }
     next.ESTADO = estadoNuevo || 'Recibido';
     next.FECHA_ULTIMA_ACTUALIZACION = ahora;
 

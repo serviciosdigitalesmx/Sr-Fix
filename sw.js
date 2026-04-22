@@ -1,9 +1,10 @@
-const CACHE_NAME = 'srfix-static-v5-20260421-1';
+const CACHE_NAME = 'srfix-static-v6-20260422-1';
 const STATIC_ASSETS = [
   './',
   './integrador.html',
   './panel-operativo.html',
   './panel-tecnico.html',
+  './panel-seguridad.html',
   './portal-cliente.html',
   './panel-solicitudes.html',
   './panel-archivo.html',
@@ -19,6 +20,7 @@ const STATIC_ASSETS = [
   './css/portal-cliente.css',
   './css/pwa-mobile.css',
   './js/pwa-init.js',
+  './js/panel-seguridad.js',
   './manifest.webmanifest',
   './favicon.png',
   './assets/icons/icon-192x192.png',

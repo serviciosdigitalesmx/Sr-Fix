@@ -1,5 +1,5 @@
 (function () {
-const BUILD_VERSION = '2026.04.21.1';
+const BUILD_VERSION = '2026.04.22.1';
     const MANIFEST_PATH = `./manifest.webmanifest?v=${encodeURIComponent(BUILD_VERSION)}`;
     const SW_PATH = `./sw.js?v=${encodeURIComponent(BUILD_VERSION)}`;
     const CACHE_RESET_KEY = 'srfix_cache_reset_version';

@@ -1,7 +1,7 @@
 "use strict";
 ;
 (function () {
-    const tecnicoBackend = window.SRFIXBackend;
+    const BACKEND_URL = String(CONFIG.API_URL || '').trim();
     const FRONT_PASSWORD = String(CONFIG.FRONT_PASSWORD || 'Admin1').trim();
     const LOGO_URL = './logo.webp';
     // ==========================================
@@ -20,6 +20,7 @@
     let ultimaFirmaSemaforo = '';
     let loginEnCurso = false;
     let cargaDatosSeq = 0;
+    let cargaDatosEnCurso = false;
     let seguimientoOriginalSerializado = '[]';
     let filtros = {
         texto: '',
@@ -90,6 +91,104 @@
             throw new Error(`Elemento no encontrado: ${id}`);
         }
         return el;
+    }
+    function tecnicoGetBackendUrl() {
+        return BACKEND_URL;
+    }
+    function tecnicoBuildGetUrl(action, payload = {}) {
+        const params = new URLSearchParams();
+        params.set('action', action);
+        params.set('t', String(Date.now()));
+        Object.entries(payload).forEach(([key, value]) => {
+            if (value === undefined || value === null)
+                return;
+            if (typeof value === 'object') {
+                params.set(key, JSON.stringify(value));
+                return;
+            }
+            params.set(key, String(value));
+        });
+        return `${tecnicoGetBackendUrl()}?${params.toString()}`;
+    }
+    async function tecnicoReadJson(response) {
+        const text = await response.text();
+        if (!text.trim()) {
+            throw new Error(`Respuesta vacia (${response.status})`);
+        }
+        try {
+            return JSON.parse(text);
+        }
+        catch {
+            throw new Error(`Respuesta invalida (${response.status}): ${text.slice(0, 180)}`);
+        }
+    }
+    function tecnicoBackendErrorMessage(data) {
+        const errorText = typeof data.error === 'string' ? data.error.trim() : '';
+        if (errorText)
+            return errorText;
+        if (data.success === false)
+            return 'La operacion fue rechazada';
+        return '';
+    }
+    function tecnicoCanRetryAsGet(action) {
+        return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(String(action || '').trim().toLowerCase());
+    }
+    async function tecnicoFetchWithTimeout(url, options, timeoutMs = 15000) {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            return await fetch(url, { ...options, signal: controller.signal });
+        }
+        catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') {
+                throw new Error('Tiempo de espera agotado al consultar el backend');
+            }
+            throw error;
+        }
+        finally {
+            window.clearTimeout(timer);
+        }
+    }
+    async function tecnicoRequestBackend(action, payload = {}, method = 'POST') {
+        const requestGet = () => tecnicoFetchWithTimeout(tecnicoBuildGetUrl(action, payload), { method: 'GET' });
+        const requestPost = () => tecnicoFetchWithTimeout(tecnicoGetBackendUrl(), {
+            method: 'POST',
+            body: JSON.stringify({ action, ...payload })
+        });
+        try {
+            const response = method === 'GET' ? await requestGet() : await requestPost();
+            const data = await tecnicoReadJson(response);
+            const errorText = tecnicoBackendErrorMessage(data);
+            if (errorText)
+                throw new Error(errorText);
+            return data;
+        }
+        catch (error) {
+            if (method !== 'POST' || !tecnicoCanRetryAsGet(action))
+                throw error;
+            const response = await requestGet();
+            const data = await tecnicoReadJson(response);
+            const errorText = tecnicoBackendErrorMessage(data);
+            if (errorText)
+                throw new Error(errorText);
+            return data;
+        }
+    }
+    function setRefreshButtonState(isBusy) {
+        const btn = tecnicoGetElement('btn-refresh');
+        btn.disabled = isBusy;
+        btn.classList.toggle('opacity-60', isBusy);
+        btn.classList.toggle('cursor-wait', isBusy);
+    }
+    function renderLoadErrorState(message) {
+        const grid = tecnicoGetElement('equipos-grid');
+        grid.innerHTML = `
+    <div class="col-span-full text-center py-12 text-[#8A8F95]">
+      <i class="fa-solid fa-triangle-exclamation text-4xl mb-4 text-[#FF6A2A]"></i>
+      <p class="text-[#F2F2F2] font-semibold mb-2">No se pudieron cargar los equipos</p>
+      <p>${escapeHtml(message || 'Error de conexion')}</p>
+    </div>
+  `;
     }
     // Cargar preferencias guardadas
     (function () {
@@ -263,11 +362,15 @@
             .join('||');
     }
     async function obtenerSemaforoData(pageSize) {
-        return await tecnicoBackend.request('semaforo', { page: 1, pageSize }, { method: 'GET' });
+        return await tecnicoRequestBackend('semaforo', { page: 1, pageSize }, 'GET');
     }
     async function cargarDatos(esLogin = false) {
+        if (cargaDatosEnCurso)
+            return false;
+        cargaDatosEnCurso = true;
         const requestSeq = ++cargaDatosSeq;
         mostrarRefreshing(true);
+        setRefreshButtonState(true);
         try {
             const pageSize = Math.max(1000, equiposData.length || 0);
             const data = await obtenerSemaforoData(pageSize);
@@ -304,16 +407,21 @@
             if (esAbort)
                 return false;
             console.error('Error cargando datos:', e);
+            renderLoadErrorState(mensaje);
             if (!esLogin) {
-                mostrarToast('Error al actualizar', 'error');
+                mostrarToast(`Error al actualizar: ${mensaje || 'conexion'}`, 'error');
             }
             return false;
         }
         finally {
+            cargaDatosEnCurso = false;
             mostrarRefreshing(false);
+            setRefreshButtonState(false);
         }
     }
     function refrescarManual() {
+        if (cargaDatosEnCurso)
+            return;
         cargarDatos();
     }
     function mostrarRefreshing(mostrar) {
@@ -754,7 +862,7 @@
     }
     async function obtenerDetalleEquipo(folio) {
         try {
-            const data = await tecnicoBackend.request('equipo', { folio }, { method: 'GET' });
+            const data = await tecnicoRequestBackend('equipo', { folio }, 'GET');
             return data && data.equipo ? data.equipo : null;
         }
         catch (e) {
@@ -817,24 +925,12 @@
             mostrarToast('No hay cambios para guardar', 'success');
             return;
         }
-        const requiereAuth = campos.COSTO_ESTIMADO !== undefined || String(campos.ESTADO || '').trim().toLowerCase() === 'entregado';
-        if (requiereAuth) {
-            const guard = window.SRFXSecurityGuard;
-            if (!guard || typeof guard.ensureAdminPassword !== 'function') {
-                mostrarToast('No se pudo validar la clave admin', 'error');
-                return;
-            }
-            const auth = await guard.ensureAdminPassword('editar un valor monetario del equipo');
-            if (!auth.ok)
-                return;
-            adminPasswordActual = auth.password ?? '';
-        }
         try {
-            const data = await tecnicoBackend.request('actualizar_equipo', {
+            const data = await tecnicoRequestBackend('actualizar_equipo', {
                 folio: equipoActual.FOLIO,
                 campos: campos,
                 adminPasswordActual: adminPasswordActual
-            }, { method: 'POST' });
+            }, 'POST');
             if (data.success) {
                 mostrarToast('Cambios guardados', 'success');
                 cerrarModal();
@@ -867,11 +963,11 @@
             return;
         adminPasswordActual = auth.password ?? '';
         try {
-            const data = await tecnicoBackend.request('actualizar_equipo', {
+            const data = await tecnicoRequestBackend('actualizar_equipo', {
                 folio: equipoActual.FOLIO,
                 campos: campos,
                 adminPasswordActual: adminPasswordActual
-            }, { method: 'POST' });
+            }, 'POST');
             if (data.success) {
                 mostrarToast('Equipo marcado como entregado', 'success');
                 cerrarModal();

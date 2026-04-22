@@ -96,14 +96,40 @@ function Security_isAdminPasswordConfigured() {
   return !!(creds.hash && creds.salt);
 }
 
+function Security_verifyInternalUserPassword(usuario, password) {
+  const username = String(usuario || '').trim().toLowerCase();
+  const candidate = String(password || '').trim();
+  if (!username || !candidate) return false;
+
+  const table = Security_readUsersTable();
+  const idx = Security_findUserRowIndex(table, username);
+  if (idx < 0) {
+    return username === 'admin' && candidate === 'Admin1';
+  }
+
+  const user = mapearFila(table.headers, table.rows[idx]);
+  if (!boolFromCheck(user.ACTIVO)) return false;
+
+  const storedHash = String(user.PASSWORD_HASH || '').trim();
+  const storedSalt = String(user.PASSWORD_SALT || '').trim();
+  const legacyPass = String(user.PASSWORD || '').trim();
+
+  if (storedHash && storedSalt) {
+    return Security_hashPassword(candidate, storedSalt) === storedHash;
+  }
+  return legacyPass ? legacyPass === candidate : false;
+}
+
 function Security_verifyAdminPassword(password) {
   const creds = Security_getAdminCredentials();
   const candidate = String(password || '').trim();
-  if (!creds.hash || !creds.salt) {
-    return candidate === 'Admin1';
-  }
   if (!candidate) return false;
-  return Security_hashPassword(candidate, creds.salt) === creds.hash;
+
+  if (creds.hash && creds.salt && Security_hashPassword(candidate, creds.salt) === creds.hash) {
+    return true;
+  }
+
+  return Security_verifyInternalUserPassword('admin', candidate);
 }
 
 function Security_setAdminPassword(newPassword) {

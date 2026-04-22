@@ -41,33 +41,56 @@ function writeCache(password) {
 function clearCache() {
     sessionStorage.removeItem(CACHE_KEY);
 }
+function buildSecurityGuardGetUrl(payload) {
+    const params = new URLSearchParams();
+    params.set('action', 'validar_admin_password');
+    params.set('t', String(Date.now()));
+    Object.entries(payload).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '')
+            return;
+        params.set(key, String(value));
+    });
+    return `${getSecurityGuardBackendUrl()}?${params.toString()}`;
+}
+async function readSecurityGuardJson(response) {
+    const text = await response.text();
+    if (!text.trim()) {
+        throw new Error(`Respuesta vacia (${response.status})`);
+    }
+    try {
+        return JSON.parse(text);
+    }
+    catch {
+        throw new Error(`Respuesta invalida (${response.status}): ${text.slice(0, 180)}`);
+    }
+}
 async function validatePassword(password) {
     const payload = {
         action: 'validar_admin_password',
         usuario: 'admin',
-        password: String(password || '').trim()
+        password: String(password || '').trim(),
+        adminPassword: String(password || '').trim()
     };
-    const res = await fetch(getSecurityGuardBackendUrl(), {
+    const requestGet = () => fetch(buildSecurityGuardGetUrl({
+        adminPassword: payload.password
+    }), { method: 'GET' });
+    const requestPost = () => fetch(getSecurityGuardBackendUrl(), {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
         body: JSON.stringify({
             action: payload.action,
             adminPassword: payload.password
         })
     });
-    if (!res.ok)
-        return false;
-    let data = null;
     try {
-        data = await res.json();
+        const res = await requestPost();
+        const candidate = await readSecurityGuardJson(res);
+        return !!(candidate && candidate.success);
     }
-    catch (e) {
-        return false;
+    catch {
+        const res = await requestGet();
+        const candidate = await readSecurityGuardJson(res);
+        return !!(candidate && candidate.success);
     }
-    const candidate = data;
-    return !!(candidate && candidate.success);
 }
 async function ensureAdminPassword(reason, options = {}) {
     const cached = readCache();

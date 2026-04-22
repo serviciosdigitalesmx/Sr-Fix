@@ -40,33 +40,58 @@ function clearCache(): void {
   sessionStorage.removeItem(CACHE_KEY);
 }
 
+function buildSecurityGuardGetUrl(payload: Record<string, unknown>): string {
+  const params = new URLSearchParams();
+  params.set('action', 'validar_admin_password');
+  params.set('t', String(Date.now()));
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return;
+    params.set(key, String(value));
+  });
+  return `${getSecurityGuardBackendUrl()}?${params.toString()}`;
+}
+
+async function readSecurityGuardJson<T>(response: Response): Promise<T> {
+  const text = await response.text();
+  if (!text.trim()) {
+    throw new Error(`Respuesta vacia (${response.status})`);
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`Respuesta invalida (${response.status}): ${text.slice(0, 180)}`);
+  }
+}
+
 async function validatePassword(password: string): Promise<boolean> {
-  const payload: SrFix.LoginInput & { action: 'validar_admin_password' } = {
+  const payload: SrFix.LoginInput & { action: 'validar_admin_password'; adminPassword: string } = {
     action: 'validar_admin_password',
     usuario: 'admin',
-    password: String(password || '').trim()
+    password: String(password || '').trim(),
+    adminPassword: String(password || '').trim()
   };
 
-  const res = await fetch(getSecurityGuardBackendUrl(), {
+  const requestGet = (): Promise<Response> => fetch(buildSecurityGuardGetUrl({
+    adminPassword: payload.password
+  }), { method: 'GET' });
+
+  const requestPost = (): Promise<Response> => fetch(getSecurityGuardBackendUrl(), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
     body: JSON.stringify({
       action: payload.action,
       adminPassword: payload.password
     })
   });
 
-  if (!res.ok) return false;
-  let data: unknown = null;
   try {
-    data = await res.json();
-  } catch (e) {
-    return false;
+    const res = await requestPost();
+    const candidate = await readSecurityGuardJson<Partial<SrFix.ApiResponse<unknown>> & { success?: boolean; error?: string | null }>(res);
+    return !!(candidate && candidate.success);
+  } catch {
+    const res = await requestGet();
+    const candidate = await readSecurityGuardJson<Partial<SrFix.ApiResponse<unknown>> & { success?: boolean; error?: string | null }>(res);
+    return !!(candidate && candidate.success);
   }
-  const candidate = data as Partial<SrFix.ApiResponse<unknown>> & { success?: boolean };
-  return !!(candidate && candidate.success);
 }
 
 async function ensureAdminPassword(reason?: string, options: SrFix.SecurityGuardOptions = {}): Promise<SrFix.AdminAuthorization> {

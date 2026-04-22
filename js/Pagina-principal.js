@@ -1,188 +1,207 @@
-        const CONFIG = {
-            BACKEND_URL: (window.SRFIX_BACKEND_URL || localStorage.getItem('srfix_backend_url') || 'https://script.google.com/macros/s/AKfycbw49B0GeqyZ2Yr0a-IZNqUhrhUBH0yldSO274EDHBU9gT5SPrXSs2ixIhwD5BRmg-6W/exec'),
-            WHATSAPP: '528117006536'
-        };
-
-        function normalizarTelefono10(raw) {
-            const digits = String(raw || '').replace(/\D/g, '');
-            return digits.length === 10 ? digits : '';
-        }
-
-        // Navbar scroll effect
+"use strict";
+;
+(function () {
+    const backend = window.SRFIXBackend;
+    const WHATSAPP = String(CONFIG.WHATSAPP || '').trim();
+    const form = requireElement('cotizadorForm');
+    const servicioInput = requireElement('servicioInput');
+    const dispositivoSelect = requireElement('dispositivoSelect');
+    const urgenciaInput = requireElement('urgenciaInput');
+    function requireElement(id) {
+        const el = document.getElementById(id);
+        if (!el)
+            throw new Error(`Elemento no encontrado: ${id}`);
+        return el;
+    }
+    function normalizarTelefono10(raw) {
+        const digits = String(raw || '').replace(/\D/g, '');
+        return digits.length === 10 ? digits : '';
+    }
+    function getFieldValue(selector) {
+        const el = document.querySelector(selector);
+        return String(el?.value || '').trim();
+    }
+    function getProblemasSeleccionados() {
+        const problemas = [];
+        document.querySelectorAll('input[name="problemas"]:checked').forEach((checkbox) => {
+            const label = document.querySelector(`label[for="${checkbox.id}"]`);
+            const value = label?.textContent?.trim() || checkbox.value;
+            if (value)
+                problemas.push(value);
+        });
+        return problemas;
+    }
+    function getServicioSeleccionado() {
+        const selectedCard = document.querySelector('.service-card.selected');
+        return dispositivoSelect.value || String(selectedCard?.dataset.servicio || '');
+    }
+    function getUrgenciaTexto(value) {
+        if (value === 'baja')
+            return 'Baja (esta semana)';
+        if (value === 'media')
+            return 'Media (en 2-3 días)';
+        return 'Alta (urgente, 24h)';
+    }
+    function setCopyright() {
+        const copyright = document.querySelector('.copyright');
+        if (!copyright)
+            return;
+        copyright.innerHTML = `© ${new Date().getFullYear()} SrFix Oficial. Todos los derechos reservados.<br>Especialistas en reparación de electrónicos en Monterrey, N.L.`;
+    }
+    function setupNavbar() {
+        const navbar = document.getElementById('navbar');
+        if (!navbar)
+            return;
         window.addEventListener('scroll', () => {
-            const navbar = document.getElementById('navbar');
             if (window.scrollY > 50) {
                 navbar.style.background = 'rgba(30, 30, 30, 0.98)';
                 navbar.style.padding = '0.8rem 5%';
-            } else {
+            }
+            else {
                 navbar.style.background = 'rgba(30, 30, 30, 0.95)';
                 navbar.style.padding = '1rem 5%';
             }
         });
-
-        // Intersection Observer for fade-in animations
-        const observerOptions = {
+    }
+    function setupFadeInObserver() {
+        if (!('IntersectionObserver' in window)) {
+            document.querySelectorAll('.fade-in').forEach((el) => el.classList.add('visible'));
+            return;
+        }
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting)
+                    entry.target.classList.add('visible');
+            });
+        }, {
             threshold: 0.1,
             rootMargin: '0px 0px -50px 0px'
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('visible');
-                }
-            });
-        }, observerOptions);
-
-        document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
-
-        // Service card selection
-        document.querySelectorAll('.service-card').forEach(card => {
-            card.addEventListener('click', function() {
-                document.querySelectorAll('.service-card').forEach(c => c.classList.remove('selected'));
+        });
+        document.querySelectorAll('.fade-in').forEach((el) => observer.observe(el));
+    }
+    function setupServiceCards() {
+        document.querySelectorAll('.service-card').forEach((card) => {
+            card.addEventListener('click', function () {
+                document.querySelectorAll('.service-card').forEach((item) => item.classList.remove('selected'));
                 this.classList.add('selected');
-                const servicio = this.dataset.servicio;
-                document.getElementById('servicioInput').value = servicio;
-                const select = document.getElementById('dispositivoSelect');
-                const options = Array.from(select.options);
-                const option = options.find(opt => opt.value === servicio);
-                if (option) select.value = servicio;
-                document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const servicio = String(this.dataset.servicio || '');
+                servicioInput.value = servicio;
+                if (Array.from(dispositivoSelect.options).some((option) => option.value === servicio)) {
+                    dispositivoSelect.value = servicio;
+                }
+                document.querySelector('.form-container')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             });
         });
-
-        // Urgencia buttons
-        document.querySelectorAll('.urgencia-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.urgencia-btn').forEach(b => b.classList.remove('active'));
+    }
+    function setupUrgenciaButtons() {
+        document.querySelectorAll('.urgencia-btn').forEach((button) => {
+            button.addEventListener('click', function () {
+                document.querySelectorAll('.urgencia-btn').forEach((item) => item.classList.remove('active'));
                 this.classList.add('active');
-                document.getElementById('urgenciaInput').value = this.dataset.value;
+                urgenciaInput.value = String(this.dataset.value || 'alta');
             });
         });
-
-        // Form submission - guardar en backend y enviar a WhatsApp
-        document.getElementById('cotizadorForm').addEventListener('submit', async function(e) {
-            e.preventDefault(); // Evitar envío tradicional
-
-            try {
-                // Validar que se haya seleccionado un dispositivo (por tarjeta o select)
-                const servicioSeleccionado = document.querySelector('.service-card.selected');
-                const dispositivoSelect = document.getElementById('dispositivoSelect').value;
-                if (!servicioSeleccionado && !dispositivoSelect) {
-                    alert('Por favor selecciona un tipo de servicio (haz clic en una tarjeta o elige del menú desplegable).');
-                    return;
-                }
-
-                // Obtener valores del formulario
-                const nombre = document.querySelector('input[name="nombre"]').value.trim();
-                const telefono = normalizarTelefono10(document.querySelector('input[name="telefono"]').value.trim());
-                const dispositivo = dispositivoSelect || (servicioSeleccionado ? servicioSeleccionado.dataset.servicio : 'No especificado');
-                const modelo = document.querySelector('input[name="modelo"]').value.trim();
-                const descripcion = document.querySelector('textarea[name="descripcion"]').value.trim();
-                const urgencia = document.getElementById('urgenciaInput').value;
-                const email = document.querySelector('input[name="email"]')?.value.trim() || '';
-                if (!telefono) {
-                    alert('El teléfono debe tener exactamente 10 dígitos.');
-                    return;
-                }
-
-                // Recoger problemas seleccionados
-                const problemas = [];
-                document.querySelectorAll('input[name="problemas"]:checked').forEach(cb => {
-                    const label = document.querySelector(`label[for="${cb.id}"]`);
-                    problemas.push(label ? label.innerText.trim() : cb.value);
-                });
-
-                // Mapear urgencia a texto legible
-                let urgenciaTexto = '';
-                if (urgencia === 'baja') urgenciaTexto = 'Baja (esta semana)';
-                else if (urgencia === 'media') urgenciaTexto = 'Media (en 2-3 días)';
-                else urgenciaTexto = 'Alta (urgente, 24h)';
-
-                // Capturar IP pública del cliente
-                let ipPublica = '0.0.0.0';
-                try {
-                    const ipRes = await fetch('https://api.ipify.org?format=json');
-                    const ipData = await ipRes.json();
-                    ipPublica = ipData.ip || '0.0.0.0';
-                } catch (err) {
-                    console.warn('No se pudo capturar la IP:', err);
-                }
-
-                const payload = {
-                    action: 'crear_solicitud',
-                    nombre: nombre,
-                    telefono: telefono,
-                    email: email,
-                    dispositivo: dispositivo,
-                    modelo: modelo,
-                    problemas: problemas,
-                    descripcion: descripcion,
-                    urgencia: urgencia,
-                    solicitud_origen_ip: ipPublica
-                };
-
-                const response = await fetch(CONFIG.BACKEND_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
-                let result = null;
-                if (response.ok) {
-                    try {
-                        result = await response.json();
-                    } catch (e) {}
-                }
-
-                // Fallback por si POST regresa HTML/redirect en ciertos deployments de Apps Script.
-                if (!result || result.error || !result.success) {
-                    const qs = new URLSearchParams({
-                        action: 'crear_solicitud',
-                        nombre: nombre,
-                        telefono: telefono,
-                        email: email,
-                        dispositivo: dispositivo,
-                        modelo: modelo,
-                        problemas: problemas.join(', '),
-                        descripcion: descripcion,
-                        urgencia: urgencia,
-                        solicitud_origen_ip: ipPublica
-                    });
-                    const fallbackRes = await fetch(`${CONFIG.BACKEND_URL}?${qs.toString()}`);
-                    if (!fallbackRes.ok) throw new Error('Error de conexión al backend');
-                    result = await fallbackRes.json();
-                    if (result.error || !result.success) throw new Error(result.error || 'No se pudo guardar la solicitud');
-                }
-
-                // Construir mensaje con saltos de línea reales (luego se codificará)
-                let mensaje = "*Nueva cotización - SrFix Oficial*\n\n";
-                mensaje += `*Folio:* ${result.folio || 'N/A'}\n`;
-                mensaje += `*Nombre:* ${nombre || 'No especificado'}\n`;
-                mensaje += `*Teléfono:* ${telefono || 'No especificado'}\n`;
-                mensaje += `*Email:* ${email || 'No especificado'}\n`;
-                mensaje += `*Dispositivo:* ${dispositivo}\n`;
-                mensaje += `*Modelo:* ${modelo || 'No especificado'}\n`;
-                mensaje += `*Problemas:* ${problemas.length > 0 ? problemas.join(', ') : 'No especificados'}\n`;
-                mensaje += `*Descripción:* ${descripcion || 'Sin descripción'}\n`;
-                mensaje += `*Urgencia:* ${urgenciaTexto}\n`;
-
-                // Codificar el mensaje completo y abrir WhatsApp
-                const url = `https://wa.me/${CONFIG.WHATSAPP}?text=${encodeURIComponent(mensaje)}`;
-                window.open(url, '_blank');
-
-                // Resetear formulario después de abrir la ventana
-                this.reset();
-                document.querySelectorAll('.service-card').forEach(c => c.classList.remove('selected'));
-                document.querySelector('.urgencia-btn[data-value="alta"]').click(); // reset a urgencia alta
-
-                // Feedback opcional
-                alert(`Solicitud guardada con folio ${result.folio}. Redirigiendo a WhatsApp...`);
-            } catch (error) {
-                console.error('Error al enviar cotización:', error);
-                alert('No se pudo guardar la solicitud. Revisa tu conexión e intenta de nuevo.');
+    }
+    async function capturePublicIp() {
+        try {
+            const response = await fetch('https://api.ipify.org?format=json');
+            const data = await response.json();
+            return String(data.ip || '0.0.0.0');
+        }
+        catch {
+            return '0.0.0.0';
+        }
+    }
+    async function requestCrearSolicitud(payload) {
+        try {
+            return await backend.request('crear_solicitud', payload, { method: 'POST' });
+        }
+        catch {
+            return await backend.request('crear_solicitud', payload, { method: 'GET' });
+        }
+    }
+    function resetFormState() {
+        form.reset();
+        document.querySelectorAll('.service-card').forEach((item) => item.classList.remove('selected'));
+        const urgenciaAlta = document.querySelector('.urgencia-btn[data-value="alta"]');
+        urgenciaAlta?.click();
+        servicioInput.value = '';
+    }
+    async function onSubmit(event) {
+        event.preventDefault();
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalLabel = submitButton?.innerHTML || '';
+        try {
+            const dispositivo = getServicioSeleccionado();
+            if (!dispositivo) {
+                alert('Por favor selecciona un tipo de servicio.');
+                return;
             }
-        });
-
-        // Actualizar año en copyright
-        document.querySelector('.copyright').innerHTML = 
-            `© ${new Date().getFullYear()} SrFix Oficial. Todos los derechos reservados.<br>
-             Especialistas en reparación de electrónicos en Monterrey, N.L.`;
+            const nombre = getFieldValue('input[name="nombre"]');
+            const telefono = normalizarTelefono10(getFieldValue('input[name="telefono"]'));
+            const modelo = getFieldValue('input[name="modelo"]');
+            const descripcion = getFieldValue('textarea[name="descripcion"]');
+            const email = getFieldValue('input[name="email"]');
+            const urgencia = String(urgenciaInput.value || 'alta');
+            if (!telefono) {
+                alert('El teléfono debe tener exactamente 10 dígitos.');
+                return;
+            }
+            if (!WHATSAPP) {
+                throw new Error('CONFIG.WHATSAPP no está definido');
+            }
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+            }
+            const payload = {
+                nombre,
+                telefono,
+                email,
+                dispositivo,
+                modelo,
+                problemas: getProblemasSeleccionados(),
+                descripcion,
+                urgencia: urgencia,
+                solicitud_origen_ip: await capturePublicIp()
+            };
+            const result = await requestCrearSolicitud(payload);
+            const folio = String(result.folio || 'N/A');
+            const mensaje = [
+                '*Nueva cotización - SrFix Oficial*',
+                '',
+                `*Folio:* ${folio}`,
+                `*Nombre:* ${nombre || 'No especificado'}`,
+                `*Teléfono:* ${telefono || 'No especificado'}`,
+                `*Email:* ${email || 'No especificado'}`,
+                `*Dispositivo:* ${dispositivo}`,
+                `*Modelo:* ${modelo || 'No especificado'}`,
+                `*Problemas:* ${payload.problemas.length ? payload.problemas.join(', ') : 'No especificados'}`,
+                `*Descripción:* ${descripcion || 'Sin descripción'}`,
+                `*Urgencia:* ${getUrgenciaTexto(urgencia)}`
+            ].join('\n');
+            window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(mensaje)}`, '_blank');
+            resetFormState();
+            alert(`Solicitud guardada con folio ${folio}. Redirigiendo a WhatsApp...`);
+        }
+        catch (error) {
+            console.error('Error al enviar cotización:', error);
+            alert(error instanceof Error ? error.message : 'No se pudo guardar la solicitud. Revisa tu conexión e intenta de nuevo.');
+        }
+        finally {
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalLabel;
+            }
+        }
+    }
+    function bootstrap() {
+        setupNavbar();
+        setupFadeInObserver();
+        setupServiceCards();
+        setupUrgenciaButtons();
+        setCopyright();
+        form.addEventListener('submit', (event) => { void onSubmit(event); });
+    }
+    bootstrap();
+})();

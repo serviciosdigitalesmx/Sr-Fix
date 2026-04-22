@@ -313,7 +313,7 @@ Dominios que normalmente sí deben respetar sucursal:
 - Todo frontend nuevo debe ser HTML/CSS/JS vanilla
 - Debe usar el estilo visual actual del sistema
 - Debe reutilizar patrones de cards, tablas, filtros, modales y botones ya presentes
-- Debe usar `fetch` contra la `BACKEND_URL` fija del sistema
+- Debe usar `fetch` a través del cliente compartido del sistema
 - Debe soportar carga incremental cuando aplique
 
 ### 14.2 UX/UI oficial

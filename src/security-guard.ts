@@ -1,14 +1,6 @@
 const CACHE_KEY = 'srfix_admin_money_auth_v1';
 const CACHE_TTL_MS = 10 * 60 * 1000;
-
-function getSecurityGuardBackendUrl(): string {
-  return CONFIG.API_URL
-    || window.SRFIX_API_URL
-    || window.SRFIX_BACKEND_URL
-    || localStorage.getItem('srfix_api_url')
-    || localStorage.getItem('srfix_backend_url')
-    || 'https://script.google.com/macros/s/AKfycbw49B0GeqyZ2Yr0a-IZNqUhrhUBH0yldSO274EDHBU9gT5SPrXSs2ixIhwD5BRmg-6W/exec';
-}
+const backend = window.SRFIXBackend as SrFix.BackendClient;
 
 function readCache(): SrFix.AdminAuthorization | null {
   try {
@@ -47,26 +39,14 @@ async function validatePassword(password: string): Promise<boolean> {
     password: String(password || '').trim()
   };
 
-  const res = await fetch(getSecurityGuardBackendUrl(), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      action: payload.action,
-      adminPassword: payload.password
-    })
-  });
-
-  if (!res.ok) return false;
-  let data: unknown = null;
   try {
-    data = await res.json();
-  } catch (e) {
+    const data = await backend.request<{ success?: boolean; error?: string }>('validar_admin_password', {
+      adminPassword: payload.password
+    }, { method: 'POST' });
+    return !!data.success;
+  } catch {
     return false;
   }
-  const candidate = data as Partial<SrFix.ApiResponse<unknown>> & { success?: boolean };
-  return !!(candidate && candidate.success);
 }
 
 async function ensureAdminPassword(reason?: string, options: SrFix.SecurityGuardOptions = {}): Promise<SrFix.AdminAuthorization> {

@@ -1,11 +1,4 @@
 ;(function (): void {
-  type ComprasRequestMethod = 'GET' | 'POST';
-
-  interface ComprasBackendEnvelope {
-    success?: boolean;
-    error?: unknown;
-  }
-
   type OrdenCompraRecord = SrFix.OrdenCompraRecord;
   type OrdenCompraItemRecord = SrFix.OrdenCompraItemRecord;
   type OrdenCompraListResponse = SrFix.OrdenCompraListResponse;
@@ -26,7 +19,7 @@
     cantidadRecibida: number;
   }
 
-  const BACKEND_URL = String(CONFIG.API_URL || '').trim();
+  const backend = window.SRFIXBackend as SrFix.BackendClient;
   const PAGE_SIZE = 80;
 
   const elRows = requireElement<HTMLTableSectionElement>('rows');
@@ -103,68 +96,6 @@
       estado: elFiltroEstado.value,
       proveedor: elFiltroProveedor.value
     };
-  }
-
-  function buildGetUrl(action: string, payload: Record<string, unknown>): string {
-    const params = new URLSearchParams();
-    params.set('action', action);
-    params.set('t', String(Date.now()));
-    Object.entries(payload).forEach(([key, raw]) => {
-      if (raw === undefined || raw === null || raw === '') return;
-      if (typeof raw === 'object') {
-        params.set(key, JSON.stringify(raw));
-        return;
-      }
-      params.set(key, String(raw));
-    });
-    return `${BACKEND_URL}?${params.toString()}`;
-  }
-
-  async function readJson<T>(response: Response): Promise<T> {
-    const text = await response.text();
-    if (!text.trim()) throw new Error(`Respuesta vacía (${response.status})`);
-    try {
-      return JSON.parse(text) as T;
-    } catch {
-      throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-    }
-  }
-
-  function canRetryAsGet(action: string): boolean {
-    return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(String(action || '').trim().toLowerCase());
-  }
-
-  async function requestBackend<T>(
-    action: string,
-    payload: Record<string, unknown> = {},
-    method: ComprasRequestMethod = 'POST',
-  ): Promise<T> {
-    const requestGet = (): Promise<Response> => fetch(buildGetUrl(action, payload), { method: 'GET' });
-    const requestPost = (): Promise<Response> => fetch(BACKEND_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action, ...payload })
-    });
-
-    try {
-      const response = method === 'GET' ? await requestGet() : await requestPost();
-      const data = await readJson<T & ComprasBackendEnvelope>(response);
-      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-      if (errorText) throw new Error(errorText);
-      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-        throw new Error(errorText || `La operación ${action} fue rechazada`);
-      }
-      return data as T;
-    } catch (error) {
-      if (method !== 'POST' || !canRetryAsGet(action)) throw error;
-      const response = await requestGet();
-      const data = await readJson<T & ComprasBackendEnvelope>(response);
-      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-      if (errorText) throw new Error(errorText);
-      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-        throw new Error(errorText || `La operación ${action} fue rechazada`);
-      }
-      return data as T;
-    }
   }
 
   function setKpis(items: OrdenCompraRecord[]): void {
@@ -301,7 +232,7 @@
   function abrirRecepcion(folio: string): void {
     void (async (): Promise<void> => {
       try {
-        const data = await requestBackend<OrdenCompraDetailResponse>('orden_compra', { folio, sucursalId: getSucursalActiva() }, 'POST');
+        const data = await backend.request<OrdenCompraDetailResponse>('orden_compra', { folio, sucursalId: getSucursalActiva() }, { method: 'POST' });
         const orden = data.orden;
         if (!orden) throw new Error(data.error || 'No se pudo cargar la orden');
         requireElement<HTMLElement>('recepcion-title').textContent = `Recibir ${folio}`;
@@ -332,8 +263,8 @@
   async function cargarAuxiliares(): Promise<void> {
     try {
       const [proveedoresData, foliosData] = await Promise.all([
-        requestBackend<{ proveedores?: OrdenCompraProveedorNombre[] }>('listar_nombres_proveedores', {}, 'POST'),
-        requestBackend<{ folios?: Array<{ folio: string }> }>('listar_folios_relacion', {}, 'POST')
+        backend.request<{ proveedores?: OrdenCompraProveedorNombre[] }>('listar_nombres_proveedores', {}, { method: 'POST' }),
+        backend.request<{ folios?: Array<{ folio: string }> }>('listar_folios_relacion', {}, { method: 'POST' })
       ]);
       proveedoresCache = Array.isArray(proveedoresData.proveedores) ? proveedoresData.proveedores : [];
       foliosRelacionCache = Array.isArray(foliosData.folios) ? foliosData.folios : [];
@@ -354,7 +285,7 @@
       elEmpty.classList.add('hidden');
     }
     try {
-      const data = await requestBackend<OrdenCompraListResponse>('listar_ordenes_compra', { sucursalId: getSucursalActiva(), page: currentPage, pageSize: PAGE_SIZE, ...getFiltros() }, 'POST');
+      const data = await backend.request<OrdenCompraListResponse>('listar_ordenes_compra', { sucursalId: getSucursalActiva(), page: currentPage, pageSize: PAGE_SIZE, ...getFiltros() }, { method: 'POST' });
       const items = Array.isArray(data.ordenes) ? data.ordenes : [];
       if (!append) ordenesCache = items.slice();
       else ordenesCache = ordenesCache.concat(items);
@@ -400,7 +331,7 @@
       }))
     };
     try {
-      await requestBackend<OrdenCompraGuardadoResponse>('guardar_orden_compra', payload, 'POST');
+      await backend.request<OrdenCompraGuardadoResponse>('guardar_orden_compra', payload, { method: 'POST' });
       cerrarModalOrden();
       await cargarOrdenes({ append: false });
     } catch (error) {
@@ -410,7 +341,7 @@
 
   async function abrirOrden(folio: string): Promise<void> {
     try {
-      const data = await requestBackend<OrdenCompraDetailResponse>('orden_compra', { folio, sucursalId: getSucursalActiva() }, 'POST');
+      const data = await backend.request<OrdenCompraDetailResponse>('orden_compra', { folio, sucursalId: getSucursalActiva() }, { method: 'POST' });
       if (!data.orden) throw new Error(data.error || 'No se pudo cargar la orden');
       abrirModalOrden(data.orden, data.items || []);
     } catch (error) {
@@ -420,7 +351,7 @@
 
   async function cambiarEstado(folio: string, estado: string): Promise<void> {
     try {
-      await requestBackend<{ success?: boolean }>('cambiar_estado_orden_compra', { folio, estado, sucursalId: getSucursalActiva() }, 'POST');
+      await backend.request<{ success?: boolean }>('cambiar_estado_orden_compra', { folio, estado, sucursalId: getSucursalActiva() }, { method: 'POST' });
       await cargarOrdenes({ append: false });
     } catch (error) {
       alert(error instanceof Error ? error.message : 'No se pudo cambiar el estado');
@@ -442,7 +373,7 @@
       return;
     }
     try {
-      await requestBackend<OrdenCompraRecepcionResponse>('recibir_orden_compra', { folio, usuario, items, sucursalId: getSucursalActiva() }, 'POST');
+      await backend.request<OrdenCompraRecepcionResponse>('recibir_orden_compra', { folio, usuario, items, sucursalId: getSucursalActiva() }, { method: 'POST' });
       cerrarRecepcion();
       await cargarOrdenes({ append: false });
     } catch (error) {

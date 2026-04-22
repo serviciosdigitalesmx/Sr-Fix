@@ -1,7 +1,7 @@
 "use strict";
 ;
 (function () {
-    const BACKEND_URL = String(CONFIG.API_URL || '').trim();
+    const backend = window.SRFIXBackend;
     const elBtnRefresh = requireElement('btn-refresh');
     const elFiltroTipo = requireElement('filtro-tipo');
     const elFiltroDesde = requireElement('filtro-desde');
@@ -53,66 +53,6 @@
             sucursalId: getSucursalActiva()
         };
     }
-    function buildGetUrl(action, payload) {
-        const q = new URLSearchParams();
-        q.set('action', action);
-        q.set('t', String(Date.now()));
-        Object.entries(payload).forEach(([key, raw]) => {
-            if (raw === undefined || raw === null || raw === '')
-                return;
-            if (typeof raw === 'object') {
-                q.set(key, JSON.stringify(raw));
-                return;
-            }
-            q.set(key, String(raw));
-        });
-        return `${BACKEND_URL}?${q.toString()}`;
-    }
-    async function readJson(response) {
-        const text = await response.text();
-        if (!text.trim())
-            throw new Error(`Respuesta vacía (${response.status})`);
-        try {
-            return JSON.parse(text);
-        }
-        catch {
-            throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-        }
-    }
-    function canRetryAsGet(action) {
-        return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(String(action || '').trim().toLowerCase());
-    }
-    async function requestBackend(action, payload = {}, method = 'POST') {
-        const requestGet = () => fetch(buildGetUrl(action, payload), { method: 'GET' });
-        const requestPost = () => fetch(BACKEND_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action, ...payload })
-        });
-        try {
-            const response = method === 'GET' ? await requestGet() : await requestPost();
-            const data = await readJson(response);
-            const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-            if (errorText)
-                throw new Error(errorText);
-            if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-                throw new Error(errorText || `La operación ${action} fue rechazada`);
-            }
-            return data;
-        }
-        catch (error) {
-            if (method !== 'POST' || !canRetryAsGet(action))
-                throw error;
-            const response = await requestGet();
-            const data = await readJson(response);
-            const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-            if (errorText)
-                throw new Error(errorText);
-            if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-                throw new Error(errorText || `La operación ${action} fue rechazada`);
-            }
-            return data;
-        }
-    }
     function renderList(targetId, rows = [], mapper) {
         const wrap = document.getElementById(targetId);
         if (!wrap)
@@ -149,7 +89,7 @@
     }
     async function cargarReporte() {
         const filtros = getFiltros();
-        const data = await requestBackend('reporte_operativo', filtros, 'POST');
+        const data = await backend.request('reporte_operativo', filtros, { method: 'POST' });
         fillKpis(filtros.tipo, data.resumen || {});
         if (filtros.tipo === 'diario') {
             renderList('tabla-principal', data.detalle?.equiposRecibidos || [], (item) => `

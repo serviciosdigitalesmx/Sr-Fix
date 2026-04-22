@@ -1,17 +1,10 @@
 ;(function (): void {
-  type FinanzasRequestMethod = 'GET' | 'POST';
-
-  interface FinanzasBackendEnvelope {
-    success?: boolean;
-    error?: unknown;
-  }
+  const backend = window.SRFIXBackend as SrFix.BackendClient;
 
   type FinanzasResumenResponse = SrFix.FinanzasResumenResponse;
   type FinanzasKpis = SrFix.FinanzasKpis;
   type FinanzasComparativoMensualItem = SrFix.FinanzasComparativoMensualItem;
   type FinanzasResumenCategoriaItem = SrFix.FinanzasResumenCategoriaItem;
-
-  const BACKEND_URL = String(CONFIG.API_URL || '').trim();
 
   const elBtnRefresh = requireElement<HTMLButtonElement>('btn-refresh');
   const elFiltroDesde = requireElement<HTMLInputElement>('filtro-desde');
@@ -55,68 +48,6 @@
       fechaHasta: elFiltroHasta.value,
       sucursalId: getSucursalActiva()
     };
-  }
-
-  function buildGetUrl(action: string, payload: Record<string, unknown>): string {
-    const q = new URLSearchParams();
-    q.set('action', action);
-    q.set('t', String(Date.now()));
-    Object.entries(payload).forEach(([key, raw]) => {
-      if (raw === undefined || raw === null || raw === '') return;
-      if (typeof raw === 'object') {
-        q.set(key, JSON.stringify(raw));
-        return;
-      }
-      q.set(key, String(raw));
-    });
-    return `${BACKEND_URL}?${q.toString()}`;
-  }
-
-  async function readJson<T>(response: Response): Promise<T> {
-    const text = await response.text();
-    if (!text.trim()) throw new Error(`Respuesta vacía (${response.status})`);
-    try {
-      return JSON.parse(text) as T;
-    } catch {
-      throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-    }
-  }
-
-  function canRetryAsGet(action: string): boolean {
-    return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(String(action || '').trim().toLowerCase());
-  }
-
-  async function requestBackend<T>(
-    action: string,
-    payload: Record<string, unknown> = {},
-    method: FinanzasRequestMethod = 'POST',
-  ): Promise<T> {
-    const requestGet = (): Promise<Response> => fetch(buildGetUrl(action, payload), { method: 'GET' });
-    const requestPost = (): Promise<Response> => fetch(BACKEND_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action, ...payload })
-    });
-
-    try {
-      const response = method === 'GET' ? await requestGet() : await requestPost();
-      const data = await readJson<T & FinanzasBackendEnvelope>(response);
-      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-      if (errorText) throw new Error(errorText);
-      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-        throw new Error(errorText || `La operación ${action} fue rechazada`);
-      }
-      return data as T;
-    } catch (error) {
-      if (method !== 'POST' || !canRetryAsGet(action)) throw error;
-      const response = await requestGet();
-      const data = await readJson<T & FinanzasBackendEnvelope>(response);
-      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-      if (errorText) throw new Error(errorText);
-      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-        throw new Error(errorText || `La operación ${action} fue rechazada`);
-      }
-      return data as T;
-    }
   }
 
   function renderComparativo(rows: FinanzasComparativoMensualItem[] = []): void {
@@ -165,7 +96,7 @@
 
   async function cargarFinanzas(): Promise<void> {
     try {
-      const data = await requestBackend<FinanzasResumenResponse>('resumen_finanzas', getFiltros(), 'POST');
+      const data = await backend.request<FinanzasResumenResponse>('resumen_finanzas', getFiltros(), { method: 'POST' });
       renderKpis(data.kpis || {});
       renderComparativo(Array.isArray(data.comparativoMensual) ? data.comparativoMensual : []);
       renderCategorias(Array.isArray(data.resumenCategorias) ? data.resumenCategorias : []);

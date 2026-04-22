@@ -1,10 +1,3 @@
-type RequestMethod = 'GET' | 'POST';
-
-interface BackendEnvelope {
-  success?: boolean;
-  error?: unknown;
-}
-
 type SolicitudesListResponse = SrFix.SolicitudesListResponse;
 type SolicitudResponse = SrFix.SolicitudResponse;
 type ArchivarCotizacionResponse = SrFix.ArchivarCotizacionResponse;
@@ -15,7 +8,7 @@ interface DraftCotizacionItem {
   precio: number;
 }
 
-const BACKEND_URL = CONFIG.API_URL;
+const solicitudesBackend = window.SRFIXBackend as SrFix.BackendClient;
 const IVA_RATE = 0.16;
 
 const elList = requireElement<HTMLDivElement>('list');
@@ -120,55 +113,6 @@ function sonidoNuevaSolicitud(): void {
 function formatMoney(value: number | string | undefined): string {
   const val = Number(value ?? 0);
   return `$${val.toFixed(2)}`;
-}
-
-function getSolicitudesBackendUrl(): string {
-  return String(BACKEND_URL || '').trim();
-}
-
-function buildGetUrl(action: string, payload: Record<string, unknown> = {}): string {
-  const params = new URLSearchParams();
-  params.set('action', action);
-  params.set('t', String(Date.now()));
-  Object.entries(payload).forEach(([key, raw]) => {
-    if (raw === undefined || raw === null) return;
-    if (typeof raw === 'object') {
-      params.set(key, JSON.stringify(raw));
-      return;
-    }
-    params.set(key, String(raw));
-  });
-  return `${getSolicitudesBackendUrl()}?${params.toString()}`;
-}
-
-async function readJson<T>(response: Response): Promise<T> {
-  const text = await response.text();
-  if (!text.trim()) {
-    throw new Error(`Respuesta vacía (${response.status})`);
-  }
-  try {
-    return JSON.parse(text) as T;
-  } catch (error) {
-    throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-  }
-}
-
-async function requestBackend<T>(action: string, payload: Record<string, unknown> = {}, method: RequestMethod = 'POST'): Promise<T> {
-  const response = method === 'GET'
-    ? await fetch(buildGetUrl(action, payload), { method: 'GET' })
-    : await fetch(getSolicitudesBackendUrl(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...payload })
-      });
-
-  const data = await readJson<T & BackendEnvelope>(response);
-  const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-  if (errorText) throw new Error(errorText);
-  if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-    throw new Error(errorText || `La operación ${action} fue rechazada`);
-  }
-  return data as T;
 }
 
 function makeCotizacionItem(): DraftCotizacionItem {
@@ -493,10 +437,10 @@ async function archivarCotizacionActual(): Promise<void> {
 
   const cotizacionPayload = construirCotizacionPayload(resumen, items, notas);
   try {
-    const response = await requestBackend<ArchivarCotizacionResponse>('archivar_cotizacion', {
+      const response = await solicitudesBackend.request<ArchivarCotizacionResponse>('archivar_cotizacion', {
       folio: solicitudActual.FOLIO_COTIZACION,
       cotizacion: cotizacionPayload
-    }, 'POST');
+    }, { method: 'POST' });
 
     if (response.success === false) {
       throw new Error(response.error || 'No se pudo archivar la cotización');
@@ -566,7 +510,7 @@ async function cargarSolicitudes(force = false): Promise<void> {
   elEmpty.classList.add('hidden');
 
   try {
-    const response = await requestBackend<SolicitudesListResponse>('listar_solicitudes', {}, 'GET');
+    const response = await solicitudesBackend.request<SolicitudesListResponse>('listar_solicitudes', {}, { method: 'GET' });
     solicitudesCache = response.solicitudes || [];
     const conteoActual = solicitudesCache.length;
     if (!primeraCargaSolicitudes && conteoActual > conteoSolicitudesPrevio) {
@@ -584,7 +528,7 @@ async function cargarSolicitudes(force = false): Promise<void> {
 
 async function archivarSolicitud(folio: string): Promise<void> {
   try {
-    const response = await requestBackend<{ success?: boolean; error?: string }>('archivar_solicitud', { folio }, 'POST');
+    const response = await solicitudesBackend.request<{ success?: boolean; error?: string }>('archivar_solicitud', { folio }, { method: 'POST' });
     if (response.success === false) throw new Error(response.error || 'No se pudo archivar');
     await cargarSolicitudes(true);
   } catch (error) {

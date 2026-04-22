@@ -1,10 +1,5 @@
 ;(function (): void {
-  type RequestMethod = 'GET' | 'POST';
-
-  interface BackendEnvelope {
-    success?: boolean;
-    error?: unknown;
-  }
+  const backend = window.SRFIXBackend as SrFix.BackendClient;
 
   type PortalEquipoRecord = SrFix.PortalEquipoRecord;
   type PortalEquipoResponse = SrFix.PortalEquipoResponse;
@@ -23,12 +18,11 @@
 
   const globalWindow = window as ConfigWindow;
   const CONFIG = {
-    BACKEND_URL: String(window.SRFIX_BACKEND_URL || globalWindow.CONFIG?.API_URL || localStorage.getItem('srfix_backend_url') || '').trim(),
     TIENDA_WHATSAPP: '528117006536',
     TIENDA_MAPS: 'https://maps.app.goo.gl/WfZYxbunp9XhXHgr5',
     LOGO_URL: './logo.webp',
     SUGGESTIONS_KEY: 'srfix_folios_historial'
-  } satisfies SrFix.PortalClienteConfig & { BACKEND_URL: string };
+  } satisfies SrFix.PortalClienteConfig;
 
   const portalWindow = window as unknown as PortalWindow;
 
@@ -231,48 +225,6 @@
     window.print();
   }
 
-  function buildGetUrl(action: string, payload: Record<string, unknown>): string {
-    const params = new URLSearchParams();
-    params.set('action', action);
-    params.set('t', String(Date.now()));
-    Object.entries(payload).forEach(([key, raw]) => {
-      if (raw === undefined || raw === null || raw === '') return;
-      if (typeof raw === 'object') {
-        params.set(key, JSON.stringify(raw));
-        return;
-      }
-      params.set(key, String(raw));
-    });
-    return `${CONFIG.BACKEND_URL}?${params.toString()}`;
-  }
-
-  async function readJson<T>(response: Response): Promise<T> {
-    const text = await response.text();
-    if (!text.trim()) throw new Error(`Respuesta vacía (${response.status})`);
-    try {
-      return JSON.parse(text) as T;
-    } catch {
-      throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-    }
-  }
-
-  async function requestBackend<T>(action: string, payload: Record<string, unknown> = {}, method: RequestMethod = 'GET'): Promise<T> {
-    const response = method === 'GET'
-      ? await fetch(buildGetUrl(action, payload), { method: 'GET' })
-      : await fetch(CONFIG.BACKEND_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action, ...payload })
-        });
-    const data = await readJson<T & BackendEnvelope>(response);
-    const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-    if (errorText) throw new Error(errorText);
-    if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-      throw new Error(errorText || `La operación ${action} fue rechazada`);
-    }
-    return data as T;
-  }
-
   async function buscar(): Promise<void> {
     const input = requireElement<HTMLInputElement>('folio-input');
     const folio = input.value.trim().toUpperCase();
@@ -284,7 +236,7 @@
     ocultarError();
 
     try {
-      const data = await requestBackend<PortalEquipoResponse>('equipo', { folio }, 'GET');
+      const data = await backend.request<PortalEquipoResponse>('equipo', { folio }, { method: 'GET' });
       if (!data.equipo) throw new Error('No encontrado');
       mostrarResultado(data.equipo);
       agregarFolioHistorial(folio);

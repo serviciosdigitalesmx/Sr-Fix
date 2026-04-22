@@ -16,7 +16,7 @@ Conclusión ejecutiva:
 - `Cumple con ajustes`: la mayoría de módulos nuevos
 - `Ajuste importante inmediato`: navegación del integrador
 - `Ajuste importante de rendimiento`: estadísticas de clientes
-- `Ajuste estructural recomendado`: centralizar `BACKEND_URL`
+- `Ajuste estructural recomendado`: centralizar el cliente compartido de backend
 
 ## Hallazgos Principales
 
@@ -289,7 +289,7 @@ Sí recomiendo este orden:
 
 1. Corregir navegación del integrador
 2. Optimizar módulo `Clientes`
-3. Centralizar configuración de `BACKEND_URL`
+3. Centralizar la configuración del cliente compartido de backend
 4. Hacer una segunda pasada de QA funcional por módulo en entorno real
 
 ## Dictamen Final

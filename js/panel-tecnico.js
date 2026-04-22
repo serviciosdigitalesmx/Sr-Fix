@@ -817,18 +817,6 @@
             mostrarToast('No hay cambios para guardar', 'success');
             return;
         }
-        const requiereAuth = campos.COSTO_ESTIMADO !== undefined || String(campos.ESTADO || '').trim().toLowerCase() === 'entregado';
-        if (requiereAuth) {
-            const guard = window.SRFXSecurityGuard;
-            if (!guard || typeof guard.ensureAdminPassword !== 'function') {
-                mostrarToast('No se pudo validar la clave admin', 'error');
-                return;
-            }
-            const auth = await guard.ensureAdminPassword('editar un valor monetario del equipo');
-            if (!auth.ok)
-                return;
-            adminPasswordActual = auth.password ?? '';
-        }
         try {
             const data = await tecnicoBackend.request('actualizar_equipo', {
                 folio: equipoActual.FOLIO,

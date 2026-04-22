@@ -1,10 +1,5 @@
 ;(function (): void {
-  type RequestMethod = 'GET' | 'POST';
-
-  interface BackendEnvelope {
-    success?: boolean;
-    error?: unknown;
-  }
+  const backend = window.SRFIXBackend as SrFix.BackendClient;
 
   type SecurityActionRecord = SrFix.SecurityActionRecord;
   type SecurityConfigResponse = SrFix.SecurityConfigResponse;
@@ -12,8 +7,6 @@
   type SecuritySaveUserResponse = SrFix.SecuritySaveUserResponse;
   type SecurityUsersResponse = SrFix.SecurityUsersResponse;
   type SecurityUserRecord = SrFix.SecurityUserRecord;
-
-  const BACKEND_URL = String(CONFIG.API_URL || '').trim();
 
   const elBtnRefresh = requireElement<HTMLButtonElement>('btn-refresh');
   const elBtnReload = requireElement<HTMLButtonElement>('btn-reload');
@@ -94,60 +87,7 @@
     });
   }
 
-  function buildGetUrl(action: string, payload: Record<string, unknown>): string {
-    const q = new URLSearchParams();
-    q.set('action', action);
-    q.set('t', String(Date.now()));
-    Object.entries(payload).forEach(([key, raw]) => {
-      if (raw === undefined || raw === null || raw === '') return;
-      if (typeof raw === 'object') {
-        q.set(key, JSON.stringify(raw));
-        return;
-      }
-      q.set(key, String(raw));
-    });
-    return `${BACKEND_URL}?${q.toString()}`;
-  }
-
-  async function readJson<T>(response: Response): Promise<T> {
-    const text = await response.text();
-    if (!text.trim()) throw new Error(`Respuesta vacía (${response.status})`);
-    try {
-      return JSON.parse(text) as T;
-    } catch {
-      throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-    }
-  }
-
-  async function requestBackend<T>(action: string, payload: Record<string, unknown> = {}, method: RequestMethod = 'POST'): Promise<T> {
-    const canRetryAsGet = !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(String(action || '').trim().toLowerCase());
-    const requestGet = (): Promise<Response> => fetch(buildGetUrl(action, payload), { method: 'GET' });
-    const requestPost = (): Promise<Response> => fetch(BACKEND_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action, ...payload })
-    });
-
-    try {
-      const response = method === 'GET' ? await requestGet() : await requestPost();
-      const data = await readJson<T & BackendEnvelope>(response);
-      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-      if (errorText) throw new Error(errorText);
-      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-        throw new Error(errorText || `La operación ${action} fue rechazada`);
-      }
-      return data as T;
-    } catch (error) {
-      if (method !== 'POST' || !canRetryAsGet) throw error;
-      const response = await requestGet();
-      const data = await readJson<T & BackendEnvelope>(response);
-      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-      if (errorText) throw new Error(errorText);
-      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-        throw new Error(errorText || `La operación ${action} fue rechazada`);
-      }
-      return data as T;
-    }
-  }
+  
 
   function setStatus(msg: string, type: 'muted' | 'ok' | 'error' | 'working' = 'muted'): void {
     elSaveStatus.className = 'text-sm min-h-[20px]';
@@ -218,8 +158,8 @@
     elFormSeguridad.classList.add('section-busy');
     setStatus('Cargando configuración...', 'working');
     const [seguridad, usuarios] = await Promise.all([
-      requestBackend<SecurityConfigResponse>('obtener_config_seguridad', {}, 'GET'),
-      requestBackend<SecurityUsersResponse>('listar_usuarios_internos', {}, 'GET')
+      backend.request<SecurityConfigResponse>('obtener_config_seguridad', {}, { method: 'GET' }),
+      backend.request<SecurityUsersResponse>('listar_usuarios_internos', {}, { method: 'GET' })
     ]);
     accionesCache = Array.isArray(seguridad.acciones) ? seguridad.acciones : [];
     usuariosCache = Array.isArray(usuarios.usuarios) ? usuarios.usuarios : [];
@@ -290,7 +230,7 @@
     elFormSeguridad.classList.add('section-busy');
     setStatus('Guardando configuración...', 'working');
     try {
-      const data = await requestBackend<SecuritySaveConfigResponse>('guardar_config_seguridad', {
+      const data = await backend.request<SecuritySaveConfigResponse>('guardar_config_seguridad', {
         adminPasswordActual: passActual,
         adminPassword: pass,
         mensajeAutorizacion: elMensajeAutorizacion.value.trim(),
@@ -301,7 +241,7 @@
           nombre: currentUser?.NOMBRE || '',
           rol: currentUser?.ROL || ''
         }
-      }, 'POST');
+      }, { method: 'POST' });
 
       accionesCache = Array.isArray(data.acciones) ? data.acciones : [];
       renderAcciones();
@@ -344,7 +284,7 @@
     setUserStatus('Guardando usuario...', 'working');
     setStatus('Guardando usuario...', 'working');
     try {
-      const data = await requestBackend<SecuritySaveUserResponse>('guardar_usuario_interno', payload, 'POST');
+      const data = await backend.request<SecuritySaveUserResponse>('guardar_usuario_interno', payload, { method: 'POST' });
       usuariosCache = Array.isArray(data.usuarios) ? data.usuarios : [];
       renderUsuarios();
       cerrarModalUsuario();

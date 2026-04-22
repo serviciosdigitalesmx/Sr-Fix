@@ -1,5 +1,5 @@
 "use strict";
-const BACKEND_URL = CONFIG.API_URL;
+const solicitudesBackend = window.SRFIXBackend;
 const IVA_RATE = 0.16;
 const elList = requireElement('list');
 const elLoading = requireElement('loading');
@@ -100,53 +100,6 @@ function sonidoNuevaSolicitud() {
 function formatMoney(value) {
     const val = Number(value ?? 0);
     return `$${val.toFixed(2)}`;
-}
-function getSolicitudesBackendUrl() {
-    return String(BACKEND_URL || '').trim();
-}
-function buildGetUrl(action, payload = {}) {
-    const params = new URLSearchParams();
-    params.set('action', action);
-    params.set('t', String(Date.now()));
-    Object.entries(payload).forEach(([key, raw]) => {
-        if (raw === undefined || raw === null)
-            return;
-        if (typeof raw === 'object') {
-            params.set(key, JSON.stringify(raw));
-            return;
-        }
-        params.set(key, String(raw));
-    });
-    return `${getSolicitudesBackendUrl()}?${params.toString()}`;
-}
-async function readJson(response) {
-    const text = await response.text();
-    if (!text.trim()) {
-        throw new Error(`Respuesta vacía (${response.status})`);
-    }
-    try {
-        return JSON.parse(text);
-    }
-    catch (error) {
-        throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-    }
-}
-async function requestBackend(action, payload = {}, method = 'POST') {
-    const response = method === 'GET'
-        ? await fetch(buildGetUrl(action, payload), { method: 'GET' })
-        : await fetch(getSolicitudesBackendUrl(), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action, ...payload })
-        });
-    const data = await readJson(response);
-    const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-    if (errorText)
-        throw new Error(errorText);
-    if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-        throw new Error(errorText || `La operación ${action} fue rechazada`);
-    }
-    return data;
 }
 function makeCotizacionItem() {
     return { concepto: '', cantidad: 1, precio: 0 };
@@ -451,10 +404,10 @@ async function archivarCotizacionActual() {
     }
     const cotizacionPayload = construirCotizacionPayload(resumen, items, notas);
     try {
-        const response = await requestBackend('archivar_cotizacion', {
+        const response = await solicitudesBackend.request('archivar_cotizacion', {
             folio: solicitudActual.FOLIO_COTIZACION,
             cotizacion: cotizacionPayload
-        }, 'POST');
+        }, { method: 'POST' });
         if (response.success === false) {
             throw new Error(response.error || 'No se pudo archivar la cotización');
         }
@@ -519,7 +472,7 @@ async function cargarSolicitudes(force = false) {
     elLoading.classList.remove('hidden');
     elEmpty.classList.add('hidden');
     try {
-        const response = await requestBackend('listar_solicitudes', {}, 'GET');
+        const response = await solicitudesBackend.request('listar_solicitudes', {}, { method: 'GET' });
         solicitudesCache = response.solicitudes || [];
         const conteoActual = solicitudesCache.length;
         if (!primeraCargaSolicitudes && conteoActual > conteoSolicitudesPrevio) {
@@ -537,7 +490,7 @@ async function cargarSolicitudes(force = false) {
 }
 async function archivarSolicitud(folio) {
     try {
-        const response = await requestBackend('archivar_solicitud', { folio }, 'POST');
+        const response = await solicitudesBackend.request('archivar_solicitud', { folio }, { method: 'POST' });
         if (response.success === false)
             throw new Error(response.error || 'No se pudo archivar');
         await cargarSolicitudes(true);

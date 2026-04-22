@@ -1,16 +1,9 @@
 ;(function (): void {
-  type ArchivoRequestMethod = 'GET' | 'POST';
-
-  interface ArchivoBackendEnvelope {
-    success?: boolean;
-    error?: unknown;
-  }
+  const backend = window.SRFIXBackend as SrFix.BackendClient;
 
   type ArchivoListResponse = SrFix.ArchivoListResponse;
   type ArchivoRecord = SrFix.ArchivoRecord;
   type ArchivoDetalleResponse = SrFix.ArchivoDetalleResponse;
-
-  const BACKEND_URL = String(CONFIG.API_URL || '').trim();
 
   const elRows = requireElement<HTMLTableSectionElement>('rows');
   const elLoading = requireElement<HTMLDivElement>('loading');
@@ -291,7 +284,7 @@
 
   async function requestDetalleLegado(tipo: string, folio: string): Promise<{ registro: ArchivoRecord; raw: Record<string, unknown> | null; reabrible: boolean } | null> {
     if (tipo === 'equipos') {
-      const data = await requestBackend<{ equipo?: Record<string, unknown>; error?: string }>('equipo', { folio }, 'GET');
+      const data = await backend.request<{ equipo?: Record<string, unknown>; error?: string }>('equipo', { folio }, { method: 'GET' });
       if (!data || !data.equipo) return null;
       return {
         registro: mapEquipoToArchivoRecord(data.equipo),
@@ -300,7 +293,7 @@
       };
     }
 
-    const data = await requestBackend<{ solicitud?: Record<string, unknown>; error?: string }>('solicitud', { folio }, 'GET');
+    const data = await backend.request<{ solicitud?: Record<string, unknown>; error?: string }>('solicitud', { folio }, { method: 'GET' });
     if (!data || !data.solicitud) return null;
     const registro = mapSolicitudToArchivoRecord(data.solicitud);
     return {
@@ -351,73 +344,7 @@
     };
   }
 
-  function getBackendUrl(): string {
-    return BACKEND_URL;
-  }
-
-  function buildGetUrl(action: string, payload: Record<string, unknown> = {}): string {
-    const params = new URLSearchParams();
-    params.set('action', action);
-    params.set('t', String(Date.now()));
-    Object.entries(payload).forEach(([key, raw]) => {
-      if (raw === undefined || raw === null || raw === '') return;
-      if (typeof raw === 'object') {
-        params.set(key, JSON.stringify(raw));
-        return;
-      }
-      params.set(key, String(raw));
-    });
-    return `${getBackendUrl()}?${params.toString()}`;
-  }
-
-  async function readJson<T>(response: Response): Promise<T> {
-    const text = await response.text();
-    if (!text.trim()) {
-      throw new Error(`Respuesta vacía (${response.status})`);
-    }
-    try {
-      return JSON.parse(text) as T;
-    } catch (error) {
-      throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-    }
-  }
-
-  function canRetryAsGet(action: string): boolean {
-    return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(String(action || '').trim().toLowerCase());
-  }
-
-  async function requestBackend<T>(
-    action: string,
-    payload: Record<string, unknown> = {},
-    method: ArchivoRequestMethod = 'POST',
-  ): Promise<T> {
-    const requestGet = (): Promise<Response> => fetch(buildGetUrl(action, payload), { method: 'GET' });
-    const requestPost = (): Promise<Response> => fetch(getBackendUrl(), {
-      method: 'POST',
-      body: JSON.stringify({ action, ...payload })
-    });
-
-    try {
-      const response = method === 'GET' ? await requestGet() : await requestPost();
-      const data = await readJson<T & ArchivoBackendEnvelope>(response);
-      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-      if (errorText) throw new Error(errorText);
-      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-        throw new Error(errorText || `La operación ${action} fue rechazada`);
-      }
-      return data as T;
-    } catch (error) {
-      if (method !== 'POST' || !canRetryAsGet(action)) throw error;
-      const response = await requestGet();
-      const data = await readJson<T & ArchivoBackendEnvelope>(response);
-      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-      if (errorText) throw new Error(errorText);
-      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-        throw new Error(errorText || `La operación ${action} fue rechazada`);
-      }
-      return data as T;
-    }
-  }
+  
 
   function renderRowsChunked(archivo: ArchivoRecord[], append = false): Promise<void> {
     return new Promise((resolve) => {
@@ -490,9 +417,9 @@
       let data: ArchivoListResponse | null = null;
 
       try {
-        data = await requestBackend<ArchivoListResponse>('listar_archivo', queryPayload, 'POST');
+        data = await backend.request<ArchivoListResponse>('listar_archivo', queryPayload, { method: 'POST' });
       } catch {
-        data = await requestBackend<ArchivoListResponse>('listar_archivo', queryPayload, 'GET');
+        data = await backend.request<ArchivoListResponse>('listar_archivo', queryPayload, { method: 'GET' });
       }
 
       if (!data) {
@@ -549,7 +476,7 @@
     }
 
     try {
-      const data = await requestBackend<ArchivoDetalleResponse>('detalle_archivo', { tipo: tipoNormalizado, folio: folioNormalizado }, 'GET');
+      const data = await backend.request<ArchivoDetalleResponse>('detalle_archivo', { tipo: tipoNormalizado, folio: folioNormalizado }, { method: 'GET' });
       if (!data || !data.registro) {
         throw new Error('No se obtuvo el detalle del archivo');
       }
@@ -591,11 +518,11 @@
     if (!auth.ok) return;
 
     try {
-      const response = await requestBackend<{ success?: boolean; error?: string }>('reabrir_archivo', {
+      const response = await backend.request<{ success?: boolean; error?: string }>('reabrir_archivo', {
         tipo,
         folio: detalleActual.FOLIO,
         adminPasswordActual: auth.password || ''
-      }, 'POST');
+      }, { method: 'POST' });
       if (response.success === false) {
         throw new Error(response.error || 'No se pudo reabrir');
       }

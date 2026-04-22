@@ -1,14 +1,7 @@
 "use strict";
 const CACHE_KEY = 'srfix_admin_money_auth_v1';
 const CACHE_TTL_MS = 10 * 60 * 1000;
-function getSecurityGuardBackendUrl() {
-    return CONFIG.API_URL
-        || window.SRFIX_API_URL
-        || window.SRFIX_BACKEND_URL
-        || localStorage.getItem('srfix_api_url')
-        || localStorage.getItem('srfix_backend_url')
-        || 'https://script.google.com/macros/s/AKfycbw49B0GeqyZ2Yr0a-IZNqUhrhUBH0yldSO274EDHBU9gT5SPrXSs2ixIhwD5BRmg-6W/exec';
-}
+const backend = window.SRFIXBackend;
 function readCache() {
     try {
         const raw = sessionStorage.getItem(CACHE_KEY);
@@ -47,27 +40,15 @@ async function validatePassword(password) {
         usuario: 'admin',
         password: String(password || '').trim()
     };
-    const res = await fetch(getSecurityGuardBackendUrl(), {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            action: payload.action,
-            adminPassword: payload.password
-        })
-    });
-    if (!res.ok)
-        return false;
-    let data = null;
     try {
-        data = await res.json();
+        const data = await backend.request('validar_admin_password', {
+            adminPassword: payload.password
+        }, { method: 'POST' });
+        return !!data.success;
     }
-    catch (e) {
+    catch {
         return false;
     }
-    const candidate = data;
-    return !!(candidate && candidate.success);
 }
 async function ensureAdminPassword(reason, options = {}) {
     const cached = readCache();

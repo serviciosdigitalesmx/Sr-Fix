@@ -1,7 +1,7 @@
 "use strict";
 ;
 (function () {
-    const BACKEND_URL = String(CONFIG.API_URL || '').trim();
+    const backend = window.SRFIXBackend;
     const PAGE_SIZE = 80;
     const elRows = requireElement('rows');
     const elLoading = requireElement('loading');
@@ -82,71 +82,6 @@
         elDuplicadosBox.classList.remove('hidden');
         elDuplicadosBox.innerHTML = `<div class="font-semibold mb-1">Atención con clientes duplicados</div><div>Teléfonos repetidos detectados: ${duplicados.map((item) => `<span class="inline-flex mr-2 mb-1 px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-100">${escapeHtml(formatPhone(item))}</span>`).join('')}</div>`;
     }
-    function getBackendUrl() {
-        return BACKEND_URL;
-    }
-    function buildGetUrl(action, payload) {
-        const q = new URLSearchParams();
-        q.set('action', action);
-        q.set('t', String(Date.now()));
-        Object.entries(payload).forEach(([key, raw]) => {
-            if (raw === undefined || raw === null || raw === '')
-                return;
-            if (typeof raw === 'object') {
-                q.set(key, JSON.stringify(raw));
-                return;
-            }
-            q.set(key, String(raw));
-        });
-        return `${getBackendUrl()}?${q.toString()}`;
-    }
-    async function readJson(response) {
-        const text = await response.text();
-        if (!text.trim()) {
-            throw new Error(`Respuesta vacía (${response.status})`);
-        }
-        try {
-            return JSON.parse(text);
-        }
-        catch {
-            throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-        }
-    }
-    function canRetryAsGet(action) {
-        const normalized = String(action || '').trim().toLowerCase();
-        return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(normalized);
-    }
-    async function requestBackend(action, payload = {}, method = 'POST') {
-        const requestGet = () => fetch(buildGetUrl(action, payload), { method: 'GET' });
-        const requestPost = () => fetch(getBackendUrl(), {
-            method: 'POST',
-            body: JSON.stringify({ action, ...payload })
-        });
-        try {
-            const response = method === 'GET' ? await requestGet() : await requestPost();
-            const data = await readJson(response);
-            const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-            if (errorText)
-                throw new Error(errorText);
-            if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-                throw new Error(errorText || `La operación ${action} fue rechazada`);
-            }
-            return data;
-        }
-        catch (error) {
-            if (method !== 'POST' || !canRetryAsGet(action))
-                throw error;
-            const response = await requestGet();
-            const data = await readJson(response);
-            const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-            if (errorText)
-                throw new Error(errorText);
-            if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-                throw new Error(errorText || `La operación ${action} fue rechazada`);
-            }
-            return data;
-        }
-    }
     function pasaFiltrosLocales(cliente) {
         const filtros = getFiltros();
         const etiqueta = String(cliente.ETIQUETA ?? '').toLowerCase();
@@ -226,7 +161,7 @@
             elEmpty.classList.add('hidden');
         }
         try {
-            const data = await requestBackend('listar_clientes', { page: currentPage, pageSize: PAGE_SIZE, texto: getFiltros().texto }, 'POST');
+            const data = await backend.request('listar_clientes', { page: currentPage, pageSize: PAGE_SIZE, texto: getFiltros().texto }, { method: 'POST' });
             const items = Array.isArray(data.clientes) ? data.clientes : [];
             duplicadosCache = Array.isArray(data.duplicados) ? data.duplicados : [];
             if (!append)
@@ -286,7 +221,7 @@
             notas: requireElement('cliente-notas').value.trim()
         };
         try {
-            await requestBackend('guardar_cliente', payload, 'POST');
+            await backend.request('guardar_cliente', payload, { method: 'POST' });
             cerrarModal();
             await cargarClientes({ append: false });
         }
@@ -365,7 +300,7 @@
     }
     async function verDetalle(id) {
         try {
-            const data = await requestBackend('cliente', { id }, 'POST');
+            const data = await backend.request('cliente', { id }, { method: 'POST' });
             const cliente = data.cliente || { NOMBRE: 'Cliente' };
             const historial = data.historial || {};
             requireElement('detalle-title').textContent = cliente.NOMBRE || 'Historial del cliente';

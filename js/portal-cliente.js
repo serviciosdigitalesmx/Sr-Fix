@@ -1,9 +1,9 @@
 "use strict";
 ;
 (function () {
+    const backend = window.SRFIXBackend;
     const globalWindow = window;
     const CONFIG = {
-        BACKEND_URL: String(window.SRFIX_BACKEND_URL || globalWindow.CONFIG?.API_URL || localStorage.getItem('srfix_backend_url') || '').trim(),
         TIENDA_WHATSAPP: '528117006536',
         TIENDA_MAPS: 'https://maps.app.goo.gl/WfZYxbunp9XhXHgr5',
         LOGO_URL: './logo.webp',
@@ -198,49 +198,6 @@
     function imprimirDetalle() {
         window.print();
     }
-    function buildGetUrl(action, payload) {
-        const params = new URLSearchParams();
-        params.set('action', action);
-        params.set('t', String(Date.now()));
-        Object.entries(payload).forEach(([key, raw]) => {
-            if (raw === undefined || raw === null || raw === '')
-                return;
-            if (typeof raw === 'object') {
-                params.set(key, JSON.stringify(raw));
-                return;
-            }
-            params.set(key, String(raw));
-        });
-        return `${CONFIG.BACKEND_URL}?${params.toString()}`;
-    }
-    async function readJson(response) {
-        const text = await response.text();
-        if (!text.trim())
-            throw new Error(`Respuesta vacía (${response.status})`);
-        try {
-            return JSON.parse(text);
-        }
-        catch {
-            throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-        }
-    }
-    async function requestBackend(action, payload = {}, method = 'GET') {
-        const response = method === 'GET'
-            ? await fetch(buildGetUrl(action, payload), { method: 'GET' })
-            : await fetch(CONFIG.BACKEND_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action, ...payload })
-            });
-        const data = await readJson(response);
-        const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-        if (errorText)
-            throw new Error(errorText);
-        if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-            throw new Error(errorText || `La operación ${action} fue rechazada`);
-        }
-        return data;
-    }
     async function buscar() {
         const input = requireElement('folio-input');
         const folio = input.value.trim().toUpperCase();
@@ -251,7 +208,7 @@
         btn.innerHTML = '<div class="loading-spinner w-6 h-6"></div> Consultando...';
         ocultarError();
         try {
-            const data = await requestBackend('equipo', { folio }, 'GET');
+            const data = await backend.request('equipo', { folio }, { method: 'GET' });
             if (!data.equipo)
                 throw new Error('No encontrado');
             mostrarResultado(data.equipo);

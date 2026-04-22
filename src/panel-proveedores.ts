@@ -1,16 +1,9 @@
 ;(function (): void {
-  type ProveedoresRequestMethod = 'GET' | 'POST';
-
-  interface ProveedoresBackendEnvelope {
-    success?: boolean;
-    error?: unknown;
-  }
-
   type ProveedorRecord = SrFix.ProveedorRecord;
   type ProveedoresListResponse = SrFix.ProveedoresListResponse;
   type ProveedorDetailResponse = SrFix.ProveedorDetailResponse;
 
-  const BACKEND_URL = String(CONFIG.API_URL || '').trim();
+  const backend = window.SRFIXBackend as SrFix.BackendClient;
   const PAGE_SIZE = 80;
 
   const elRows = requireElement<HTMLTableSectionElement>('rows');
@@ -78,73 +71,6 @@
     filtroCategoria.value = current;
   }
 
-  function getBackendUrl(): string {
-    return BACKEND_URL;
-  }
-
-  function buildGetUrl(action: string, payload: Record<string, unknown>): string {
-    const q = new URLSearchParams();
-    q.set('action', action);
-    q.set('t', String(Date.now()));
-    Object.entries(payload).forEach(([key, raw]) => {
-      if (raw === undefined || raw === null || raw === '') return;
-      if (typeof raw === 'object') {
-        q.set(key, JSON.stringify(raw));
-        return;
-      }
-      q.set(key, String(raw));
-    });
-    return `${getBackendUrl()}?${q.toString()}`;
-  }
-
-  async function readJson<T>(response: Response): Promise<T> {
-    const text = await response.text();
-    if (!text.trim()) throw new Error(`Respuesta vacía (${response.status})`);
-    try {
-      return JSON.parse(text) as T;
-    } catch {
-      throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-    }
-  }
-
-  function canRetryAsGet(action: string): boolean {
-    const normalized = String(action || '').trim().toLowerCase();
-    return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(normalized);
-  }
-
-  async function requestBackend<T>(
-    action: string,
-    payload: Record<string, unknown> = {},
-    method: ProveedoresRequestMethod = 'POST',
-  ): Promise<T> {
-    const requestGet = (): Promise<Response> => fetch(buildGetUrl(action, payload), { method: 'GET' });
-    const requestPost = (): Promise<Response> => fetch(getBackendUrl(), {
-      method: 'POST',
-      body: JSON.stringify({ action, ...payload })
-    });
-
-    try {
-      const response = method === 'GET' ? await requestGet() : await requestPost();
-      const data = await readJson<T & ProveedoresBackendEnvelope>(response);
-      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-      if (errorText) throw new Error(errorText);
-      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-        throw new Error(errorText || `La operación ${action} fue rechazada`);
-      }
-      return data as T;
-    } catch (error) {
-      if (method !== 'POST' || !canRetryAsGet(action)) throw error;
-      const response = await requestGet();
-      const data = await readJson<T & ProveedoresBackendEnvelope>(response);
-      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-      if (errorText) throw new Error(errorText);
-      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-        throw new Error(errorText || `La operación ${action} fue rechazada`);
-      }
-      return data as T;
-    }
-  }
-
   function renderRows(items: ProveedorRecord[], append = false): void {
     if (!append) elRows.innerHTML = '';
     const frag = document.createDocumentFragment();
@@ -189,7 +115,7 @@
     }
     const payload = { page: currentPage, pageSize: PAGE_SIZE, ...getFiltros() };
     try {
-      const data = await requestBackend<ProveedoresListResponse>('listar_proveedores', payload, 'POST');
+      const data = await backend.request<ProveedoresListResponse>('listar_proveedores', payload, { method: 'POST' });
       const items = Array.isArray(data.proveedores) ? data.proveedores : [];
       if (!append) proveedoresCache = items.slice();
       else proveedoresCache = proveedoresCache.concat(items);
@@ -262,7 +188,7 @@
       estatus: requireElement<HTMLSelectElement>('prov-estatus').value
     };
     try {
-      await requestBackend('guardar_proveedor', payload, 'POST');
+      await backend.request('guardar_proveedor', payload, { method: 'POST' });
       cerrarModal();
       await cargarProveedores({ append: false });
     } catch (error) {
@@ -272,7 +198,7 @@
 
   async function verDetalle(id: string): Promise<void> {
     try {
-      const data = await requestBackend<ProveedorDetailResponse>('proveedor', { id }, 'POST');
+      const data = await backend.request<ProveedorDetailResponse>('proveedor', { id }, { method: 'POST' });
       const prov = data.proveedor;
       if (!prov) throw new Error(data.error || 'No se pudo cargar el detalle');
       requireElement<HTMLElement>('detalle-title').textContent = prov.NOMBRE_COMERCIAL || 'Proveedor';
@@ -303,7 +229,7 @@
   async function eliminarProveedor(id: string): Promise<void> {
     if (!confirm('¿Marcar proveedor como inactivo?')) return;
     try {
-      await requestBackend('eliminar_proveedor', { id }, 'POST');
+      await backend.request('eliminar_proveedor', { id }, { method: 'POST' });
       await cargarProveedores({ append: false });
     } catch (error) {
       alert(error instanceof Error ? error.message : 'No se pudo eliminar');

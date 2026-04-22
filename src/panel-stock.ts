@@ -1,18 +1,11 @@
 ;(function (): void {
-  type StockRequestMethod = 'GET' | 'POST';
-
-  interface StockBackendEnvelope {
-    success?: boolean;
-    error?: unknown;
-  }
-
   type StockProductoRecord = SrFix.StockProductoRecord;
   type StockListResponse = SrFix.StockListResponse;
   type StockFoliosRelacionResponse = SrFix.StockFoliosRelacionResponse;
   type StockMovimientosResponse = SrFix.StockMovimientosResponse;
   type StockMovimientoRecord = SrFix.StockMovimientoRecord;
 
-  const BACKEND_URL = String(CONFIG.API_URL || '').trim();
+  const backend = window.SRFIXBackend as SrFix.BackendClient;
   const PAGE_SIZE = 80;
 
   const elRows = requireElement<HTMLTableSectionElement>('rows');
@@ -200,76 +193,9 @@
     elAlertasList.appendChild(frag);
   }
 
-  function getBackendUrl(): string {
-    return BACKEND_URL;
-  }
-
-  function buildGetUrl(action: string, payload: Record<string, unknown>): string {
-    const q = new URLSearchParams();
-    q.set('action', action);
-    q.set('t', String(Date.now()));
-    Object.entries(payload).forEach(([key, raw]) => {
-      if (raw === undefined || raw === null || raw === '') return;
-      if (typeof raw === 'object') {
-        q.set(key, JSON.stringify(raw));
-        return;
-      }
-      q.set(key, String(raw));
-    });
-    return `${getBackendUrl()}?${q.toString()}`;
-  }
-
-  async function readJson<T>(response: Response): Promise<T> {
-    const text = await response.text();
-    if (!text.trim()) throw new Error(`Respuesta vacía (${response.status})`);
-    try {
-      return JSON.parse(text) as T;
-    } catch {
-      throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-    }
-  }
-
-  function canRetryAsGet(action: string): boolean {
-    const normalized = String(action || '').trim().toLowerCase();
-    return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(normalized);
-  }
-
-  async function requestBackend<T>(
-    action: string,
-    payload: Record<string, unknown> = {},
-    method: StockRequestMethod = 'POST',
-  ): Promise<T> {
-    const requestGet = (): Promise<Response> => fetch(buildGetUrl(action, payload), { method: 'GET' });
-    const requestPost = (): Promise<Response> => fetch(getBackendUrl(), {
-      method: 'POST',
-      body: JSON.stringify({ action, ...payload })
-    });
-
-    try {
-      const response = method === 'GET' ? await requestGet() : await requestPost();
-      const data = await readJson<T & StockBackendEnvelope>(response);
-      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-      if (errorText) throw new Error(errorText);
-      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-        throw new Error(errorText || `La operación ${action} fue rechazada`);
-      }
-      return data as T;
-    } catch (error) {
-      if (method !== 'POST' || !canRetryAsGet(action)) throw error;
-      const response = await requestGet();
-      const data = await readJson<T & StockBackendEnvelope>(response);
-      const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-      if (errorText) throw new Error(errorText);
-      if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-        throw new Error(errorText || `La operación ${action} fue rechazada`);
-      }
-      return data as T;
-    }
-  }
-
   async function cargarFoliosRelacion(): Promise<void> {
     try {
-      const data = await requestBackend<StockFoliosRelacionResponse>('listar_folios_relacion', {}, 'POST');
+      const data = await backend.request<StockFoliosRelacionResponse>('listar_folios_relacion', {}, { method: 'POST' });
       foliosRelacionCache = Array.isArray(data.folios) ? data.folios : [];
       const dl = requireElement<HTMLDataListElement>('folios-relacion-lista');
       dl.innerHTML = '';
@@ -288,7 +214,7 @@
     elAlertasEmpty.classList.add('hidden');
     try {
       const filtros = getFiltros();
-      const data = await requestBackend<StockListResponse>('obtener_alertas_stock', {
+      const data = await backend.request<StockListResponse>('obtener_alertas_stock', {
         sucursalId: getSucursalActiva(),
         texto: filtros.texto,
         categoria: filtros.categoria,
@@ -298,7 +224,7 @@
         nivelAlerta: nivelAlertaActivo,
         page: 1,
         pageSize: 12
-      }, 'POST');
+      }, { method: 'POST' });
       alertasCache = Array.isArray(data.productos) ? data.productos : [];
       renderAlertas(alertasCache);
     } catch (error) {
@@ -320,7 +246,7 @@
 
     const payload = { page: currentPage, pageSize: PAGE_SIZE, sucursalId: getSucursalActiva(), ...getFiltros() };
     try {
-      const data = await requestBackend<StockListResponse>('listar_productos', payload, 'POST');
+      const data = await backend.request<StockListResponse>('listar_productos', payload, { method: 'POST' });
       const productos = Array.isArray(data.productos) ? data.productos : [];
       if (!append) productosCache = productos.slice();
       else productosCache = productosCache.concat(productos);
@@ -452,7 +378,7 @@
       adminPasswordActual
     };
     try {
-      await requestBackend('guardar_producto', payload, 'POST');
+      await backend.request('guardar_producto', payload, { method: 'POST' });
       cerrarModalProducto();
       await cargarProductos({ append: false });
     } catch (error) {
@@ -499,7 +425,7 @@
       adminPasswordActual
     };
     try {
-      await requestBackend('registrar_movimiento_stock', payload, 'POST');
+      await backend.request('registrar_movimiento_stock', payload, { method: 'POST' });
       cerrarModalMovimiento();
       await cargarProductos({ append: false });
     } catch (error) {
@@ -513,12 +439,12 @@
     requireElement<HTMLDivElement>('modal-historial').classList.remove('hidden');
     requireElement<HTMLDivElement>('historial-loading').classList.remove('hidden');
     try {
-      const data = await requestBackend<StockMovimientosResponse>('listar_movimientos_producto', {
+      const data = await backend.request<StockMovimientosResponse>('listar_movimientos_producto', {
         sucursalId: getSucursalActiva(),
         sku: producto.SKU,
         page: 1,
         pageSize: 200
-      }, 'POST');
+      }, { method: 'POST' });
       const rows = Array.isArray(data.movimientos) ? data.movimientos : [];
       const tbody = requireElement<HTMLTableSectionElement>('historial-rows');
       if (!rows.length) {
@@ -550,7 +476,7 @@
   async function eliminarProductoSku(sku: string): Promise<void> {
     if (!confirm(`¿Marcar ${sku} como inactivo?`)) return;
     try {
-      await requestBackend('eliminar_producto', { sku }, 'POST');
+      await backend.request('eliminar_producto', { sku }, { method: 'POST' });
       await cargarProductos({ append: false });
     } catch (error) {
       alert(error instanceof Error ? error.message : 'No se pudo eliminar el producto');

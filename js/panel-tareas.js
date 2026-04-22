@@ -1,7 +1,7 @@
 "use strict";
 ;
 (function () {
-    const BACKEND_URL = String(CONFIG.API_URL || '').trim();
+    const backend = window.SRFIXBackend;
     const PAGE_SIZE = 24;
     const elGrid = requireElement('grid');
     const elLoading = requireElement('loading');
@@ -107,68 +107,6 @@
             elResponsables.appendChild(option);
         });
     }
-    function getBackendUrl() {
-        return BACKEND_URL;
-    }
-    function buildGetUrl(action, payload) {
-        const params = new URLSearchParams();
-        params.set('action', action);
-        params.set('t', String(Date.now()));
-        Object.entries(payload).forEach(([key, raw]) => {
-            if (raw === undefined || raw === null || raw === '')
-                return;
-            if (typeof raw === 'object') {
-                params.set(key, JSON.stringify(raw));
-                return;
-            }
-            params.set(key, String(raw));
-        });
-        return `${getBackendUrl()}?${params.toString()}`;
-    }
-    async function readJson(response) {
-        const text = await response.text();
-        if (!text.trim()) {
-            throw new Error(`Respuesta vacía (${response.status})`);
-        }
-        try {
-            return JSON.parse(text);
-        }
-        catch {
-            throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-        }
-    }
-    async function requestBackend(action, payload = {}, method = 'POST') {
-        const requestGet = () => fetch(buildGetUrl(action, payload), { method: 'GET' });
-        const requestPost = () => fetch(getBackendUrl(), {
-            method: 'POST',
-            body: JSON.stringify({ action, ...payload })
-        });
-        try {
-            const response = method === 'GET' ? await requestGet() : await requestPost();
-            const data = await readJson(response);
-            const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-            if (errorText)
-                throw new Error(errorText);
-            if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-                throw new Error(errorText || `La operación ${action} fue rechazada`);
-            }
-            return data;
-        }
-        catch (error) {
-            if (method !== 'POST' || !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(String(action || '').trim().toLowerCase())) {
-                const response = await requestGet();
-                const data = await readJson(response);
-                const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-                if (errorText)
-                    throw new Error(errorText);
-                if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-                    throw new Error(errorText || `La operación ${action} fue rechazada`);
-                }
-                return data;
-            }
-            throw error;
-        }
-    }
     function renderCards(tareas, append = false) {
         if (!append)
             elGrid.innerHTML = '';
@@ -232,10 +170,10 @@
         try {
             let data = null;
             try {
-                data = await requestBackend('listar_tareas', payload, 'POST');
+                data = await backend.request('listar_tareas', payload, { method: 'POST' });
             }
             catch {
-                data = await requestBackend('listar_tareas', payload, 'GET');
+                data = await backend.request('listar_tareas', payload, { method: 'GET' });
             }
             if (!data) {
                 throw new Error('No se obtuvo respuesta de tareas');
@@ -280,9 +218,7 @@
     }
     async function abrirEdicion(folio) {
         try {
-            const q = new URLSearchParams({ action: 'tarea', folio, sucursalId: getSucursalActiva(), t: String(Date.now()) });
-            const res = await fetch(`${getBackendUrl()}?${q.toString()}`);
-            const data = await readJson(res);
+            const data = await backend.request('tarea', { folio, sucursalId: getSucursalActiva() }, { method: 'GET' });
             if (data.error || !data.tarea)
                 throw new Error(String(data.error || 'No se encontró la tarea'));
             const tarea = data.tarea;
@@ -321,7 +257,7 @@
         };
         try {
             const action = folio ? 'actualizar_tarea' : 'crear_tarea';
-            const response = await requestBackend(action, payload, 'POST');
+            const response = await backend.request(action, payload, { method: 'POST' });
             if (response.error)
                 throw new Error(response.error);
             cerrarModal();

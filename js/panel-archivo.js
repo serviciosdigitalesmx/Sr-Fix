@@ -1,7 +1,7 @@
 "use strict";
 ;
 (function () {
-    const BACKEND_URL = String(CONFIG.API_URL || '').trim();
+    const backend = window.SRFIXBackend;
     const elRows = requireElement('rows');
     const elLoading = requireElement('loading');
     const elEmpty = requireElement('empty');
@@ -283,7 +283,7 @@
     }
     async function requestDetalleLegado(tipo, folio) {
         if (tipo === 'equipos') {
-            const data = await requestBackend('equipo', { folio }, 'GET');
+            const data = await backend.request('equipo', { folio }, { method: 'GET' });
             if (!data || !data.equipo)
                 return null;
             return {
@@ -292,7 +292,7 @@
                 reabrible: false
             };
         }
-        const data = await requestBackend('solicitud', { folio }, 'GET');
+        const data = await backend.request('solicitud', { folio }, { method: 'GET' });
         if (!data || !data.solicitud)
             return null;
         const registro = mapSolicitudToArchivoRecord(data.solicitud);
@@ -338,70 +338,6 @@
             from: elFiltroFrom.value,
             to: elFiltroTo.value
         };
-    }
-    function getBackendUrl() {
-        return BACKEND_URL;
-    }
-    function buildGetUrl(action, payload = {}) {
-        const params = new URLSearchParams();
-        params.set('action', action);
-        params.set('t', String(Date.now()));
-        Object.entries(payload).forEach(([key, raw]) => {
-            if (raw === undefined || raw === null || raw === '')
-                return;
-            if (typeof raw === 'object') {
-                params.set(key, JSON.stringify(raw));
-                return;
-            }
-            params.set(key, String(raw));
-        });
-        return `${getBackendUrl()}?${params.toString()}`;
-    }
-    async function readJson(response) {
-        const text = await response.text();
-        if (!text.trim()) {
-            throw new Error(`Respuesta vacía (${response.status})`);
-        }
-        try {
-            return JSON.parse(text);
-        }
-        catch (error) {
-            throw new Error(`Respuesta inválida (${response.status}): ${text.slice(0, 180)}`);
-        }
-    }
-    function canRetryAsGet(action) {
-        return !/^(guardar_|registrar_|eliminar_|archivar_|transferir_|recibir_|cambiar_|login_|validar_|crear_|reabrir_)/.test(String(action || '').trim().toLowerCase());
-    }
-    async function requestBackend(action, payload = {}, method = 'POST') {
-        const requestGet = () => fetch(buildGetUrl(action, payload), { method: 'GET' });
-        const requestPost = () => fetch(getBackendUrl(), {
-            method: 'POST',
-            body: JSON.stringify({ action, ...payload })
-        });
-        try {
-            const response = method === 'GET' ? await requestGet() : await requestPost();
-            const data = await readJson(response);
-            const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-            if (errorText)
-                throw new Error(errorText);
-            if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-                throw new Error(errorText || `La operación ${action} fue rechazada`);
-            }
-            return data;
-        }
-        catch (error) {
-            if (method !== 'POST' || !canRetryAsGet(action))
-                throw error;
-            const response = await requestGet();
-            const data = await readJson(response);
-            const errorText = typeof data.error === 'string' ? data.error.trim() : '';
-            if (errorText)
-                throw new Error(errorText);
-            if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
-                throw new Error(errorText || `La operación ${action} fue rechazada`);
-            }
-            return data;
-        }
     }
     function renderRowsChunked(archivo, append = false) {
         return new Promise((resolve) => {
@@ -471,10 +407,10 @@
         try {
             let data = null;
             try {
-                data = await requestBackend('listar_archivo', queryPayload, 'POST');
+                data = await backend.request('listar_archivo', queryPayload, { method: 'POST' });
             }
             catch {
-                data = await requestBackend('listar_archivo', queryPayload, 'GET');
+                data = await backend.request('listar_archivo', queryPayload, { method: 'GET' });
             }
             if (!data) {
                 throw new Error('No se obtuvo respuesta del archivo');
@@ -526,7 +462,7 @@
             abrirModalDetalle();
         }
         try {
-            const data = await requestBackend('detalle_archivo', { tipo: tipoNormalizado, folio: folioNormalizado }, 'GET');
+            const data = await backend.request('detalle_archivo', { tipo: tipoNormalizado, folio: folioNormalizado }, { method: 'GET' });
             if (!data || !data.registro) {
                 throw new Error('No se obtuvo el detalle del archivo');
             }
@@ -571,11 +507,11 @@
         if (!auth.ok)
             return;
         try {
-            const response = await requestBackend('reabrir_archivo', {
+            const response = await backend.request('reabrir_archivo', {
                 tipo,
                 folio: detalleActual.FOLIO,
                 adminPasswordActual: auth.password || ''
-            }, 'POST');
+            }, { method: 'POST' });
             if (response.success === false) {
                 throw new Error(response.error || 'No se pudo reabrir');
             }

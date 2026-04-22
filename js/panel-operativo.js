@@ -549,21 +549,6 @@ async function guardarOrden() {
         return;
     }
     const costoOrden = Number(elCosto.value || 0);
-    let adminPasswordActual = '';
-    if (costoOrden > 0) {
-        const guard = window.SRFXSecurityGuard;
-        if (!guard || typeof guard.ensureAdminPassword !== 'function') {
-            mostrarToast('No se pudo validar la clave admin', 'error');
-            setGuardarButtonLoading(false);
-            return;
-        }
-        const auth = await guard.ensureAdminPassword('registrar una orden con costo estimado');
-        if (!auth.ok) {
-            setGuardarButtonLoading(false);
-            return;
-        }
-        adminPasswordActual = auth.password || '';
-    }
     const payload = {
         sucursalId: localStorage.getItem('srfix_sucursal_activa') || 'GLOBAL',
         clienteNombre: elClienteNombre.value.trim(),
@@ -577,8 +562,7 @@ async function guardarOrden() {
         notas: elNotasExtra.value.trim() || '',
         checks: getOperacionChecks(),
         fotoRecepcion: fotoRecepcionBase64 || '',
-        folioSolicitudOrigen: folioSolicitudOrigen || String(elFolioCotizacionInput.value || '').trim().toUpperCase(),
-        adminPasswordActual
+        folioSolicitudOrigen: folioSolicitudOrigen || String(elFolioCotizacionInput.value || '').trim().toUpperCase()
     };
     try {
         const result = await operativoRequestBackendWithRetry('crear_equipo', payload, 'POST', 2);

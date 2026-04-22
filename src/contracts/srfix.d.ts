@@ -791,7 +791,7 @@ declare global {
       checks: ReceptionChecklist;
       fotoRecepcion: string;
       folioSolicitudOrigen: Folio | '';
-      adminPasswordActual: string;
+      adminPasswordActual?: string;
     }
 
     interface OperativoOrdenRegistrada {

@@ -19,10 +19,27 @@ function srfixGetPublicAppBaseUrl() {
 }
 
 function srfixBuildPortalUrl(folio) {
-    const baseUrl = srfixGetPublicAppBaseUrl();
-    if (!baseUrl) return '';
+    const cleanFolio = String(folio || '').trim().toUpperCase();
+    if (!cleanFolio) return '';
+
+    const configuredBase = srfixGetPublicAppBaseUrl();
+    if (!configuredBase) return '';
+
+    let baseUrl = configuredBase;
+    try {
+        const parsed = new URL(configuredBase, window.location.href);
+        const isAppsScriptExec = /\/macros\/s\/[^/]+\/exec\/?$/.test(parsed.pathname) || /script\.google\.com$/.test(parsed.hostname);
+        if (isAppsScriptExec) {
+            const origin = `${parsed.protocol}//${parsed.host}`;
+            const path = parsed.pathname.replace(/\/exec\/?$/, '/');
+            baseUrl = `${origin}${path}`;
+        }
+    } catch (error) {
+        // Si la URL configurada no se puede interpretar, usamos la base tal cual.
+        baseUrl = configuredBase;
+    }
 
     const url = new URL('portal-cliente.html', `${baseUrl}/`);
-    url.searchParams.set('folio', String(folio || '').trim().toUpperCase());
+    url.searchParams.set('folio', cleanFolio);
     return url.href;
 }

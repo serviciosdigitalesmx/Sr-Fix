@@ -6,43 +6,7 @@ const CONFIG = {
 window.CONFIG = CONFIG;
 
 function srfixGetPublicAppBaseUrl() {
-    const raw = String(CONFIG.APP_URL || '').trim();
-    if (raw) {
-        try {
-            const parsed = new URL(raw, window.location.href);
-            const looksLikeAppsScriptExec = /\/macros\/s\/[^/]+\/exec\/?$/.test(parsed.pathname) || /script\.google\.com$/.test(parsed.hostname);
-            if (!looksLikeAppsScriptExec) {
-                return parsed.href.replace(/\/+$/, '');
-            }
-        } catch (error) {
-            return raw.replace(/\/+$/, '');
-        }
-    }
-
-    if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
-        const current = window.location.origin.replace(/\/+$/, '');
-        if (!/script\.google\.com$/.test(window.location.hostname)) {
-            return current;
-        }
-    }
-
-    if (window.location.protocol === 'file:') {
-        const href = String(window.location.href || '').trim();
-        if (!href) return '';
-        try {
-            const current = new URL(href);
-            const path = current.pathname.replace(/\/[^/]*$/, '/');
-            return `${current.origin}${path}`;
-        } catch (error) {
-            return '';
-        }
-    }
-
-    if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
-        return window.location.origin.replace(/\/+$/, '');
-    }
-
-    return '';
+    return 'https://serviciosdigitalesmx.github.io/Sr-Fix';
 }
 
 function srfixBuildPortalUrl(folio) {

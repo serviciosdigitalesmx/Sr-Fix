@@ -598,7 +598,7 @@ async function guardarOrden() {
             `Hola, tu equipo ha sido registrado en SRFIX con el folio ${result.folio}.`,
             portalUrl
                 ? `Puedes consultar el estado en:\n${portalUrl}`
-                : 'Puedes consultar el estado en el portal del cliente.'
+                : `Puedes consultar el estado en el portal del cliente.\nFolio: ${result.folio}`
         ];
         const mensaje = partesMensaje.join('\n\n');
         elWhatsappLink.href = `https://wa.me/${telefono10}?text=${encodeURIComponent(mensaje)}`;

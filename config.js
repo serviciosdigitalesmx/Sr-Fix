@@ -23,11 +23,27 @@ function srfixBuildPortalUrl(folio) {
     if (!cleanFolio) return '';
 
     const configuredBase = srfixGetPublicAppBaseUrl();
-    if (!configuredBase) return '';
-
     let baseUrl = configuredBase;
+
+    if (!baseUrl) {
+        const href = String(window.location.href || '').trim();
+        if (href) {
+            try {
+                const current = new URL(href);
+                const path = current.pathname.replace(/\/[^/]*$/, '/');
+                baseUrl = `${current.origin}${path}`;
+            } catch (error) {
+                baseUrl = '';
+            }
+        }
+    }
+
+    if (!baseUrl) {
+        return '';
+    }
+
     try {
-        const parsed = new URL(configuredBase, window.location.href);
+        const parsed = new URL(baseUrl, window.location.href);
         const isAppsScriptExec = /\/macros\/s\/[^/]+\/exec\/?$/.test(parsed.pathname) || /script\.google\.com$/.test(parsed.hostname);
         if (isAppsScriptExec) {
             const origin = `${parsed.protocol}//${parsed.host}`;
@@ -35,8 +51,7 @@ function srfixBuildPortalUrl(folio) {
             baseUrl = `${origin}${path}`;
         }
     } catch (error) {
-        // Si la URL configurada no se puede interpretar, usamos la base tal cual.
-        baseUrl = configuredBase;
+        baseUrl = configuredBase || baseUrl;
     }
 
     const url = new URL('portal-cliente.html', `${baseUrl}/`);

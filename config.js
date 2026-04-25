@@ -12,27 +12,5 @@ function srfixGetPublicAppBaseUrl() {
 function srfixBuildPortalUrl(folio) {
     const cleanFolio = String(folio || '').trim().toUpperCase();
     if (!cleanFolio) return '';
-
-    const configuredBase = srfixGetPublicAppBaseUrl();
-    let baseUrl = configuredBase;
-
-    if (!baseUrl) {
-        return '';
-    }
-
-    try {
-        const parsed = new URL(baseUrl, window.location.href);
-        const isAppsScriptExec = /\/macros\/s\/[^/]+\/exec\/?$/.test(parsed.pathname) || /script\.google\.com$/.test(parsed.hostname);
-        if (isAppsScriptExec) {
-            const origin = `${parsed.protocol}//${parsed.host}`;
-            const path = parsed.pathname.replace(/\/exec\/?$/, '/');
-            baseUrl = `${origin}${path}`;
-        }
-    } catch (error) {
-        baseUrl = configuredBase || baseUrl;
-    }
-
-    const url = new URL('portal-cliente.html', `${baseUrl}/`);
-    url.searchParams.set('folio', cleanFolio);
-    return url.href;
+    return `https://serviciosdigitalesmx.github.io/Sr-Fix/index.html?folio=${encodeURIComponent(cleanFolio)}`;
 }

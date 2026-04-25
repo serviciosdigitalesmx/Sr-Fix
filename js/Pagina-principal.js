@@ -3,6 +3,16 @@
             WHATSAPP: '528117006536'
         };
 
+        (function redirectWithFolio() {
+            const folio = new URLSearchParams(window.location.search).get('folio');
+            if (!folio) return;
+            const cleanFolio = String(folio).trim().toUpperCase();
+            if (!cleanFolio) return;
+            const target = `./portal-cliente.html?folio=${encodeURIComponent(cleanFolio)}`;
+            if (window.location.pathname.endsWith('portal-cliente.html')) return;
+            window.location.replace(target);
+        })();
+
         function normalizarTelefono10(raw) {
             const digits = String(raw || '').replace(/\D/g, '');
             return digits.length === 10 ? digits : '';

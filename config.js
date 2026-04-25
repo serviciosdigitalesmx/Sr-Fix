@@ -12,5 +12,5 @@ function srfixGetPublicAppBaseUrl() {
 function srfixBuildPortalUrl(folio) {
     const cleanFolio = String(folio || '').trim().toUpperCase();
     if (!cleanFolio) return '';
-    return `https://serviciosdigitalesmx.github.io/Sr-Fix/index.html?folio=${encodeURIComponent(cleanFolio)}`;
+    return `https://serviciosdigitalesmx.github.io/Sr-Fix/portal-cliente.html?folio=${encodeURIComponent(cleanFolio)}`;
 }

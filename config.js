@@ -1,6 +1,6 @@
 const CONFIG = {
     API_URL: window.SRFIX_API_URL || localStorage.getItem('srfix_api_url') || 'https://script.google.com/macros/s/AKfycbw49B0GeqyZ2Yr0a-IZNqUhrhUBH0yldSO274EDHBU9gT5SPrXSs2ixIhwD5BRmg-6W/exec',
-    APP_URL: window.SRFIX_APP_URL || localStorage.getItem('srfix_app_url') || ((window.location.protocol === 'http:' || window.location.protocol === 'https:') ? window.location.origin : ''),
+    APP_URL: window.SRFIX_APP_URL || localStorage.getItem('srfix_app_url') || 'https://serviciosdigitalesmx.github.io',
     FRONT_PASSWORD: window.SRFIX_FRONT_PASSWORD || localStorage.getItem('srfix_front_password') || 'Admin1'
 };
 window.CONFIG = CONFIG;
@@ -8,7 +8,34 @@ window.CONFIG = CONFIG;
 function srfixGetPublicAppBaseUrl() {
     const raw = String(CONFIG.APP_URL || '').trim();
     if (raw) {
-        return raw.replace(/\/+$/, '');
+        try {
+            const parsed = new URL(raw, window.location.href);
+            const looksLikeAppsScriptExec = /\/macros\/s\/[^/]+\/exec\/?$/.test(parsed.pathname) || /script\.google\.com$/.test(parsed.hostname);
+            if (!looksLikeAppsScriptExec) {
+                return parsed.href.replace(/\/+$/, '');
+            }
+        } catch (error) {
+            return raw.replace(/\/+$/, '');
+        }
+    }
+
+    if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+        const current = window.location.origin.replace(/\/+$/, '');
+        if (!/script\.google\.com$/.test(window.location.hostname)) {
+            return current;
+        }
+    }
+
+    if (window.location.protocol === 'file:') {
+        const href = String(window.location.href || '').trim();
+        if (!href) return '';
+        try {
+            const current = new URL(href);
+            const path = current.pathname.replace(/\/[^/]*$/, '/');
+            return `${current.origin}${path}`;
+        } catch (error) {
+            return '';
+        }
     }
 
     if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
@@ -24,19 +51,6 @@ function srfixBuildPortalUrl(folio) {
 
     const configuredBase = srfixGetPublicAppBaseUrl();
     let baseUrl = configuredBase;
-
-    if (!baseUrl) {
-        const href = String(window.location.href || '').trim();
-        if (href) {
-            try {
-                const current = new URL(href);
-                const path = current.pathname.replace(/\/[^/]*$/, '/');
-                baseUrl = `${current.origin}${path}`;
-            } catch (error) {
-                baseUrl = '';
-            }
-        }
-    }
 
     if (!baseUrl) {
         return '';

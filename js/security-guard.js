@@ -5,8 +5,6 @@ function getSecurityGuardBackendUrl() {
     return CONFIG.API_URL
         || window.SRFIX_API_URL
         || window.SRFIX_BACKEND_URL
-        || localStorage.getItem('srfix_api_url')
-        || localStorage.getItem('srfix_backend_url')
         || 'https://script.google.com/macros/s/AKfycbwsGiHsxz32YiaSLbNBiq5-pmYvHOdKNYc8VqG37WkVz4VkAN_ZbxF8SKgextnpdPxx/exec';
 }
 function readCache() {

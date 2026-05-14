@@ -23,7 +23,7 @@
 
   const globalWindow = window as ConfigWindow;
   const CONFIG = {
-    BACKEND_URL: String(window.SRFIX_BACKEND_URL || globalWindow.CONFIG?.API_URL || '').trim(),
+    BACKEND_URL: String(window.SRFIX_BACKEND_URL || globalWindow.CONFIG?.API_URL || localStorage.getItem('srfix_backend_url') || '').trim(),
     TIENDA_WHATSAPP: '528117006536',
     TIENDA_MAPS: 'https://maps.app.goo.gl/WfZYxbunp9XhXHgr5',
     LOGO_URL: './logo.webp',

@@ -1,5 +1,5 @@
         const CONFIG = {
-            BACKEND_URL: (window.SRFIX_BACKEND_URL || 'https://script.google.com/macros/s/AKfycbwsGiHsxz32YiaSLbNBiq5-pmYvHOdKNYc8VqG37WkVz4VkAN_ZbxF8SKgextnpdPxx/exec'),
+            BACKEND_URL: (window.SRFIX_BACKEND_URL || window.CONFIG?.API_URL || localStorage.getItem('srfix_backend_url') || localStorage.getItem('srfix_api_url') || 'https://script.google.com/macros/s/AKfycbw49B0GeqyZ2Yr0a-IZNqUhrhUBH0yldSO274EDHBU9gT5SPrXSs2ixIhwD5BRmg-6W/exec'),
             WHATSAPP: '528117006536'
         };
 

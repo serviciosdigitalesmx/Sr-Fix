@@ -5,7 +5,9 @@ function getSecurityGuardBackendUrl(): string {
   return CONFIG.API_URL
     || window.SRFIX_API_URL
     || window.SRFIX_BACKEND_URL
-    || 'https://script.google.com/macros/s/AKfycbwsGiHsxz32YiaSLbNBiq5-pmYvHOdKNYc8VqG37WkVz4VkAN_ZbxF8SKgextnpdPxx/exec';
+    || localStorage.getItem('srfix_api_url')
+    || localStorage.getItem('srfix_backend_url')
+    || 'https://script.google.com/macros/s/AKfycbw49B0GeqyZ2Yr0a-IZNqUhrhUBH0yldSO274EDHBU9gT5SPrXSs2ixIhwD5BRmg-6W/exec';
 }
 
 function readCache(): SrFix.AdminAuthorization | null {

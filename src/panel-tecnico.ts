@@ -229,7 +229,7 @@ function tecnicoNormalizarEquipoRecord(raw: Partial<TecnicoEquipoRecord> & Recor
     ''
   ).trim();
 
-  return {
+  const normalized: TecnicoEquipoRecord = {
     ...(source as TecnicoEquipoRecord),
     FOLIO: String(source.FOLIO || '').trim().toUpperCase() as SrFix.Folio,
     CLIENTE_NOMBRE: clienteNombre,
@@ -247,7 +247,6 @@ function tecnicoNormalizarEquipoRecord(raw: Partial<TecnicoEquipoRecord> & Recor
     CASO_RESOLUCION_TECNICA: String(source.CASO_RESOLUCION_TECNICA || source.casoResolucionTecnica || '').trim(),
     NOTAS_INTERNAS: String(source.NOTAS_INTERNAS || source.notasInternas || '').trim(),
     SEGUIMIENTO_CLIENTE: String(source.SEGUIMIENTO_CLIENTE || source.seguimientoCliente || '').trim(),
-    SEGUIMIENTO_FOTOS: source.SEGUIMIENTO_FOTOS as string | string[] | undefined,
     CHECK_CARGADOR: String(source.CHECK_CARGADOR || '').trim(),
     CHECK_PANTALLA: String(source.CHECK_PANTALLA || '').trim(),
     CHECK_PRENDE: String(source.CHECK_PRENDE || '').trim(),
@@ -255,15 +254,23 @@ function tecnicoNormalizarEquipoRecord(raw: Partial<TecnicoEquipoRecord> & Recor
     diasRestantes: Number(source.diasRestantes || 0),
     color: (source.color as TecnicoEquipoRecord['color']) || 'gris'
   };
+
+  if (source.SEGUIMIENTO_FOTOS !== undefined) {
+    normalized.SEGUIMIENTO_FOTOS = source.SEGUIMIENTO_FOTOS as string | string[];
+  }
+
+  return normalized;
 }
 
-function tecnicoExtraerEquiposResponse(data: TecnicoSemaforoResponse | { data?: TecnicoSemaforoResponse } | null | undefined): TecnicoSemaforoResponse {
+type TecnicoSemaforoResponseLike = TecnicoSemaforoResponse | { data?: TecnicoSemaforoResponse } | null | undefined;
+
+function tecnicoExtraerEquiposResponse(data: TecnicoSemaforoResponseLike): TecnicoSemaforoResponse {
   const envelope = data && typeof data === 'object' && 'data' in data ? (data as { data?: TecnicoSemaforoResponse }).data : data;
   const source = envelope || {};
-  const equiposRaw = Array.isArray(source.equipos) ? source.equipos : [];
+  const equiposRaw = Array.isArray((source as TecnicoSemaforoResponse).equipos) ? ((source as TecnicoSemaforoResponse).equipos || []) : [];
   return {
     ...source,
-    equipos: equiposRaw.map(eq => tecnicoNormalizarEquipoRecord(eq as Partial<TecnicoEquipoRecord> & Record<string, unknown>))
+    equipos: equiposRaw.map((eq: TecnicoEquipoRecord | Partial<TecnicoEquipoRecord> | Record<string, unknown>) => tecnicoNormalizarEquipoRecord(eq as Partial<TecnicoEquipoRecord> & Record<string, unknown>))
   };
 }
 
@@ -520,7 +527,7 @@ function renderLoadErrorState(message: string): void {
                 const data = await obtenerSemaforoData(pageSize);
                 if (requestSeq !== cargaDatosSeq) return false;
 
-                const nuevosEquipos = (data.equipos || []).map(tecnicoNormalizarEquipoRecord);
+                const nuevosEquipos = (data.equipos || []).map((eq: TecnicoEquipoRecord | Partial<TecnicoEquipoRecord> | Record<string, unknown>) => tecnicoNormalizarEquipoRecord(eq as Partial<TecnicoEquipoRecord> & Record<string, unknown>));
                 const firmaNueva = calcularFirmaSemaforo(nuevosEquipos);
                 const huboCambios = firmaNueva !== ultimaFirmaSemaforo;
                 equiposData = nuevosEquipos;

@@ -583,7 +583,7 @@
 </style>
 </head>
 <body>
-    <script src="config.js?v=2026.04.19.1"></script>
+    <script src="config.js?v=2026.05.12.3"></script>
     <div id="login-screen" class="login-screen">
         <div class="login-card">
             <h2>Acceso interno</h2>
@@ -780,8 +780,8 @@
         const WORKSPACE_MODULE = document.getElementById('workspace-current-module');
         const BTN_SHELL_FULLSCREEN = document.getElementById('btn-shell-fullscreen');
         const BTN_SHELL_LOGOUT = document.getElementById('btn-shell-logout');
-        const BACKEND_URL = (window.SRFIX_BACKEND_URL || localStorage.getItem('srfix_backend_url') || 'https://script.google.com/macros/s/AKfycbwsGiHsxz32YiaSLbNBiq5-pmYvHOdKNYc8VqG37WkVz4VkAN_ZbxF8SKgextnpdPxx/exec');
-        const APP_BUILD = '20260422a';
+        const BACKEND_URL = (window.SRFIX_BACKEND_URL || window.CONFIG?.API_URL || localStorage.getItem('srfix_backend_url') || localStorage.getItem('srfix_api_url') || 'https://script.google.com/macros/s/AKfycbw49B0GeqyZ2Yr0a-IZNqUhrhUBH0yldSO274EDHBU9gT5SPrXSs2ixIhwD5BRmg-6W/exec');
+        const APP_BUILD = '2026.05.12.3';
         const MODULE_META = {
             operativo: { title: 'Recepción', subtitle: 'Recepción, captura y seguimiento de ingreso de equipos.' },
             tecnico: { title: 'Técnico', subtitle: 'Semáforo, diagnóstico, avances y cierre técnico del taller.' },
@@ -1094,47 +1094,53 @@
                 : label;
         }
 
-        async function fetchLoginInternoConRetry(usuario, pass, maxAttempts = 2) {
-            let lastError = null;
-            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-                try {
-                    const controller = new AbortController();
-                    const timer = setTimeout(() => controller.abort(), 12000);
-                    let res;
-                    try {
-                        res = await fetch(BACKEND_URL, {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                action: 'login_interno',
-                                usuario: usuario,
-                                password: pass
-                            }),
-                            signal: controller.signal
-                        });
-                    } finally {
-                        clearTimeout(timer);
-                    }
-                    let data = null;
-                    try { data = await res.json(); } catch (e) {}
-                    if (!res.ok || !data || !data.success) {
-                        const backendErr = (data && data.error) || 'Credenciales inválidas';
-                        if (/credenciales/i.test(backendErr)) {
-                            throw new Error(backendErr);
-                        }
-                        throw new Error(backendErr || 'No se pudo validar el acceso');
-                    }
-                    return data;
-                } catch (e) {
-                    lastError = e;
-                    const msg = String((e && e.message) || e || '');
-                    const esCredencial = /credenciales|usuario|contrase/i.test(msg);
-                    if (esCredencial) throw e;
-                    if (attempt < maxAttempts) {
-                        await new Promise(r => setTimeout(r, 350));
-                    }
+        function submitLoginInterno(usuario, pass) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = BACKEND_URL;
+            form.target = '_self';
+            form.style.display = 'none';
+
+            const fields = {
+                action: 'login_interno',
+                usuario,
+                password: pass,
+                responseMode: 'redirect',
+                returnUrl: window.location.href.split('?')[0]
+            };
+
+            Object.entries(fields).forEach(([key, value]) => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = String(value);
+                form.appendChild(input);
+            });
+
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function consumeLoginReturn() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('srfix_login') !== 'success') {
+                const err = params.get('srfix_login_error');
+                if (err) {
+                    MASTER_ERROR.textContent = decodeURIComponent(err);
                 }
+                return null;
             }
-            throw lastError || new Error('No se pudo validar el acceso');
+            const rawUser = params.get('srfix_login_user');
+            if (!rawUser) return null;
+            try {
+                const user = JSON.parse(decodeURIComponent(rawUser));
+                const cleaned = window.location.pathname;
+                window.history.replaceState({}, document.title, cleaned);
+                return { user };
+            } catch (e) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+                return null;
+            }
         }
 
         async function validarMaster() {
@@ -1147,9 +1153,7 @@
             }
             setLoginLoading(true, 'Ingresando...');
             try {
-                const data = await fetchLoginInternoConRetry(usuario, pass, 2);
-                persistAuth(data.user, MASTER_REMEMBER.checked);
-                entrarIntegrador(data.user);
+                submitLoginInterno(usuario, pass);
             } catch (e) {
                 const msg = String((e && e.message) || e || 'No se pudo validar el acceso');
                 MASTER_ERROR.textContent = /credenciales|usuario|contrase/i.test(msg)
@@ -1167,6 +1171,12 @@
         MASTER_INPUT.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') validarMaster();
         });
+
+        const loginReturn = consumeLoginReturn();
+        if (loginReturn && loginReturn.user) {
+            persistAuth(loginReturn.user, MASTER_REMEMBER.checked);
+            entrarIntegrador(loginReturn.user);
+        }
         BTN_SHELL_LOGOUT.addEventListener('click', cerrarSesionGlobal);
 
         function aplicarPerfilDispositivo() {
@@ -1209,6 +1219,6 @@
         }
         catch (e) {}
     </script>
-    <script src="js/pwa-init.js?v=2026.04.22.1"></script>
+    <script src="js/pwa-init.js?v=2026.05.12.3"></script>
 </body>
 </html>

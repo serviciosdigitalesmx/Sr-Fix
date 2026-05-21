@@ -133,6 +133,40 @@
             border: 0;
             background: var(--bg);
         }
+        .panel {
+            position: relative;
+        }
+        .panel-fullscreen-btn {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            z-index: 6;
+            border: 1px solid rgba(31, 126, 220, 0.35);
+            background: rgba(7, 12, 22, 0.88);
+            color: #dcecff;
+            border-radius: 999px;
+            padding: 10px 12px;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24);
+        }
+        .panel-fullscreen-btn:hover {
+            background: rgba(31, 126, 220, 0.18);
+        }
+        .panel.is-fullscreen {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            margin: 0;
+            width: 100vw;
+            height: 100vh;
+            background: var(--bg);
+        }
+        .panel.is-fullscreen iframe {
+            height: 100vh;
+        }
         .fallback {
             padding: 8px 16px;
             color: var(--muted);
@@ -369,15 +403,53 @@
     cursor: pointer;
     transition: background .18s ease, border-color .18s ease, transform .18s ease;
 }
-.ghost-btn:hover {
-    background: rgba(27, 39, 66, 0.92);
-    border-color: rgba(31, 126, 220, 0.35);
-    transform: translateY(-1px);
-}
-.frame-shell {
-    flex: 1;
-    min-height: 0;
-    padding: 12px;
+        .ghost-btn:hover {
+            background: rgba(27, 39, 66, 0.92);
+            border-color: rgba(31, 126, 220, 0.35);
+            transform: translateY(-1px);
+        }
+        .recepcion-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 60;
+            background: rgba(2, 6, 23, 0.88);
+            backdrop-filter: blur(14px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+        }
+        .recepcion-modal.hidden { display: none; }
+        .recepcion-modal-card {
+            width: min(1180px, 100%);
+            height: min(94dvh, 980px);
+            border-radius: 22px;
+            border: 1px solid rgba(31, 126, 220, 0.22);
+            background: rgba(10, 15, 28, 0.98);
+            box-shadow: 0 28px 80px rgba(0, 0, 0, 0.45);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .recepcion-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 16px 18px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+            background: rgba(7, 12, 22, 0.9);
+        }
+        .recepcion-modal-card iframe {
+            width: 100%;
+            flex: 1;
+            min-height: 0;
+            background: #0b1220;
+        }
+        .frame-shell {
+            flex: 1;
+            min-height: 0;
+            padding: 12px;
     border-radius: 26px;
     border: 1px solid rgba(148, 163, 184, 0.14);
     background:
@@ -652,10 +724,23 @@
             <div class="workspace-actions">
                 <span id="workspace-role" class="role-pill">Sin sesión</span>
                 <span id="workspace-current-module" class="module-pill">Módulo activo</span>
+                <button id="btn-new-recepcion" type="button" class="ghost-btn">Nueva recepción</button>
                 <button id="btn-shell-fullscreen" type="button" class="ghost-btn">Expandir</button>
                 <button id="btn-shell-logout" type="button" class="ghost-btn">Cerrar sesión</button>
             </div>
         </div>
+        <section id="hub-panel" class="panel" style="display:block; min-height:auto; margin-bottom:12px; background: rgba(15,23,42,0.74); border:1px solid rgba(31,126,220,0.18); border-radius:20px; padding:16px;">
+            <div class="flex items-center justify-between gap-3" style="margin-bottom:12px;">
+                <div>
+                    <div style="font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:#8A8F95;">Hub</div>
+                    <div style="font-size:22px; font-weight:800; color:#fff;">Centro de mando</div>
+                </div>
+                <button id="btn-hub-refresh" type="button" class="ghost-btn">Actualizar hub</button>
+            </div>
+            <div id="hub-kpis" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px;"></div>
+            <div id="hub-actions" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:12px;"></div>
+            <div id="hub-alerts" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:12px;"></div>
+        </section>
         <div class="frame-shell">
         <section id="panel-operativo" class="panel" aria-label="Módulo Recepción">
             <iframe id="frame-operativo" title="Modulo Recepción" src="about:blank"></iframe>
@@ -703,6 +788,21 @@
     </div>
     </div>
 </div> <!-- app-layout -->
+    <div id="recepcion-modal" class="recepcion-modal hidden" aria-hidden="true">
+        <div class="recepcion-modal-card" role="dialog" aria-modal="true" aria-label="Nueva recepción">
+            <div class="recepcion-modal-header">
+                <div>
+                    <div style="font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#8A8F95;">Recepción</div>
+                    <div style="font-size:22px;font-weight:800;color:#fff;">Nueva recepción</div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <button id="btn-recepcion-fullscreen" type="button" class="ghost-btn">Pantalla completa</button>
+                    <button id="btn-recepcion-close" type="button" class="ghost-btn">Cerrar</button>
+                </div>
+            </div>
+            <iframe id="recepcion-modal-frame" title="Nueva recepción" src="about:blank"></iframe>
+        </div>
+    </div>
     <div id="fallback-links" class="fallback">
         Si algo falla: <a href="./panel-operativo.html" target="_blank">Recepción</a> |
         <a href="./panel-tecnico.html" target="_blank">Técnico</a> |
@@ -778,8 +878,18 @@
         const WORKSPACE_SUBTITLE = document.getElementById('workspace-subtitle');
         const WORKSPACE_ROLE = document.getElementById('workspace-role');
         const WORKSPACE_MODULE = document.getElementById('workspace-current-module');
+        const BTN_NEW_RECEPCION = document.getElementById('btn-new-recepcion');
         const BTN_SHELL_FULLSCREEN = document.getElementById('btn-shell-fullscreen');
         const BTN_SHELL_LOGOUT = document.getElementById('btn-shell-logout');
+        const HUB_PANEL = document.getElementById('hub-panel');
+        const BTN_HUB_REFRESH = document.getElementById('btn-hub-refresh');
+        const HUB_KPIS = document.getElementById('hub-kpis');
+        const HUB_ACTIONS = document.getElementById('hub-actions');
+        const HUB_ALERTS = document.getElementById('hub-alerts');
+        const RECEPCION_MODAL = document.getElementById('recepcion-modal');
+        const RECEPCION_MODAL_FRAME = document.getElementById('recepcion-modal-frame');
+        const BTN_RECEPCION_CLOSE = document.getElementById('btn-recepcion-close');
+        const BTN_RECEPCION_FULLSCREEN = document.getElementById('btn-recepcion-fullscreen');
         const BACKEND_URL = (window.SRFIX_BACKEND_URL || localStorage.getItem('srfix_backend_url') || 'https://script.google.com/macros/s/AKfycbwsGiHsxz32YiaSLbNBiq5-pmYvHOdKNYc8VqG37WkVz4VkAN_ZbxF8SKgextnpdPxx/exec');
         const APP_BUILD = '20260422a';
         const MODULE_META = {
@@ -816,6 +926,8 @@
         };
         let currentModule = 'operativo';
         let shellFullscreen = false;
+        let recepcionModalOpen = false;
+        let recepcionEscBound = false;
 
         function buildFrameUrl(path) {
             const url = new URL(path, window.location.href);
@@ -823,6 +935,72 @@
             url.searchParams.set('integrador', '1');
             return url.toString();
         }
+
+        function buildRecepcionModalUrl() {
+            const url = new URL('./panel-operativo.html', window.location.href);
+            url.searchParams.set('v', APP_BUILD);
+            url.searchParams.set('integrador', '1');
+            url.searchParams.set('autoNueva', '1');
+            const sucursal = localStorage.getItem('srfix_sucursal_activa');
+            if (sucursal) {
+                url.searchParams.set('sucursal', sucursal);
+            }
+            return url.toString();
+        }
+
+        const PANEL_FRAME_PAIRS = [
+            [PANEL_OP, FRAME_OP, 'operativo'],
+            [PANEL_TE, FRAME_TE, 'tecnico'],
+            [PANEL_SO, FRAME_SO, 'solicitudes'],
+            [PANEL_AR, FRAME_AR, 'archivo'],
+            [PANEL_CL, FRAME_CL, 'clientes'],
+            [PANEL_TA, FRAME_TA, 'tareas'],
+            [PANEL_ST, FRAME_ST, 'stock'],
+            [PANEL_PR, FRAME_PR, 'proveedores'],
+            [PANEL_CO, FRAME_CO, 'compras'],
+            [PANEL_GA, FRAME_GA, 'gastos'],
+            [PANEL_FI, FRAME_FI, 'finanzas'],
+            [PANEL_RE, FRAME_RE, 'reportes'],
+            [PANEL_SU, FRAME_SU, 'sucursales'],
+            [PANEL_SG, FRAME_SG, 'seguridad']
+        ];
+
+        function mountFullscreenControls() {
+            PANEL_FRAME_PAIRS.forEach(([panel, frame, modulo]) => {
+                if (!panel || !frame || panel.querySelector('.panel-fullscreen-btn')) return;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'panel-fullscreen-btn';
+                btn.innerHTML = '<i class="fa-solid fa-expand"></i> Full screen';
+                btn.addEventListener('click', async () => {
+                    try {
+                        if (document.fullscreenElement) {
+                            await document.exitFullscreen();
+                        } else if (panel.requestFullscreen) {
+                            await panel.requestFullscreen();
+                        } else {
+                            panel.classList.add('is-fullscreen');
+                            shellFullscreen = true;
+                        }
+                    } catch (error) {
+                        panel.classList.add('is-fullscreen');
+                        shellFullscreen = true;
+                    }
+                    mostrarModulo(modulo);
+                });
+                panel.appendChild(btn);
+            });
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            const isNativeFullscreen = !!document.fullscreenElement;
+            PANEL_FRAME_PAIRS.forEach(([panel]) => {
+                if (!panel) return;
+                panel.classList.toggle('is-fullscreen', isNativeFullscreen && document.fullscreenElement === panel);
+            });
+            shellFullscreen = isNativeFullscreen;
+            BTN_SHELL_FULLSCREEN.textContent = isNativeFullscreen ? 'Salir de fullscreen' : 'Expandir';
+        });
 
         function asegurarCargaIframe(modulo) {
             if (modulo === 'operativo' && FRAME_OP.src === 'about:blank') {
@@ -877,6 +1055,7 @@
             const requested = ['operativo', 'tecnico', 'solicitudes', 'archivo', 'clientes', 'tareas', 'stock', 'proveedores', 'compras', 'gastos', 'finanzas', 'reportes', 'sucursales', 'seguridad'].includes(modulo) ? modulo : 'operativo';
             const actual = allowed.includes(requested) ? requested : 'operativo';
             currentModule = actual;
+            closeRecepcionModal();
             asegurarCargaIframe(actual);
             PANEL_OP.classList.toggle('active', actual === 'operativo');
             PANEL_TE.classList.toggle('active', actual === 'tecnico');
@@ -913,10 +1092,48 @@
             if (shellFullscreen) {
                 WORKSPACE_MODULE.textContent = `Pantalla completa: ${meta.title}`;
             }
+            if (HUB_PANEL) {
+                HUB_PANEL.style.display = actual === 'operativo' ? 'block' : 'none';
+            }
 
             const url = new URL(window.location.href);
             url.searchParams.set('modulo', actual);
             window.history.replaceState({}, '', url);
+        }
+
+        function openRecepcionModal() {
+            if (!RECEPCION_MODAL || !RECEPCION_MODAL_FRAME) return;
+            RECEPCION_MODAL_FRAME.src = buildRecepcionModalUrl();
+            RECEPCION_MODAL.classList.remove('hidden');
+            RECEPCION_MODAL.setAttribute('aria-hidden', 'false');
+            RECEPCION_MODAL.setAttribute('tabindex', '-1');
+            RECEPCION_MODAL.focus();
+            recepcionModalOpen = true;
+            recepcionEscBound = false;
+        }
+
+        function bindRecepcionEscHandler() {
+            if (!RECEPCION_MODAL_FRAME || recepcionEscBound) return;
+            try {
+                const doc = RECEPCION_MODAL_FRAME.contentDocument || RECEPCION_MODAL_FRAME.contentWindow?.document;
+                if (!doc) return;
+                doc.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        closeRecepcionModal();
+                    }
+                });
+                recepcionEscBound = true;
+            } catch (error) {}
+        }
+
+        function closeRecepcionModal() {
+            if (!RECEPCION_MODAL || !RECEPCION_MODAL_FRAME) return;
+            if (RECEPCION_MODAL.classList.contains('hidden')) return;
+            RECEPCION_MODAL.classList.add('hidden');
+            RECEPCION_MODAL.setAttribute('aria-hidden', 'true');
+            RECEPCION_MODAL_FRAME.src = 'about:blank';
+            recepcionModalOpen = false;
         }
 
         BTN_OP.addEventListener('click', () => mostrarModulo('operativo'));
@@ -933,6 +1150,12 @@
         BTN_RE.addEventListener('click', () => mostrarModulo('reportes'));
         BTN_SU.addEventListener('click', () => mostrarModulo('sucursales'));
         BTN_SG.addEventListener('click', () => mostrarModulo('seguridad'));
+        if (BTN_NEW_RECEPCION) {
+            BTN_NEW_RECEPCION.addEventListener('click', () => {
+                mostrarModulo('operativo');
+                openRecepcionModal();
+            });
+        }
 
         function setShellFullscreen(active) {
             shellFullscreen = !!active;
@@ -946,11 +1169,94 @@
             }
         }
 
+        function escapeHub(v) {
+            return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        async function cargarHub() {
+            try {
+                const res = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'hub_dashboard_summary',
+                        sucursalId: localStorage.getItem('srfix_sucursal_activa') || 'GLOBAL'
+                    })
+                });
+                const data = await res.json();
+                const kpis = data.kpis || {};
+                HUB_KPIS.innerHTML = [
+                    ['Equipos activos', kpis.equiposActivos ?? 0],
+                    ['Entregados', kpis.equiposEntregados ?? 0],
+                    ['Solicitudes', kpis.solicitudesAbiertas ?? 0],
+                    ['Inventario', kpis.inventarioItems ?? 0],
+                    ['Clientes', kpis.clientesActivos ?? 0],
+                    ['Utilidad', `$${Number(kpis.utilidadMes ?? 0).toFixed(2)}`]
+                ].map(([label, value]) => `
+                    <div style="border:1px solid rgba(31,126,220,0.18); background: rgba(10,15,28,0.72); border-radius:16px; padding:14px;">
+                        <div style="font-size:12px; color:#8A8F95; text-transform:uppercase; letter-spacing:.08em;">${escapeHub(label)}</div>
+                        <div style="font-size:24px; font-weight:800; color:#fff; margin-top:4px;">${escapeHub(value)}</div>
+                    </div>
+                `).join('');
+                HUB_ACTIONS.innerHTML = (data.atajos || []).map((item) => `
+                    <button type="button" data-hub-module="${escapeHub(item.modulo)}" class="ghost-btn" style="justify-content:space-between;">
+                        <span>
+                            <strong style="display:block; color:#fff;">${escapeHub(item.titulo)}</strong>
+                            <small style="color:#8A8F95;">${escapeHub(item.descripcion)}</small>
+                        </span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                `).join('');
+                HUB_ALERTS.innerHTML = (data.alertas || []).map((item) => `
+                    <div style="border:1px solid rgba(255,106,42,0.18); background: rgba(20,13,8,0.72); border-radius:16px; padding:14px;">
+                        <div style="font-size:12px; color:#ffae8c; text-transform:uppercase; letter-spacing:.08em;">${escapeHub(item.titulo)}</div>
+                        <div style="font-size:24px; font-weight:800; color:#ffb18c; margin-top:4px;">${escapeHub(item.valor)}</div>
+                    </div>
+                `).join('');
+                HUB_ACTIONS.querySelectorAll('[data-hub-module]').forEach((btn) => {
+                    btn.addEventListener('click', () => mostrarModulo(btn.getAttribute('data-hub-module') || 'operativo'));
+                });
+            } catch (error) {
+                HUB_KPIS.innerHTML = `<div style="color:#ff8b8b;">${escapeHub(error instanceof Error ? error.message : String(error))}</div>`;
+                HUB_ACTIONS.innerHTML = '';
+                HUB_ALERTS.innerHTML = '';
+            }
+        }
+
         BTN_SHELL_FULLSCREEN.addEventListener('click', () => {
+            if (document.fullscreenElement) {
+                void document.exitFullscreen();
+                return;
+            }
             setShellFullscreen(!shellFullscreen);
         });
 
+        BTN_HUB_REFRESH.addEventListener('click', () => { void cargarHub(); });
+
+        if (BTN_RECEPCION_CLOSE) {
+            BTN_RECEPCION_CLOSE.addEventListener('click', () => closeRecepcionModal());
+        }
+
+        if (BTN_RECEPCION_FULLSCREEN && RECEPCION_MODAL_FRAME) {
+            BTN_RECEPCION_FULLSCREEN.addEventListener('click', async () => {
+                try {
+                    if (RECEPCION_MODAL_FRAME.requestFullscreen) {
+                        await RECEPCION_MODAL_FRAME.requestFullscreen();
+                    }
+                } catch (error) {}
+            });
+        }
+
+        if (RECEPCION_MODAL_FRAME) {
+            RECEPCION_MODAL_FRAME.addEventListener('load', () => {
+                bindRecepcionEscHandler();
+            });
+        }
+
         document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && recepcionModalOpen) {
+                closeRecepcionModal();
+                return;
+            }
             if (event.key === 'Escape' && shellFullscreen) {
                 setShellFullscreen(false);
             }
@@ -1080,6 +1386,8 @@
                 localStorage.setItem('srfix_sucursal_activa', 'GLOBAL');
             }
             mostrarIntegrador();
+            mountFullscreenControls();
+            void cargarHub();
             cargarSucursales();
             const modulo = new URLSearchParams(window.location.search).get('modulo');
             const solicitado = modulo || 'operativo';

@@ -86,6 +86,8 @@ function obtenerHojaClientes(ss) { return _legacyObtenerHoja(ss, CORE_SHEETS.CLI
 function obtenerHojaProductos(ss) { return _legacyObtenerHoja(ss, CORE_SHEETS.PRODUCTOS, ['ID', 'SKU', 'NOMBRE', 'CATEGORIA', 'MARCA', 'MODELO_COMPATIBLE', 'PROVEEDOR', 'COSTO', 'PRECIO', 'STOCK_ACTUAL', 'STOCK_MINIMO', 'UNIDAD', 'UBICACION', 'NOTAS', 'ESTATUS', 'FECHA_CREACION', 'FECHA_ACTUALIZACION']); }
 function obtenerHojaEquipos(ss) { return _legacyObtenerHoja(ss, CORE_SHEETS.EQUIPOS, LEGACY_EQUIPO_HEADERS); }
 function obtenerHojaPagosClientes(ss) { return _legacyObtenerHoja(ss, CORE_SHEETS.PAGOS_CLIENTES || 'PagosClientes', LEGACY_PAGOS_CLIENTES_HEADERS); }
+function obtenerHojaSucursales(ss) { return _legacyObtenerHoja(ss, 'Sucursales', ['ID', 'NOMBRE', 'DIRECCION', 'TELEFONO', 'EMAIL', 'ESTATUS', 'ES_MATRIZ', 'FECHA_CREACION', 'FECHA_ACTUALIZACION']); }
+function obtenerHojaTransferenciasStock(ss) { return _legacyObtenerHoja(ss, 'TransferenciasStock', ['ID', 'SKU', 'PRODUCTO', 'SUCURSAL_ORIGEN', 'SUCURSAL_DESTINO', 'CANTIDAD', 'USUARIO', 'MOTIVO', 'NOTAS', 'FECHA']); }
 
 function _getHeaderIndex(headers, aliases) {
   const normalized = (headers || []).map(function(h) { return String(h || '').trim().toUpperCase(); });
@@ -173,6 +175,187 @@ function normalizarEquipoForApi(raw) {
   salida.estado = salida.ESTADO;
   salida.fechaPromesa = salida.FECHA_PROMESA;
   return salida;
+}
+
+function normalizarSucursalForApi(raw) {
+  const obj = raw || {};
+  return {
+    ID: String(_getField(obj, ['ID'], '') || '').trim(),
+    NOMBRE: String(_getField(obj, ['NOMBRE'], '') || '').trim(),
+    DIRECCION: String(_getField(obj, ['DIRECCION'], '') || '').trim(),
+    TELEFONO: String(_getField(obj, ['TELEFONO'], '') || '').trim(),
+    EMAIL: String(_getField(obj, ['EMAIL'], '') || '').trim(),
+    ESTATUS: String(_getField(obj, ['ESTATUS'], 'activo') || 'activo').trim(),
+    ES_MATRIZ: boolFromCheck(_getField(obj, ['ES_MATRIZ'], false)),
+    FECHA_CREACION: String(_getField(obj, ['FECHA_CREACION'], '') || '').trim(),
+    FECHA_ACTUALIZACION: String(_getField(obj, ['FECHA_ACTUALIZACION'], '') || '').trim()
+  };
+}
+
+function listareSucursales(data) {
+  const input = data || {};
+  const texto = String(input.texto || '').trim().toLowerCase();
+  const soloActivas = String(input.soloActivas || '').trim() === '1' || String(input.soloActivas || '').trim().toLowerCase() === 'true';
+  const table = Repository_readTable('Sucursales');
+  const rows = (table.rows || []).map(function(row) { return normalizarSucursalForApi(mapearFila(table.headers || [], row)); }).filter(function(item) {
+    if (soloActivas && String(item.ESTATUS || '').toLowerCase() !== 'activo') return false;
+    if (!texto) return true;
+    return [item.ID, item.NOMBRE, item.DIRECCION, item.TELEFONO, item.EMAIL].some(function(v) {
+      return String(v || '').toLowerCase().indexOf(texto) >= 0;
+    });
+  });
+  return { sucursales: rows };
+}
+
+function listarTransferenciasStock(data) {
+  const input = data || {};
+  const sucursalId = normalizarSucursalId(input.sucursalId || 'GLOBAL');
+  const table = Repository_readTable('TransferenciasStock');
+  const rows = (table.rows || []).map(function(row) { return mapearFila(table.headers || [], row); }).filter(function(item) {
+    if (sucursalId === 'GLOBAL') return true;
+    return normalizarSucursalId(item.SUCURSAL_ORIGEN) === sucursalId || normalizarSucursalId(item.SUCURSAL_DESTINO) === sucursalId;
+  });
+  return { transferencias: rows.sort(function(a, b) {
+    return String(b.FECHA || '').localeCompare(String(a.FECHA || ''));
+  }) };
+}
+
+function guardarSucursal(data) {
+  const payload = data || {};
+  const table = Repository_readTable('Sucursales');
+  const hoja = obtenerHojaSucursales(Core_getSpreadsheet());
+  const now = new Date().toISOString();
+  const id = String(payload.id || payload.ID || '').trim() || Utilities.getUuid().slice(0, 8).toUpperCase();
+  const record = {
+    ID: id,
+    NOMBRE: String(payload.nombre || payload.NOMBRE || '').trim(),
+    DIRECCION: String(payload.direccion || payload.DIRECCION || '').trim(),
+    TELEFONO: String(payload.telefono || payload.TELEFONO || '').trim(),
+    EMAIL: String(payload.email || payload.EMAIL || '').trim(),
+    ESTATUS: String(payload.estatus || payload.ESTATUS || 'activo').trim(),
+    ES_MATRIZ: boolFromCheck(payload.esMatriz || payload.ES_MATRIZ),
+    FECHA_CREACION: now,
+    FECHA_ACTUALIZACION: now
+  };
+  const headers = table.headers && table.headers.length ? table.headers : ['ID', 'NOMBRE', 'DIRECCION', 'TELEFONO', 'EMAIL', 'ESTATUS', 'ES_MATRIZ', 'FECHA_CREACION', 'FECHA_ACTUALIZACION'];
+  const rows = table.rows || [];
+  const idx = rows.findIndex(function(row) {
+    const obj = mapearFila(headers, row);
+    return String(obj.ID || '').trim() === id;
+  });
+  const nextRow = headers.map(function(header) {
+    return record[header] !== undefined ? record[header] : '';
+  });
+  if (idx >= 0) {
+    withRetry(function() {
+      hoja.getRange(idx + 2, 1, 1, nextRow.length).setValues([nextRow]);
+      return true;
+    }, 'guardarSucursal.update');
+  } else {
+    withRetry(function() {
+      hoja.appendRow(nextRow);
+      return true;
+    }, 'guardarSucursal.append');
+  }
+  return { success: true, sucursal: normalizarSucursalForApi(record) };
+}
+
+function transferirStock(data) {
+  const payload = data || {};
+  const sku = String(payload.sku || payload.SKU || '').trim().toUpperCase();
+  const origen = normalizarSucursalId(payload.sucursalOrigen || payload.SUCURSAL_ORIGEN || 'GLOBAL');
+  const destino = normalizarSucursalId(payload.sucursalDestino || payload.SUCURSAL_DESTINO || 'GLOBAL');
+  const cantidad = Math.max(1, Math.floor(Number(payload.cantidad || 0)));
+  if (!sku || origen === destino) return { error: 'Datos inválidos' };
+  const hoja = obtenerHojaTransferenciasStock(Core_getSpreadsheet());
+  const id = Utilities.getUuid().slice(0, 12).toUpperCase();
+  const now = new Date().toISOString();
+  withRetry(function() {
+    hoja.appendRow([
+      id,
+      sku,
+      String(payload.producto || payload.PRODUCTO || '').trim(),
+      origen,
+      destino,
+      cantidad,
+      String(payload.usuario || payload.USUARIO || '').trim(),
+      String(payload.motivo || payload.MOTIVO || '').trim(),
+      String(payload.notas || payload.NOTAS || '').trim(),
+      now
+    ]);
+    return true;
+  }, 'transferirStock.append');
+  return { success: true, transferencia: { ID: id, SKU: sku, SUCURSAL_ORIGEN: origen, SUCURSAL_DESTINO: destino, CANTIDAD: cantidad, FECHA: now } };
+}
+
+function reporteOperativo(data) {
+  const input = data || {};
+  const tipo = String(input.tipo || 'diario').trim().toLowerCase();
+  const fechaDesde = parseFechaFiltro(input.fechaDesde || '');
+  const fechaHasta = parseFechaFiltro(input.fechaHasta || '');
+  const sucursalId = normalizarSucursalId(input.sucursalId || 'GLOBAL');
+  const equipos = (Repository_readEquiposTable().rows || []).map(function(row) { return normalizarEquipoForApi(mapearFila(Repository_readEquiposTable().headers || [], row)); }).filter(function(eq) {
+    if (sucursalId !== 'GLOBAL' && normalizarSucursalId(eq.SUCURSAL_ID) !== sucursalId) return false;
+    const fecha = parseFechaFlexible(eq.FECHA_INGRESO || '');
+    return !((fechaDesde || fechaHasta) && !cumpleRango(fecha, fechaDesde, fechaHasta));
+  });
+  const solicitudes = (Repository_readSolicitudesTable().rows || []).map(function(row) { return mapearFila(Repository_readSolicitudesTable().headers || [], row); }).filter(function(item) {
+    if (sucursalId !== 'GLOBAL' && normalizarSucursalId(item.SUCURSAL_ID) !== sucursalId) return false;
+    const fecha = parseFechaFlexible(item.FECHA_SOLICITUD || '');
+    return !((fechaDesde || fechaHasta) && !cumpleRango(fecha, fechaDesde, fechaHasta));
+  });
+  if (tipo === 'semanal') {
+    return {
+      resumen: {
+        equiposRecibidos: equipos.length,
+        equiposEntregados: equipos.filter(function(eq) { return String(eq.ESTADO || '').toLowerCase() === 'entregado'; }).length,
+        cotizacionesGeneradas: solicitudes.length,
+        promedioDiasEntrega: 0,
+        stockCritico: 0
+      },
+      detalle: {
+        porTecnico: [],
+        stockCritico: []
+      }
+    };
+  }
+  if (tipo === 'mensual') {
+    const ingresos = equipos.reduce(function(acc, eq) { return acc + _toMoney(eq.COSTO_ESTIMADO); }, 0);
+    return {
+      resumen: {
+        ingresos: ingresos,
+        egresos: 0,
+        utilidad: ingresos,
+        serviciosFrecuentes: 0,
+        clientesRecurrentes: 0
+      },
+      detalle: {
+        serviciosFrecuentes: [],
+        clientesRecurrentes: []
+      }
+    };
+  }
+  return {
+    resumen: {
+      equiposRecibidos: equipos.length,
+      equiposEntregados: equipos.filter(function(eq) { return String(eq.ESTADO || '').toLowerCase() === 'entregado'; }).length,
+      cotizacionesGeneradas: solicitudes.length,
+      ventasEstimadas: _sumBy(equipos, 'COSTO_ESTIMADO'),
+      gastos: 0
+    },
+    detalle: {
+      equiposRecibidos: equipos.map(function(eq) {
+        return { FOLIO: eq.FOLIO, CLIENTE_NOMBRE: eq.CLIENTE_NOMBRE, DISPOSITIVO: eq.DISPOSITIVO, MODELO: eq.MODELO };
+      }),
+      cotizaciones: solicitudes.map(function(item) {
+        return {
+          folio: String(item.FOLIO_COTIZACION || '').trim().toUpperCase(),
+          cliente: String(item.NOMBRE || '').trim(),
+          total: _toMoney(item.COTIZACION_TOTAL || 0)
+        };
+      })
+    }
+  };
 }
 
 function _buildRowFromHeaders(headers, obj) {

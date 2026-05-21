@@ -100,4 +100,32 @@ function normalizarSeguimientoFotos(raw) { if (!raw) return '[]'; let arr = []; 
 function safeParseJsonArray(raw) { if (!raw) return []; try { const parsed = JSON.parse(String(raw)); return Array.isArray(parsed) ? parsed : []; } catch(e) { return []; } }
 function mapearFila(headers, row) { const out = {}; headers.forEach((h, i) => { out[String(h || '').trim()] = row[i]; }); return out; }
 function logError(contexto, error, extra) { console.error(JSON.stringify({ contexto: contexto || 'sin_contexto', mensaje: error && error.message ? error.message : String(error || ''), stack: error && error.stack ? String(error.stack) : '', extra: extra || null })); }
+function parsePostData(e) {
+  const payload = (e && e.postData && typeof e.postData.contents === 'string') ? String(e.postData.contents).trim() : '';
+  if (!payload) {
+    return Object.assign({}, (e && e.parameter) || {});
+  }
+
+  try {
+    const parsed = JSON.parse(payload);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch (error) {
+    // Fall through to querystring parsing.
+  }
+
+  try {
+    const params = new URLSearchParams(payload);
+    const out = {};
+    params.forEach((value, key) => {
+      out[key] = value;
+    });
+    if (Object.keys(out).length) return out;
+  } catch (error) {
+    // Ignore and fall through.
+  }
+
+  return Object.assign({}, (e && e.parameter) || {}, { raw: payload });
+}
 function Utils_normalizeEntity(entityName, raw) { const entity = String(entityName || '').trim().toLowerCase(); const obj = raw || {}; if (entity === 'tarea' && typeof normalizarTareaForApi === 'function') return normalizarTareaForApi(obj); if (entity === 'proveedor' && typeof normalizarProveedorForApi === 'function') return normalizarProveedorForApi(obj); if (entity === 'producto' && typeof normalizarProductoForApi === 'function') return normalizarProductoForApi(obj); if (entity === 'gasto' && typeof normalizarGastoForApi === 'function') return normalizarGastoForApi(obj); if (entity === 'cliente' && typeof normalizarClienteForApi === 'function') return normalizarClienteForApi(obj); if (entity === 'equipo' && typeof normalizarEquipoForApi === 'function') return normalizarEquipoForApi(obj); if (entity === 'orden_compra' && typeof normalizarOrdenCompraForApi === 'function') return normalizarOrdenCompraForApi(obj); if (entity === 'orden_compra_item' && typeof normalizarOrdenCompraItemForApi === 'function') return normalizarOrdenCompraItemForApi(obj); return obj; }

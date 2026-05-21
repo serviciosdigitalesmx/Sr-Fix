@@ -32,8 +32,8 @@
 }
 
 .tecnico-main {
-  padding-top: 1.25rem;
-  padding-bottom: 1.5rem;
+  padding-top: 1.5rem;
+  padding-bottom: 1.75rem;
 }
 
 .tecnico-kpi-card {
@@ -64,6 +64,7 @@
   border-radius: 1.35rem;
   box-shadow: 0 20px 55px rgba(0, 0, 0, 0.18);
   backdrop-filter: blur(12px);
+  padding: 1rem;
 }
 
 .card-rojo,
@@ -72,6 +73,7 @@
   border-radius: 1.2rem;
   border-width: 1px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  padding: 1rem;
 }
 
 .tecnico-ticket {
@@ -117,7 +119,7 @@
 
 .tecnico-ticket-body {
   display: grid;
-  gap: 0.85rem;
+  gap: 1rem;
   position: relative;
   z-index: 1;
 }
@@ -127,7 +129,7 @@
   border-radius: 1rem;
   border: 1px solid rgba(148, 163, 184, 0.12);
   background: rgba(8, 15, 30, 0.58);
-  padding: 0.9rem 0.95rem;
+  padding: 1rem 1.05rem;
 }
 
 .tecnico-ticket-label {
@@ -144,7 +146,7 @@
 .tecnico-ticket-copy {
   margin-top: 0.55rem;
   font-size: 0.84rem;
-  line-height: 1.55;
+  line-height: 1.65;
   color: #f8fafc;
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -264,6 +266,8 @@
 
 .tecnico-modal-body {
   background-image: radial-gradient(circle at top right, rgba(31, 126, 220, 0.08) 0%, transparent 24%);
+  padding-top: 1rem;
+  padding-bottom: 1rem;
 }
 
 .tecnico-modal-actions {

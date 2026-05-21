@@ -48,12 +48,12 @@ function Router_getGetRoutes() {
       required: [],
       handler: function(params) {
         const pag = Router_getPagination(params);
-        return listarSucursales({
+        return jsonResponse(Service_listarSucursales({
           texto: params.texto || '',
           soloActivas: params.soloActivas || '',
           page: pag.page,
           pageSize: pag.pageSize
-        });
+        }));
       }
     },
     listar_tareas: {
@@ -166,11 +166,11 @@ function Router_getGetRoutes() {
     resumen_finanzas: {
       required: [],
       handler: function(params) {
-        return Service_resumenFinanzas({
+        return jsonResponse(Service_resumenFinanzas({
           fechaDesde: params.fechaDesde || '',
           fechaHasta: params.fechaHasta || '',
           sucursalId: params.sucursalId || ''
-        });
+        }));
       }
     },
     listar_clientes: {
@@ -204,6 +204,22 @@ function Router_getGetRoutes() {
     detalle_archivo: {
       required: ['tipo', 'folio'],
       handler: function(params) { return Service_getArchivoDetalle(params || {}); }
+    },
+    reporte_operativo: {
+      required: [],
+      handler: function(params) { return jsonResponse(Service_reporteOperativo(params || {})); }
+    },
+    listar_transferencias_stock: {
+      required: [],
+      handler: function(params) { return jsonResponse(Service_listarTransferenciasStock(params || {})); }
+    },
+    guardar_sucursal: {
+      required: [],
+      handler: function(params) { return jsonResponse(Service_guardarSucursal(params || {})); }
+    },
+    transferir_stock: {
+      required: [],
+      handler: function(params) { return jsonResponse(Service_transferirStock(params || {})); }
     },
     hub_dashboard_summary: {
       required: [],
@@ -310,12 +326,12 @@ function Router_getPostRoutes() {
       required: [],
       handler: function(data) {
         const pag = Router_getPagination(data);
-        return listarSucursales({
+        return jsonResponse(Service_listarSucursales({
           texto: data.texto || '',
           soloActivas: data.soloActivas || '',
           page: pag.page,
           pageSize: pag.pageSize
-        });
+        }));
       }
     },
     semaforo: {
@@ -412,7 +428,23 @@ function Router_getPostRoutes() {
     },
     resumen_finanzas: {
       required: [],
-      handler: function(data) { return Service_resumenFinanzas(data || {}); }
+      handler: function(data) { return jsonResponse(Service_resumenFinanzas(data || {})); }
+    },
+    reporte_operativo: {
+      required: [],
+      handler: function(data) { return jsonResponse(Service_reporteOperativo(data || {})); }
+    },
+    listar_transferencias_stock: {
+      required: [],
+      handler: function(data) { return jsonResponse(Service_listarTransferenciasStock(data || {})); }
+    },
+    guardar_sucursal: {
+      required: [],
+      handler: function(data) { return jsonResponse(Service_guardarSucursal(data || {})); }
+    },
+    transferir_stock: {
+      required: [],
+      handler: function(data) { return jsonResponse(Service_transferirStock(data || {})); }
     },
     listar_clientes: {
       required: [],

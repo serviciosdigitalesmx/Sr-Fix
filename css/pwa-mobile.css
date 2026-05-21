@@ -47,6 +47,33 @@ a.btn-wa {
   min-height: 44px;
 }
 
+.workspace-header,
+.operativo-header,
+.tecnico-toolbar,
+.tecnico-topbar,
+header,
+.card-srf,
+.tech-card,
+.panel,
+.recepcion-modal-card {
+  box-sizing: border-box;
+}
+
+.card-srf,
+.tech-card,
+.tecnico-ticket-field,
+.tecnico-ticket-metric {
+  padding: 1.15rem;
+}
+
+.ghost-btn,
+.tab,
+.btn-naranja,
+.btn-azul,
+.btn-wa {
+  border-radius: 0.9rem;
+}
+
 @media (max-width: 768px) {
   .bar {
     align-items: stretch;
@@ -78,6 +105,13 @@ a.btn-wa {
     border-radius: 1rem;
   }
 
+  .card-srf,
+  .tech-card,
+  .tecnico-ticket-field,
+  .tecnico-ticket-metric {
+    padding: 1rem;
+  }
+
   .pwa-install-btn {
     right: 12px;
     bottom: calc(12px + env(safe-area-inset-bottom, 0px));
@@ -98,5 +132,10 @@ a.btn-wa {
 
   main {
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .workspace-header,
+  .operativo-header {
+    gap: 0.85rem;
   }
 }

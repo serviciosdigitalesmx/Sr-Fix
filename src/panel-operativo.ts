@@ -71,6 +71,7 @@ const elFolioGenerado = operativoRequireElement<HTMLSpanElement>('folio-generado
 const elWhatsappLink = operativoRequireElement<HTMLAnchorElement>('whatsapp-link');
 const elToast = operativoRequireElement<HTMLDivElement>('toast');
 const elToastMessage = operativoRequireElement<HTMLSpanElement>('toast-message');
+const operativoUrlParams = new URLSearchParams(window.location.search);
 
 let password = '';
 let fotoRecepcionBase64 = '';
@@ -835,6 +836,10 @@ function nuevaOrden(): void {
   }
 }
 
+function shouldAutoNuevaOrden(): boolean {
+  return operativoUrlParams.get('autoNueva') === '1';
+}
+
 function bindListeners(): void {
   document.addEventListener('input', (event: Event) => {
     const target = event.target;
@@ -912,6 +917,11 @@ async function login(): Promise<void> {
 
     elLoginScreen.classList.add('hidden');
     elApp.classList.remove('hidden');
+    if (shouldAutoNuevaOrden()) {
+      window.setTimeout(() => {
+        nuevaOrden();
+      }, 100);
+    }
 
     const fecha = new Date();
     fecha.setDate(fecha.getDate() + 3);

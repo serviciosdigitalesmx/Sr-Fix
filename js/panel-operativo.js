@@ -50,6 +50,7 @@ const elFolioGenerado = operativoRequireElement('folio-generado');
 const elWhatsappLink = operativoRequireElement('whatsapp-link');
 const elToast = operativoRequireElement('toast');
 const elToastMessage = operativoRequireElement('toast-message');
+const operativoUrlParams = new URLSearchParams(window.location.search);
 let password = '';
 let fotoRecepcionBase64 = '';
 let ultimaOrdenRegistrada = null;
@@ -788,6 +789,9 @@ function nuevaOrden() {
         }
     }
 }
+function shouldAutoNuevaOrden() {
+    return operativoUrlParams.get('autoNueva') === '1';
+}
 function bindListeners() {
     document.addEventListener('input', (event) => {
         const target = event.target;
@@ -860,6 +864,11 @@ async function login() {
         }
         elLoginScreen.classList.add('hidden');
         elApp.classList.remove('hidden');
+        if (shouldAutoNuevaOrden()) {
+            window.setTimeout(() => {
+                nuevaOrden();
+            }, 100);
+        }
         const fecha = new Date();
         fecha.setDate(fecha.getDate() + 3);
         elFechaPromesa.valueAsDate = fecha;

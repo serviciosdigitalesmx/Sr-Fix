@@ -134,6 +134,71 @@ function Service_getClientPanel(data) {
   };
 }
 
+function getDashboardSummary(data) {
+  const input = data || {};
+  const sucursalId = normalizarSucursalId(input.sucursalId || 'GLOBAL');
+  const equiposTable = Repository_readEquiposTable();
+  const solicitudesTable = Repository_readSolicitudesTable();
+  const gastosTable = Repository_readGastosTable();
+  const productosTable = Repository_readProductosTable();
+  const clientesTable = Repository_readClientesTable();
+
+  const equipos = (equiposTable.rows || []).map(function(row) { return normalizarEquipoForApi(mapearFila(equiposTable.headers || [], row)); }).filter(function(eq) {
+    return sucursalId === 'GLOBAL' || normalizarSucursalId(eq.SUCURSAL_ID) === sucursalId;
+  });
+  const solicitudes = (solicitudesTable.rows || []).map(function(row) { return mapearFila(solicitudesTable.headers || [], row); }).filter(function(item) {
+    return sucursalId === 'GLOBAL' || normalizarSucursalId(item.SUCURSAL_ID) === sucursalId;
+  });
+  const gastos = (gastosTable.rows || []).map(function(row) { return mapearFila(gastosTable.headers || [], row); }).filter(function(item) {
+    return sucursalId === 'GLOBAL' || normalizarSucursalId(item.SUCURSAL_ID) === sucursalId;
+  });
+  const productos = (productosTable.rows || []).map(function(row) { return mapearFila(productosTable.headers || [], row); }).filter(function(item) {
+    return sucursalId === 'GLOBAL' || normalizarSucursalId(item.SUCURSAL_ID) === sucursalId;
+  });
+  const clientes = (clientesTable.rows || []).map(function(row) { return mapearFila(clientesTable.headers || [], row); }).filter(function(item) {
+    return sucursalId === 'GLOBAL' || normalizarSucursalId(item.SUCURSAL_ID) === sucursalId;
+  });
+
+  const pendientes = equipos.filter(function(eq) { return String(eq.ESTADO || '').trim().toLowerCase() !== 'entregado'; }).length;
+  const entregados = equipos.filter(function(eq) { return String(eq.ESTADO || '').trim().toLowerCase() === 'entregado'; }).length;
+  const totalIngresos = equipos.reduce(function(acc, eq) { return acc + _toMoney(eq.COSTO_ESTIMADO); }, 0);
+  const totalEgresos = gastos.reduce(function(acc, gasto) { return acc + _toMoney(gasto.MONTO); }, 0);
+
+  return {
+    kpis: {
+      equiposActivos: pendientes,
+      equiposEntregados: entregados,
+      solicitudesAbiertas: solicitudes.filter(function(item) { return String(item.ESTADO || '').trim().toLowerCase() === 'pendiente'; }).length,
+      inventarioItems: productos.length,
+      clientesActivos: clientes.length,
+      ingresosMes: totalIngresos,
+      egresosMes: totalEgresos,
+      utilidadMes: totalIngresos - totalEgresos
+    },
+    atajos: [
+      { modulo: 'operativo', titulo: 'Recepción', descripcion: 'Alta y seguimiento de órdenes' },
+      { modulo: 'tecnico', titulo: 'Técnico', descripcion: 'Semáforo y diagnóstico' },
+      { modulo: 'finanzas', titulo: 'Finanzas', descripcion: 'Resumen consolidado' },
+      { modulo: 'reportes', titulo: 'Reportes', descripcion: 'Vista ejecutiva del negocio' },
+      { modulo: 'sucursales', titulo: 'Sucursales', descripcion: 'Gestión por sede' }
+    ],
+    alertas: [
+      { titulo: 'Pendientes abiertos', valor: pendientes },
+      { titulo: 'Solicitudes abiertas', valor: solicitudes.length },
+      { titulo: 'Productos activos', valor: productos.length }
+    ]
+  };
+}
+
+function getOperationalPanel(data) {
+  const input = data || {};
+  const summary = getDashboardSummary(input);
+  return {
+    resumen: summary.kpis || {},
+    acciones: summary.atajos || []
+  };
+}
+
 function Service_crearSolicitud(data) {
   return withDocumentLock(function() {
     const payload = validarPayloadCrearSolicitud(data || {});
@@ -1554,6 +1619,26 @@ function Service_resumenGastos(data) {
 
 function Service_resumenFinanzas(data) {
   return resumenFinanzas(data || {});
+}
+
+function Service_reporteOperativo(data) {
+  return reporteOperativo(data || {});
+}
+
+function Service_listarSucursales(data) {
+  return listareSucursales(data || {});
+}
+
+function Service_guardarSucursal(data) {
+  return guardarSucursal(data || {});
+}
+
+function Service_listarTransferenciasStock(data) {
+  return listarTransferenciasStock(data || {});
+}
+
+function Service_transferirStock(data) {
+  return transferirStock(data || {});
 }
 
 function Service_guardarCliente(data) {

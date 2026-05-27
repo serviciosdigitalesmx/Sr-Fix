@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SrFix Oficial | Reparación Profesional de Electrónicos</title>
     <meta name="description" content="Servicio técnico especializado en reparación de laptops, GPUs, controles. Verifica el estado de tu equipo online. Plaza Chapultepec, San Nicolás de los Garza.">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,6 +20,15 @@
     <script>
         document.documentElement.classList.add('js');
         (function () {
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function () {
+                    navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                        registrations.forEach(function (registration) {
+                            registration.unregister().catch(function () {});
+                        });
+                    }).catch(function () {});
+                });
+            }
             const params = new URLSearchParams(window.location.search);
             const folio = String(params.get('folio') || '').trim().toUpperCase();
             if (!folio) return;

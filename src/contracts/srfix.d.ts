@@ -3,6 +3,7 @@ export {};
 declare global {
   const CONFIG: {
     API_URL: string;
+    REVIEW_URL: string;
     APP_URL?: string;
     FRONT_PASSWORD?: string;
   };

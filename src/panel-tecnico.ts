@@ -982,6 +982,7 @@ function renderLoadErrorState(message: string): void {
                 waBtn.href = '#';
                 waBtn.classList.add('hidden');
             }
+            actualizarBotonResena(eq);
             tecnicoGetElement('modal-equipo').textContent = `${eq.DISPOSITIVO || ''} ${eq.MODELO || ''}`.trim() || 'N/A';
             tecnicoGetElement('modal-costo').textContent = Number(eq.COSTO_ESTIMADO || 0) > 0
                 ? formatMoney(eq.COSTO_ESTIMADO)
@@ -1166,6 +1167,61 @@ function renderLoadErrorState(message: string): void {
             const destino = limpio.length === 10 ? `52${limpio}` : limpio;
             const mensaje = `Hola, te escribimos de SrFix sobre tu equipo con folio ${folio}.`;
             return `https://wa.me/${destino}?text=${encodeURIComponent(mensaje)}`;
+        }
+
+        function actualizarBotonResena(eq: TecnicoEquipoRecord): void {
+            const boton = document.getElementById('modal-review-btn') as HTMLButtonElement;
+            const ayuda = tecnicoGetElement('modal-review-help');
+            const url = SrFixReviewRequest.buildWhatsAppUrl({
+                phone: eq.CLIENTE_TELEFONO,
+                clientName: eq.CLIENTE_NOMBRE,
+                device: eq.DISPOSITIVO,
+                repairWork: eq.CASO_RESOLUCION_TECNICA,
+                status: eq.ESTADO,
+                reviewUrl: CONFIG.REVIEW_URL
+            });
+            boton.disabled = !url;
+            boton.title = url
+                ? 'Abre WhatsApp con el mensaje preparado; deberás revisarlo y enviarlo manualmente.'
+                : 'Disponible después de entregar la reparación y contar con un teléfono válido.';
+
+            if (!url && String(eq.ESTADO || '').trim().toLocaleLowerCase('es-MX') !== 'entregado') {
+                ayuda.textContent = 'Disponible después de marcar la reparación como entregada.';
+            } else if (!url && !SrFixReviewRequest.normalizeMexicanWhatsAppPhone(eq.CLIENTE_TELEFONO)) {
+                ayuda.textContent = 'No hay un teléfono mexicano válido para abrir WhatsApp.';
+            } else if (!url) {
+                ayuda.textContent = 'No se pudo validar el enlace directo de reseñas de Google.';
+            } else {
+                ayuda.textContent = 'Abre WhatsApp con un mensaje personalizado y el enlace a las opiniones; el cliente escribe y publica su opinión desde Google.';
+            }
+        }
+
+        function solicitarResenaCliente(): void {
+            if (!equipoActual) {
+                mostrarToast('No hay una ficha de reparación seleccionada', 'error');
+                return;
+            }
+            const url = SrFixReviewRequest.buildWhatsAppUrl({
+                phone: equipoActual.CLIENTE_TELEFONO,
+                clientName: equipoActual.CLIENTE_NOMBRE,
+                device: equipoActual.DISPOSITIVO,
+                repairWork: equipoActual.CASO_RESOLUCION_TECNICA,
+                status: equipoActual.ESTADO,
+                reviewUrl: CONFIG.REVIEW_URL
+            });
+            if (!url) {
+                actualizarBotonResena(equipoActual);
+                mostrarToast('La solicitud requiere una reparación entregada y un teléfono válido', 'error');
+                return;
+            }
+
+            const popup = window.open(url, '_blank');
+            if (!popup) {
+                mostrarToast('No se pudo abrir WhatsApp. Revisa si el navegador bloqueó la ventana emergente.', 'error');
+                return;
+            }
+            popup.opener = null;
+            mostrarToast('WhatsApp tiene el borrador listo. Revísalo y envíalo manualmente.', 'info');
         }
 
         function enviarWhatsAppCliente(): void {
@@ -1457,6 +1513,8 @@ function renderLoadErrorState(message: string): void {
             e.preventDefault();
             enviarWhatsAppCliente();
         });
+
+            document.getElementById('modal-review-btn')?.addEventListener('click', solicitarResenaCliente);
 
         ['click', 'touchstart', 'keydown'].forEach((evt: string) => {
             document.addEventListener(evt, unlockAudio, { once: true, passive: true });

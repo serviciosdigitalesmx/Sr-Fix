@@ -71,9 +71,42 @@ function obtenerSiguienteFolio(key, prefix) {
   lock.waitLock(10000);
   try {
     const actual = Number(props.getProperty(key) || 0);
-    const siguiente = actual + 1;
+    let siguiente = actual + 1;
+    let folio = `${prefix}${String(siguiente).padStart(5, '0')}`;
+
+    // Evita repetir folios si las propiedades del script se reinician o si
+    // existen registros anteriores con el mismo prefijo en el spreadsheet.
+    const spreadsheet = Core_getSpreadsheet();
+    const foliosExistentes = Object.create(null);
+    const hojas = [
+      { nombre: 'Equipos', encabezados: ['FOLIO', 'FOLIO_EQUIPO', 'FOLIO_ORDEN'] },
+      { nombre: 'Solicitudes', encabezados: ['FOLIO_COTIZACION'] },
+      { nombre: 'Tareas', encabezados: ['FOLIO_TAREA'] },
+      { nombre: 'OrdenesCompra', encabezados: ['FOLIO_OC'] }
+    ];
+    hojas.forEach(function(config) {
+      const hoja = spreadsheet && spreadsheet.getSheetByName(config.nombre);
+      if (!hoja || hoja.getLastRow() < 2 || hoja.getLastColumn() < 1) return;
+      const ultimaFila = hoja.getLastRow();
+      const encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getDisplayValues()[0]
+        .map(function(valor) { return String(valor || '').trim().toUpperCase(); });
+      config.encabezados.forEach(function(encabezado) {
+        const indice = encabezados.indexOf(encabezado);
+        if (indice < 0) return;
+        hoja.getRange(2, indice + 1, ultimaFila - 1, 1).getDisplayValues().forEach(function(fila) {
+          const existente = String(fila[0] || '').trim().toUpperCase();
+          if (existente) foliosExistentes[existente] = true;
+        });
+      });
+    });
+
+    while (foliosExistentes[folio]) {
+      siguiente += 1;
+      folio = `${prefix}${String(siguiente).padStart(5, '0')}`;
+    }
+
     props.setProperty(key, String(siguiente));
-    return `${prefix}${String(siguiente).padStart(5, '0')}`;
+    return folio;
   } finally { lock.releaseLock(); }
 }
 

@@ -5,7 +5,7 @@ const CONFIG = {
         if (window.location && /^localhost$|^127\.0\.0\.1$|^\[::1\]$/.test(window.location.hostname)) {
             return '/api';
         }
-        return 'https://script.google.com/macros/s/AKfycbw4EVRdYhlmup-Jz7o3OKCw8v17LOxbgwDwAk0gbxHElofAfoeY33Ot6ah9r7OC-Ywk/exec';
+        return 'https://script.google.com/macros/s/AKfycbyj2zoEbIFANn-MM_SGf3o7BpVCJ58hI1J5t4Y4lOTJLKKx2c_RfCPaQYeKoOw6gf4f/exec';
     })(),
     REVIEW_URL: 'https://search.google.com/local/writereview?placeid=ChIJn0CVSNy_YoYRKPaDAcE8nSA',
     APP_URL: window.SRFIX_APP_URL || localStorage.getItem('srfix_app_url') || 'https://serviciosdigitalesmx.github.io/Sr-Fix',

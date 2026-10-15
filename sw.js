@@ -1,4 +1,4 @@
-const CACHE_NAME = 'srfix-static-v6-20260422-1';
+const CACHE_NAME = 'srfix-static-v7-20261014-1';
 const STATIC_ASSETS = [
   './',
   './integrador.html',

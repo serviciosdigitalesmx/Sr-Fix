@@ -1,8 +1,11 @@
 const CONFIG = {
     API_URL: (() => {
-        const override = window.SRFIX_API_URL || localStorage.getItem('srfix_api_url');
-        if (override) return override;
-        if (window.location && /^localhost$|^127\.0\.0\.1$|^\[::1\]$/.test(window.location.hostname)) {
+        const hostname = window.location && window.location.hostname || '';
+        const isLocalHost = /^localhost$|^127\.0\.0\.1$|^\[::1\]$/.test(hostname);
+        const explicitOverride = window.SRFIX_API_URL;
+        const localOverride = isLocalHost ? localStorage.getItem('srfix_api_url') : '';
+        if (explicitOverride || localOverride) return explicitOverride || localOverride;
+        if (isLocalHost) {
             return '/api';
         }
         return 'https://script.google.com/macros/s/AKfycbyj2zoEbIFANn-MM_SGf3o7BpVCJ58hI1J5t4Y4lOTJLKKx2c_RfCPaQYeKoOw6gf4f/exec';

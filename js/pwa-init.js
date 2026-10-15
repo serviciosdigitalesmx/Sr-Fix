@@ -1,5 +1,5 @@
 (function () {
-const BUILD_VERSION = '2026.04.22.1';
+const BUILD_VERSION = '2026.10.14.4';
     const MANIFEST_PATH = `./manifest.webmanifest?v=${encodeURIComponent(BUILD_VERSION)}`;
     const SW_PATH = `./sw.js?v=${encodeURIComponent(BUILD_VERSION)}`;
     const CACHE_RESET_KEY = 'srfix_cache_reset_version';
@@ -84,30 +84,25 @@ const BUILD_VERSION = '2026.04.22.1';
         }).catch(() => {});
     }
 
-    function resetClientCacheIfNeeded() {
+    async function resetClientCacheIfNeeded() {
         const previousVersion = localStorage.getItem(CACHE_RESET_KEY) || '';
         if (previousVersion === BUILD_VERSION) return;
         localStorage.setItem(CACHE_RESET_KEY, BUILD_VERSION);
 
+        const cleanupTasks = [];
         if ('caches' in window) {
-            caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))).catch(() => {});
+            cleanupTasks.push(caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))).catch(() => {}));
         }
 
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then((regs) => {
+            cleanupTasks.push(navigator.serviceWorker.getRegistrations().then((regs) => {
                 regs.forEach((reg) => {
                     try { reg.unregister(); } catch (e) {}
                 });
-            }).catch(() => {});
+            }).catch(() => {}));
         }
 
-        if (navigator.serviceWorker && typeof navigator.serviceWorker.getRegistration === 'function') {
-            navigator.serviceWorker.getRegistration().then((reg) => {
-                if (reg) {
-                    try { reg.update(); } catch (e) {}
-                }
-            }).catch(() => {});
-        }
+        await Promise.all(cleanupTasks);
     }
 
     function setupInstallPrompt() {
@@ -124,10 +119,9 @@ const BUILD_VERSION = '2026.04.22.1';
     }
 
     ensurePwaHead();
-    resetClientCacheIfNeeded();
+    resetClientCacheIfNeeded().finally(registerServiceWorker);
     window.addEventListener('online', updateOfflineState);
     window.addEventListener('offline', updateOfflineState);
     document.addEventListener('DOMContentLoaded', updateOfflineState);
-    registerServiceWorker();
     setupInstallPrompt();
 })();
